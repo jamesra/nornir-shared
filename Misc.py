@@ -26,8 +26,10 @@ def RunWithProfiler(functionStr, outputpath = None):
 
     logger = logging.getLogger('RunWithProfiler')
 
+    
+    logger.info("Profiling: " + functionStr)
+
     try:
-        logger.info("Profiling: " + functionStr)
         cProfile.run(functionStr, ProfilePath)
     finally:
         if not os.path.exists(ProfilePath):

@@ -28,15 +28,18 @@ if os.path.exists('Logs') == False:
 	except OSError as E:
 		if E.errno == 17:
 			# Log("Log dir already exists: " + 'Logs');
-			pass
+			pass 
+	
 
 if CURSES:
 	import curses
 	import curses.wrapper
+	import atexit
 
 	global stdscr
 
-
+	def __EndCurses__():
+		curses.endwin()
 
 	stdscr = curses.initscr()
 
@@ -73,6 +76,8 @@ if CURSES:
 		logWindow.move(0, 0);
 		logWindow.standout();
 		statusWindow.standend();
+		
+		atexit.register(__EndCurses__)
 	except Exception as e:
 		curses.endwin();
 		raise e;
@@ -96,7 +101,8 @@ def CurseString(topic, text):
 		statusWindow.move(yMax - 1, 0);
 		statusWindow.refresh();
 	else:
-		print(topic + ": " + text);
+		#print(topic + ": " + text);
+		return
 
 def CurseProgress(text, Progress, Total = None):
 	'''If Total is specified we display a percentage, otherwise
@@ -166,7 +172,7 @@ def CurseProgress(text, Progress, Total = None):
 					progText = text + " %0.3g%%" % ((float(Progress) / float(Total)) * 100)
 					progText = progText + ' ' + ETAString
 					# progText = progText + ' ' * (80 - len(progText));
-					print(progText);
+					# print(progText);
 	else:
 		if (Total is not None):
 			if(Progress is not None):
