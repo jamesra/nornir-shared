@@ -5,15 +5,14 @@ Created on Jul 11, 2012
 '''
 import os
 import subprocess
-import PrettyOutput
-import Utils.ProcessOutputInterceptor
-import Utils.Files
-import Pools
+import prettyoutput
+import utils.processoutputinterceptor
+import utils.files
+import pools
 import multiprocessing
 import logging
 import math
 import shutil
-import Pools
 
 def GetImageBpp(path):
     '''Returns how many bits per pixel the image at the provided path uses'''
