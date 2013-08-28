@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
-import PrettyOutput;
+import prettyoutput;
 import glob
 
 DownsampleFormat = '%03d';
@@ -142,7 +142,7 @@ def RecurseSubdirectories(Path,
     #    PrettyOutput.Log( os.path.join(Path, '*[!png]');
         dirs = os.listdir(Path);
     except:
-        PrettyOutput.Log("RecurseSubdirectories could not enumerate " + str(Path));
+        prettyoutput.Log("RecurseSubdirectories could not enumerate " + str(Path));
         return [];
 
     for d in dirs:
@@ -185,7 +185,7 @@ def RemoveDirectorySpaces(Path):
     import shutil
 
     if os.path.exists(Path) == False:
-        PrettyOutput.Log("No valid path provided as first argument")
+        prettyoutput.Log("No valid path provided as first argument")
         return;
 
     Dirlist = list();
@@ -197,7 +197,7 @@ def RemoveDirectorySpaces(Path):
     #    PrettyOutput.Log( os.path.join(Path, '*[!png]'))
         dirs = glob.glob(os.path.join(Path, '*'));
     except:
-        PrettyOutput.Log("RecurseSubdirectories could not enumerate " + Path)
+        prettyoutput.Log("RecurseSubdirectories could not enumerate " + Path)
         return [];
 
     for d in dirs:
@@ -221,7 +221,7 @@ def RemoveFilenameSpaces(Path, ext):
     import shutil
 
     if os.path.exists(Path) == False:
-        PrettyOutput.Log("No valid path provided as first argument")
+        prettyoutput.Log("No valid path provided as first argument")
         return;
 
     if(ext[0] != '.'):
@@ -229,7 +229,7 @@ def RemoveFilenameSpaces(Path, ext):
 
     globext = '*' + ext;
 
-    PrettyOutput.Log(os.path.join(Path, ext))
+    prettyoutput.Log(os.path.join(Path, ext))
 
     # List all of the .mrc files in the path
     files = glob.glob(os.path.join(Path, globext));
@@ -238,7 +238,7 @@ def RemoveFilenameSpaces(Path, ext):
     # #### is a section number
     # string is anything the users chooses to add
 
-    PrettyOutput.Log(files)
+    prettyoutput.Log(files)
     for f in files:
         filename = os.path.basename(f);
         dirname = os.path.dirname(f);

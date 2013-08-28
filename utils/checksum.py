@@ -3,7 +3,7 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
-import PrettyOutput;
+import prettyoutput;
 import os
 import hashlib
 
@@ -36,7 +36,7 @@ def DataChecksum(data):
 def FileChecksum(filename):
     '''Return the md5 hash of a file read in txt mode'''
     if not os.path.exists(filename):
-        PrettyOutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n");
+        prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n");
         return None;
 
     try:
@@ -48,7 +48,7 @@ def FileChecksum(filename):
             return DataChecksum(dataStr);
 
     except Exception as e:
-        PrettyOutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e));
+        prettyoutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e));
 
     return None
 

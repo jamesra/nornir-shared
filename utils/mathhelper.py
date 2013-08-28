@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 
-def Median(items):
+def ListMedian(items):
     '''Return the center item from a sorted list'''
     if items is None:
         return None;
