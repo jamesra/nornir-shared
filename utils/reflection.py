@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 
-import PrettyOutput
+import prettyoutput
 
 __ModuleClassCacheDict = dict();
 
@@ -27,7 +27,7 @@ def get_module_class(module, kls, LogErrIfNotFound = True):
     except AttributeError as E:
         m = None;
         if(LogErrIfNotFound):
-            PrettyOutput.LogErr(str(E) + " " + module + " , " + kls);
+            prettyoutput.LogErr(str(E) + " " + module + " , " + kls);
         pass
 
     __ModuleClassCacheDict[key] = m;
