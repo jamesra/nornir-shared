@@ -295,6 +295,3 @@ class Histogram:
             xmlFile.write(xmlStr)
             xmlFile.close()
 
-
-
-
