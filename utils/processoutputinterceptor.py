@@ -107,7 +107,7 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
 
         self.ProcessData = processData
         self.Output = list()  # List of output lines
-        self.LastLoadedFile = None '''Last file loaded by stom, used to rename the output'''
+        self.LastLoadedFile = None #Last file loaded by stom, used to rename the output
         self.TargetDir = TargetDir
         return
 
@@ -174,7 +174,7 @@ class StomPreviewOutputInterceptor(ProgressOutputInterceptor):
         self.Proc = proc
         self.ProcessData = processData
         self.Output = list()  # List of output lines
-        self.LastLoadedFile = None '''Last file loaded by stom, used to rename the output'''
+        self.LastLoadedFile = None  # Last file loaded by stom, used to rename the output
         self.stosfilename = None
 
         self.OverlayFilename = OverlayFilename
