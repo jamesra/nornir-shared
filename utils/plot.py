@@ -8,43 +8,43 @@ def ProcessArgs():
     parser = argparse.ArgumentParser('AutoLevelHistogram')
 
     parser.add_argument('-MinCutoff',
-                        action = 'store',
-                        required = False,
-                        default = None,
-                        type = float,
-                        help = 'What percentage of low intensity values are truncated',
-                        dest = 'MinCutoffPercent'
+                        action='store',
+                        required=False,
+                        default=None,
+                        type=float,
+                        help='What percentage of low intensity values are truncated',
+                        dest='MinCutoffPercent'
                         )
 
     parser.add_argument('-MaxCutoff',
-                        action = 'store',
-                        required = False,
-                        default = None,
-                        type = float,
-                        help = 'What percentage of high intensity values are truncated',
-                        dest = 'MaxCutoffPercent'
+                        action='store',
+                        required=False,
+                        default=None,
+                        type=float,
+                        help='What percentage of high intensity values are truncated',
+                        dest='MaxCutoffPercent'
                         )
 
     parser.add_argument('-line',
-                        action = 'store',
-                        required = False,
-                        default = None,
-                        type = float,
-                        help = 'Place a line at the specified x location on the graph',
-                        dest = 'LinePosition'
+                        action='store',
+                        required=False,
+                        default=None,
+                        type=float,
+                        help='Place a line at the specified x location on the graph',
+                        dest='LinePosition'
                         )
 
     parser.add_argument('-load',
-                        action = 'store',
-                        required = True,
-                        help = "The filename of the histogram.xml file to read",
+                        action='store',
+                        required=True,
+                        help="The filename of the histogram.xml file to read",
                         dest='HistogramFilename')
 
     parser.add_argument('-save',
-                        action = 'store',
-                        required = False,
-                        default = None,
-                        help = "Image filename to save",
+                        action='store',
+                        required=False,
+                        default=None,
+                        help="Image filename to save",
                         dest='ImageFilename')
 
     args = parser.parse_args()
@@ -52,7 +52,7 @@ def ProcessArgs():
 
 
 def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, Title=None):
-    Hist = Histogram.Load(HistogramFilename)
+    Hist = histogram.Histogram.Load(HistogramFilename)
 
     if(Hist is None):
         PrettyOutput.LogErr("PlotHistogram: Histogram file not found " + HistogramFilename)
