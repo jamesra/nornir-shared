@@ -5,7 +5,7 @@ Created on Mar 5, 2013
 '''
 import unittest
 
-from utils.histogram import *
+from nornir_shared.histogram import *
 
 class Test(unittest.TestCase):
 

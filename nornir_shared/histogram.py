@@ -2,7 +2,7 @@ import sys
 import xml.dom.minidom
 import string
 import os
-import utils.prettyoutput as PrettyOutput
+import prettyoutput
 import copy
 import math
 
@@ -57,14 +57,14 @@ class Histogram:
         obj = Histogram()
 
         if(os.path.exists(filename) == False):
-            PrettyOutput.Log("Mosaic file not found: " + filename)
+            prettyoutput.Log("Mosaic file not found: " + filename)
             return
 
         xmlDoc = xml.dom.minidom.parse(filename)
 
         Elems = xmlDoc.getElementsByTagName('Histogram')
         if(len(Elems) != 1):
-            PrettyOutput.Log("Histogram tag not found in histogram XML")
+            prettyoutput.Log("Histogram tag not found in histogram XML")
             return
 
         HistogramElem = Elems[0]
@@ -84,7 +84,7 @@ class Histogram:
         ChannelElems = HistogramElem.getElementsByTagName('Channel')
 
         if(len(ChannelElems) == 0):
-            PrettyOutput.Log("No channel element found in histogram")
+            prettyoutput.Log("No channel element found in histogram")
             return
 
         ChannelElem = ChannelElems[0]
@@ -99,12 +99,12 @@ class Histogram:
             obj.Bins.append(string.atoi(BinStrings[i]))
 
         if(len(obj.Bins) != obj.NumBins):
-            PrettyOutput.Log("ERROR: obj.Bins != obj.NumBins")
-            PrettyOutput.Log(str(obj))
+            prettyoutput.Log("ERROR: obj.Bins != obj.NumBins")
+            prettyoutput.Log(str(obj))
             return
 
         return obj
-       # PrettyOutput.Log( self.Bins)
+       # prettyoutput.Log( self.Bins)
 
     @property
     def BinWidth(self):
@@ -213,7 +213,7 @@ class Histogram:
 #        if not MaxCutoff is None:
 #            MaxCutoffCount = float(MaxCutoff) * float(self.NumSamples)
 #            Count = 0
-#        #    PrettyOutput.Log(range(self.NumBins - 1, 0,-1))
+#        #    prettyoutput.Log(range(self.NumBins - 1, 0,-1))
 #            for i in range(self.NumBins - 1, 0,-1):
 #                Count += self.Bins[i]
 #                iMaxBin = i
@@ -222,8 +222,8 @@ class Histogram:
 #
 #            MaxCutoffValue = (float(iMaxBin) * self.BinWidth) + (self.BinWidth-1) + float(self.MinValue)
 
-        # PrettyOutput.Log("MinValue: " + str(self.MinValue) + " MaxValue: " + str(self.MaxValue) + " StepSize: " + str(self.BinWidth()))
-        # PrettyOutput.Log("iBins: " + str(iMinBin) + " " + str(iMaxBin))
+        # prettyoutput.Log("MinValue: " + str(self.MinValue) + " MaxValue: " + str(self.MaxValue) + " StepSize: " + str(self.BinWidth()))
+        # prettyoutput.Log("iBins: " + str(iMinBin) + " " + str(iMaxBin))
 
         return [MinCutoffValue, MaxCutoffValue]
 
@@ -245,7 +245,7 @@ class Histogram:
             self.Bins[iTargetBin] = self.Bins[iTargetBin] + 1
             self.NumSamples = self.NumSamples + 1
 
-        # PrettyOutput.Log(str(self))
+        # prettyoutput.Log(str(self))
 
     def MapIntensityToBin(self, val):
         iBin = int(math.floor((val - self.MinValue) / self.BinWidth))
@@ -284,7 +284,7 @@ class Histogram:
 
         ChannelElem = xmlDoc.createElement('Channel')
         binsString = self.BinsToString()
- #       PrettyOutput.Log( binsString)
+ #       prettyoutput.Log( binsString)
         channelText = xmlDoc.createTextNode(binsString)
 
         ChannelElem.appendChild(channelText)

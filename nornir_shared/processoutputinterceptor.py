@@ -8,8 +8,7 @@ import os
 import shutil
 import random
 import subprocess
-import pools
-import utils.histogram as Histogram
+# import nornir_pools as pools
 
 class ProcessOutputInterceptor(object):
     '''
@@ -168,130 +167,131 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
 
         return
 
-class StomPreviewOutputInterceptor(ProgressOutputInterceptor):
-
-    def __init__(self, proc, processData = None, OverlayFilename = None, DiffFilename = None, WarpedFilename = None):
-        self.Proc = proc
-        self.ProcessData = processData
-        self.Output = list()  # List of output lines
-        self.LastLoadedFile = None  # Last file loaded by stom, used to rename the output
-        self.stosfilename = None
-
-        self.OverlayFilename = OverlayFilename
-        self.DiffFilename = DiffFilename
-        self.WarpedFilename = WarpedFilename
-        return
-
-    def Parse(self, line):
-        '''Parse a line of output from stom so we can figure out how to correctly name the output files.
-           sample input: 
-            Tool Percentage: 5.000000e-002
-            loading 0009_ShadingCorrected-dapi_blob_1.png
-            saving BruteResults/008.tif
-            Tool Percentage: 5.000000e-002
-            loading 0010_ShadingCorrected-dapi_blob_1.png
-            saving BruteResults/009.tif
-            Tool Percentage: 5.000000e-002'''
-
-        # Line is called with None when the process has terminated which means it is safe to rename the created files
-        if line is not None:
-            # Let base class handle a progress percentage message
-            ProgressOutputInterceptor.Parse(self, line)
-            prettyoutput.Log(line)
-            self.Output.append(line)
-        else:
-            outputfiles = list()
-            '''Create a cmd for image magick to merge the images'''
-
-
-            for line in self.Output:
-                '''Processes a single line of output from the provided process and updates status as needed'''
-                try:
-                    line = line.lower()
-                    if(line.find("loading") >= 0):
-                        parts = line.split()
-                        [name, ext] = os.path.splitext(parts[1])
-                        if(self.stosfilename is None):
-                            self.stosfilename = name
-                        else:
-                            self.LastLoadedFile = name
-
-                    elif(line.find("saving") >= 0):
-                        parts = line.split()
-                        outputFile = parts[1]
-                        # Figure out if the output file has a different path
-                        path = os.path.dirname(outputFile)
-
-                        [name, ext] = os.path.splitext(outputFile)
-                        if(ext is None):
-                            ext = '.tif'
-
-                        if(len(ext) <= 0):
-                            ext = '.tif'
-
-                        outputfiles.append(outputFile)
-                        # prettyoutput.Log("Renaming " + outputFile + " to " + os.path.join(path, self.LastLoadedFile + ext))
-
-                        # shutil.move(outputFile, os.path.join(path, self.LastLoadedFile + ext))
-                except:
-                    pass
-
-            if(len(outputfiles) == 2):
-
-                [OverlayFile, ext] = os.path.splitext(self.stosfilename)
-                path = os.path.dirname(outputfiles[0])
-                [temp, ext] = os.path.splitext(outputfiles[0])
-
-                # Rename the files so we can continue without waiting for convert
-                while(True):
-                    r = random.randrange(2, 100000, 1)
-                    tempfilenameOne = os.path.join(path, str(r) + ext)
-                    tempfilenameTwo = os.path.join(path, str(r + 1) + ext)
-
-                    while os.path.exists(tempfilenameOne) or os.path.exists(tempfilenameTwo):
-                        r = random.randrange(2, 100000, 1)
-                        tempfilenameOne = os.path.join(path, str(r) + ext)
-                        tempfilenameTwo = os.path.join(path, str(r + 1) + ext)
-
-                    if (not os.path.exists(tempfilenameOne)) and (not os.path.exists(tempfilenameTwo)):
-                        prettyoutput.Log("Renaming " + outputfiles[0] + " to " + tempfilenameOne)
-                        shutil.move(outputfiles[0], tempfilenameOne)
-
-                        prettyoutput.Log("Renaming " + outputfiles[1] + " to " + tempfilenameTwo)
-                        shutil.move(outputfiles[1], tempfilenameTwo)
-                        break
-
-                if self.OverlayFilename is None:
-                    OverlayFilename = 'overlay_' + OverlayFile.replace("temp", "", 1) + '.png'
-                else:
-                    OverlayFilename = self.OverlayFilename
-
-                Pool = Pools.GetGlobalProcessPool()
-
-                cmd = 'convert -colorspace RGB ' + tempfilenameOne + ' ' + tempfilenameTwo + ' ' + tempfilenameOne + ' -combine -interlace PNG ' + OverlayFilename
-                prettyoutput.Log(cmd)
-                Pool.add_task(cmd, cmd + " && exit", shell = True)
-                # subprocess.Popen(cmd + " && exit", shell=True)
-
-                if self.DiffFilename is None:
-                    DiffFilename = 'diff_' + OverlayFile.replace("temp", "", 1) + '.png'
-                else:
-                    DiffFilename = self.DiffFilename
-
-                cmd = 'composite ' + tempfilenameOne + ' ' + tempfilenameTwo + ' -compose difference  -interlace PNG ' + DiffFilename
-                prettyoutput.Log(cmd)
-
-                Pool.add_task(cmd, cmd + " && exit", shell = True)
-
-                if not self.WarpedFilename is None:
-                    cmd = 'convert ' + tempfilenameTwo + " -interlace PNG " + self.WarpedFilename
-                    Pool.add_task(cmd, cmd + " && exit", shell = True)
-
-                # subprocess.call(cmd + " && exit", shell=True)
-            else:
-                prettyoutput.Log("Unexpected number of images output from ir-stom, expected 2: " + str(outputfiles))
-
-        return
+# #TODO: Move this to the pipeline operations since it does extra stuff for building images and uses the process pool
+# class StomPreviewOutputInterceptor(ProgressOutputInterceptor):
+#
+#    def __init__(self, proc, processData = None, OverlayFilename = None, DiffFilename = None, WarpedFilename = None):
+#        self.Proc = proc
+#        self.ProcessData = processData
+#        self.Output = list()  # List of output lines
+#        self.LastLoadedFile = None  # Last file loaded by stom, used to rename the output
+#        self.stosfilename = None
+#
+#        self.OverlayFilename = OverlayFilename
+#        self.DiffFilename = DiffFilename
+#        self.WarpedFilename = WarpedFilename
+#        return
+#
+#    def Parse(self, line):
+#        '''Parse a line of output from stom so we can figure out how to correctly name the output files.
+#           sample input:
+#            Tool Percentage: 5.000000e-002
+#            loading 0009_ShadingCorrected-dapi_blob_1.png
+#            saving BruteResults/008.tif
+#            Tool Percentage: 5.000000e-002
+#            loading 0010_ShadingCorrected-dapi_blob_1.png
+#            saving BruteResults/009.tif
+#            Tool Percentage: 5.000000e-002'''
+#
+#        # Line is called with None when the process has terminated which means it is safe to rename the created files
+#        if line is not None:
+#            # Let base class handle a progress percentage message
+#            ProgressOutputInterceptor.Parse(self, line)
+#            prettyoutput.Log(line)
+#            self.Output.append(line)
+#        else:
+#            outputfiles = list()
+#            '''Create a cmd for image magick to merge the images'''
+#
+#
+#            for line in self.Output:
+#                '''Processes a single line of output from the provided process and updates status as needed'''
+#                try:
+#                    line = line.lower()
+#                    if(line.find("loading") >= 0):
+#                        parts = line.split()
+#                        [name, ext] = os.path.splitext(parts[1])
+#                        if(self.stosfilename is None):
+#                            self.stosfilename = name
+#                        else:
+#                            self.LastLoadedFile = name
+#
+#                    elif(line.find("saving") >= 0):
+#                        parts = line.split()
+#                        outputFile = parts[1]
+#                        # Figure out if the output file has a different path
+#                        path = os.path.dirname(outputFile)
+#
+#                        [name, ext] = os.path.splitext(outputFile)
+#                        if(ext is None):
+#                            ext = '.tif'
+#
+#                        if(len(ext) <= 0):
+#                            ext = '.tif'
+#
+#                        outputfiles.append(outputFile)
+#                        # prettyoutput.Log("Renaming " + outputFile + " to " + os.path.join(path, self.LastLoadedFile + ext))
+#
+#                        # shutil.move(outputFile, os.path.join(path, self.LastLoadedFile + ext))
+#                except:
+#                    pass
+#
+#            if(len(outputfiles) == 2):
+#
+#                [OverlayFile, ext] = os.path.splitext(self.stosfilename)
+#                path = os.path.dirname(outputfiles[0])
+#                [temp, ext] = os.path.splitext(outputfiles[0])
+#
+#                # Rename the files so we can continue without waiting for convert
+#                while(True):
+#                    r = random.randrange(2, 100000, 1)
+#                    tempfilenameOne = os.path.join(path, str(r) + ext)
+#                    tempfilenameTwo = os.path.join(path, str(r + 1) + ext)
+#
+#                    while os.path.exists(tempfilenameOne) or os.path.exists(tempfilenameTwo):
+#                        r = random.randrange(2, 100000, 1)
+#                        tempfilenameOne = os.path.join(path, str(r) + ext)
+#                        tempfilenameTwo = os.path.join(path, str(r + 1) + ext)
+#
+#                    if (not os.path.exists(tempfilenameOne)) and (not os.path.exists(tempfilenameTwo)):
+#                        prettyoutput.Log("Renaming " + outputfiles[0] + " to " + tempfilenameOne)
+#                        shutil.move(outputfiles[0], tempfilenameOne)
+#
+#                        prettyoutput.Log("Renaming " + outputfiles[1] + " to " + tempfilenameTwo)
+#                        shutil.move(outputfiles[1], tempfilenameTwo)
+#                        break
+#
+#                if self.OverlayFilename is None:
+#                    OverlayFilename = 'overlay_' + OverlayFile.replace("temp", "", 1) + '.png'
+#                else:
+#                    OverlayFilename = self.OverlayFilename
+#
+#                Pool = pools.GetGlobalProcessPool()
+#
+#                cmd = 'convert -colorspace RGB ' + tempfilenameOne + ' ' + tempfilenameTwo + ' ' + tempfilenameOne + ' -combine -interlace PNG ' + OverlayFilename
+#                prettyoutput.Log(cmd)
+#                Pool.add_task(cmd, cmd + " && exit", shell = True)
+#                # subprocess.Popen(cmd + " && exit", shell=True)
+#
+#                if self.DiffFilename is None:
+#                    DiffFilename = 'diff_' + OverlayFile.replace("temp", "", 1) + '.png'
+#                else:
+#                    DiffFilename = self.DiffFilename
+#
+#                cmd = 'composite ' + tempfilenameOne + ' ' + tempfilenameTwo + ' -compose difference  -interlace PNG ' + DiffFilename
+#                prettyoutput.Log(cmd)
+#
+#                Pool.add_task(cmd, cmd + " && exit", shell = True)
+#
+#                if not self.WarpedFilename is None:
+#                    cmd = 'convert ' + tempfilenameTwo + " -interlace PNG " + self.WarpedFilename
+#                    Pool.add_task(cmd, cmd + " && exit", shell = True)
+#
+#                # subprocess.call(cmd + " && exit", shell=True)
+#            else:
+#                prettyoutput.Log("Unexpected number of images output from ir-stom, expected 2: " + str(outputfiles))
+#
+#        return
 
 class IdentifyOutputInterceptor(ProcessOutputInterceptor):
 

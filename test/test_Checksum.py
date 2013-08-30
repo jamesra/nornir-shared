@@ -4,7 +4,7 @@ Created on Feb 11, 2013
 @author: u0490822
 '''
 import unittest
-from utils.checksum import *
+from nornir_shared.checksum import DataChecksum
 
 class Test(unittest.TestCase):
 
