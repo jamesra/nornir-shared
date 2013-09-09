@@ -41,11 +41,11 @@ def RemoveOutdatedFile(ReferenceFilename, TestFilename):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
     if(OutdatedFile(ReferenceFilename, TestFilename)):
         try:
-            PrettyOutput.Log('Removing outdated file: ' + TestFilename);
+            prettyoutput.Log('Removing outdated file: ' + TestFilename);
             os.remove(TestFilename);
             return True;
         except:
-            PrettyOutput.Log('Exception removing outdated file: ' + TestFilename);
+            prettyoutput.Log('Exception removing outdated file: ' + TestFilename);
             pass;
 
  #   [name, ext] = os.path.splitext(TestFilename);
@@ -69,7 +69,7 @@ def RecurseSubdirectories(Path,
        '''
 
     if not os.path.exists(Path):
-        PrettyOutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
+        prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
 
     if ExcludedDownsampleLevels is None:
         ExcludedDownsampleLevels = DefaultLevels;
@@ -139,7 +139,7 @@ def RecurseSubdirectories(Path,
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
     dirs = [];
     try:
-    #    PrettyOutput.Log( os.path.join(Path, '*[!png]');
+    #    prettyoutput.Log( os.path.join(Path, '*[!png]');
         dirs = os.listdir(Path);
     except:
         prettyoutput.Log("RecurseSubdirectories could not enumerate " + str(Path));
@@ -194,7 +194,7 @@ def RemoveDirectorySpaces(Path):
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
     dirs = [];
     try:
-    #    PrettyOutput.Log( os.path.join(Path, '*[!png]'))
+    #    prettyoutput.Log( os.path.join(Path, '*[!png]'))
         dirs = glob.glob(os.path.join(Path, '*'));
     except:
         prettyoutput.Log("RecurseSubdirectories could not enumerate " + Path)

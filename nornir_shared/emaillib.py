@@ -1,9 +1,8 @@
 
 import smtplib
-import Utils.PrettyOutput as PrettyOutput
-from email.mime.text import MIMEText
+import nornir_shared.prettyoutput as PrettyOutput
 import os
-from email.mime import multipart, base, text, image
+from email.mime import multipart, text, image
 from email.utils import COMMASPACE, formatdate
 from email import encoders
 

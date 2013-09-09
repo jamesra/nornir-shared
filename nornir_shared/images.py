@@ -13,6 +13,8 @@ import logging
 import math
 import shutil
 
+import nornir_pools as Pools
+
 def GetImageBpp(path):
     '''Returns how many bits per pixel the image at the provided path uses'''
 
@@ -98,11 +100,11 @@ def IdentifyImage(ImageFilePath):
     try:
         NewP = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
     except:
-        PrettyOutput.Log('Eror calling ' + cmd)
+        prettyoutput.Log('Eror calling ' + cmd)
         pass
 
-    interceptor = Utils.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
-    Utils.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
+    interceptor = utils.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
+    utils.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
 
     return interceptor
 
@@ -180,7 +182,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
 def Shrink(InFile, OutFile, ShrinkFactor):
     Percentage = (1 / float(ShrinkFactor)) * 100.0
     cmd = "Convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 106  -colorspace gray " + OutFile
-    PrettyOutput.CurseString('Cmd', cmd)
+    prettyoutput.CurseString('Cmd', cmd)
     NewP = subprocess.Popen(cmd + " && exit", shell=True)
     return NewP
 
@@ -210,7 +212,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     if len(ImagesToConvertDict) == 0:
         return
 
-    PrettyOutput.CurseString('Stage', "ConvertImagesInDict")
+    prettyoutput.CurseString('Stage', "ConvertImagesInDict")
     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
                                         # doubling the number of procs should keep the CPU busy
 
@@ -218,7 +220,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
     if not MinMax is None:
         if(MinMax[0] > MinMax[1]):
-            PrettyOutput.Log("Invalid MinMax parameter passed to ConvertImagesInDict")
+            prettyoutput.Log("Invalid MinMax parameter passed to ConvertImagesInDict")
             MinMax = None
 
     originalFileName = ""
@@ -288,10 +290,10 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
         targetFileName = '"' + ImagesToConvertDict[f] + '"'
 
         if(os.path.exists(targetFileName)):
-            PrettyOutput.Log('Skipping existing file: ' + str(targetFileName))
+            prettyoutput.Log('Skipping existing file: ' + str(targetFileName))
             continue
 
-        # PrettyOutput.Log(f + ' -> ' + ImagesToConvertDict[f])
+        # prettyoutput.Log(f + ' -> ' + ImagesToConvertDict[f])
 
 
 
@@ -304,9 +306,9 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
         if not SampleCmdPrinted:
             SampleCmdPrinted = True
-            PrettyOutput.Log('Converting images, example command:')
-            PrettyOutput.CurseString('Cmd', cmd)
-        # PrettyOutput.CurseString('Cmd', cmd)
+            prettyoutput.Log('Converting images, example command:')
+            prettyoutput.CurseString('Cmd', cmd)
+        # prettyoutput.CurseString('Cmd', cmd)
         ProcPool.add_task(OpNameStr, cmd, shell=True)
 
     # Keep waiting until all processes are finished
@@ -317,7 +319,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
         for f in ImagesToConvertDict.keys():
             # Don't delete unless the target file was created
             if(os.path.exists(ImagesToConvertDict[f])):
-                PrettyOutput.Log("Deleting: " + f)
+                prettyoutput.Log("Deleting: " + f)
                 os.remove(f)
 
 
@@ -332,7 +334,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     if(Logger is None):
         Logger = logging.getLogger('TilesFromImage')
 
-    PrettyOutput.CurseString('Stage', "Tiles from Image")
+    prettyoutput.CurseString('Stage', "Tiles from Image")
     if ImageExt is None:
         ImageExt = 'png'
 
@@ -374,12 +376,12 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 
     XMLFilePath = os.path.join(DownSampleDirectory, str(Downsample) + ".xml")
 
-    Utils.Files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
+    utils.Files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
 
     if not os.path.exists(XMLFilePath):
         # Convert is going to create a list of names.
         cmd = 'convert -crop ' + str(TileSize[0]) + 'x' + str(TileSize[1]) + ' ' + ImageFullPath + ' -depth 8 -quality 106 -type Grayscale -extent ' + str(XDim) + 'x' + str(YDim) + ' ' + tilePrefixPath
-        PrettyOutput.CurseString('Cmd', cmd)
+        prettyoutput.CurseString('Cmd', cmd)
         subprocess.call(cmd + ' && exit', shell=True)
 
         iFile = 0
@@ -411,7 +413,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 #        OutputImageDir = os.path.join(BasePathName, Config.DownsampleFormat % TargetDownsample)
 #        OutputXmlFilePath = os.path.join(BasePathName, Config.DownsampleFormat % TargetDownsample, SectionName + '.xml')
 #
-#        Utils.Files.RemoveOutdatedFile(XmlFilePath, OutputXmlFilePath)
+#        utils.Files.RemoveOutdatedFile(XmlFilePath, OutputXmlFilePath)
 #
 #        if(os.path.exists(OutputXmlFilePath) == False):
 #            BuildTilePyramids(Dir, InputImageDir, XmlFilePath, OutputImageDir, TargetDownsample)
@@ -421,7 +423,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 
 def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTarget, FilePrefix, FilePostfix=".png"):
     # Write a new XML file
-    PrettyOutput.CurseString('Stage', "WriteTilesetXML : " + XMLOutputPath)
+    prettyoutput.CurseString('Stage', "WriteTilesetXML : " + XMLOutputPath)
     with  open(XMLOutputPath, 'w') as newXML:
 
         newXML.write('<?xml version="1.0" ?> \n')

@@ -1,1 +1,1 @@
-__all__ = ['checksum', 'files', 'histogram', 'images', 'math', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput']
+__all__ = ['checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
