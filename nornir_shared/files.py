@@ -69,16 +69,7 @@ def RecurseSubdirectories(Path,
        '''
 
     generator = RecurseSubdirectoriesGenerator(Path=Path, RequiredFiles=RequiredFiles, ExcludedFiles=ExcludedFiles, MatchNames=MatchNames, ExcludeNames=ExcludeNames, ExcludedDownsampleLevels=ExcludedDownsampleLevels)
-    # listFiles = list(generator)
-    listFiles = []
-    try:
-        while True:
-            listFiles.append(generator.next())
-    except StopIteration as e:
-        pass
-
-    return listFiles
-
+    return list(generator)
 
 def RecurseSubdirectoriesGenerator(Path,
                           RequiredFiles=None,
