@@ -4,52 +4,52 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
-import prettyoutput;
+import prettyoutput
 import glob
 
-DownsampleFormat = '%03d';
-DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024];
+DownsampleFormat = '%03d'
+DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
 
 def NewestFile(fileA, fileB):
     '''Returns parameter which is the newest, or none if equal.'''
     if(fileA is None):
-        return None;
+        return None
     if(fileB is None):
-        return None;
+        return None
 
     if not os.path.exists(fileA):
-        return None;
+        return None
     if not os.path.exists(fileB):
-        return None;
+        return None
 
-    AStats = os.stat(fileA);
-    BStats = os.stat(fileB);
+    AStats = os.stat(fileA)
+    BStats = os.stat(fileB)
 
     if(AStats.st_mtime > BStats.st_mtime):
-        return fileA;
+        return fileA
     elif(AStats.st_mtime < BStats.st_mtime):
-        return fileB;
+        return fileB
     else:
-        return None;
+        return None
 
 def OutdatedFile(ReferenceFilename, TestFilename):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
-    return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename;
+    return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 def RemoveOutdatedFile(ReferenceFilename, TestFilename):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
     if(OutdatedFile(ReferenceFilename, TestFilename)):
         try:
-            prettyoutput.Log('Removing outdated file: ' + TestFilename);
-            os.remove(TestFilename);
-            return True;
+            prettyoutput.Log('Removing outdated file: ' + TestFilename)
+            os.remove(TestFilename)
+            return True
         except:
-            prettyoutput.Log('Exception removing outdated file: ' + TestFilename);
-            pass;
+            prettyoutput.Log('Exception removing outdated file: ' + TestFilename)
+            pass
 
- #   [name, ext] = os.path.splitext(TestFilename);
-    return False;
+ #   [name, ext] = os.path.splitext(TestFilename)
+    return False
 
 
 def RecurseSubdirectories(Path,
@@ -68,114 +68,137 @@ def RecurseSubdirectories(Path,
        Excluded files take priority over RequiredFiles
        '''
 
+    generator = RecurseSubdirectoriesGenerator(Path=Path, RequiredFiles=RequiredFiles, ExcludedFiles=ExcludedFiles, MatchNames=MatchNames, ExcludeNames=ExcludeNames, ExcludedDownsampleLevels=ExcludedDownsampleLevels)
+    # listFiles = list(generator)
+    listFiles = []
+    try:
+        while True:
+            listFiles.append(generator.next())
+    except StopIteration as e:
+        pass
+
+    return listFiles
+
+
+def RecurseSubdirectoriesGenerator(Path,
+                          RequiredFiles=None,
+                          ExcludedFiles=None,
+                          MatchNames=None,
+                          ExcludeNames=None,
+                          ExcludedDownsampleLevels=None):
+    '''Same as RecurseSubdirectories, but returns a generator'''
+
     if not os.path.exists(Path):
         prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
 
     if ExcludedDownsampleLevels is None:
-        ExcludedDownsampleLevels = DefaultLevels;
+        ExcludedDownsampleLevels = DefaultLevels
 
     if ExcludeNames is None:
-        ExcludeNames = ["clahe", "mbproj", "8-bit", "16-bit", "blob", "mosaic", "tem", "temp", "bruteresults", "gridresults", "results", "registered"];
+        ExcludeNames = ["clahe", "mbproj", "8-bit", "16-bit", "blob", "mosaic", "tem", "temp", "bruteresults", "gridresults", "results", "registered"]
     else:
-        if ExcludeNames.__class__ != list:
-            if not MatchNames is None:
-                ExcludeNames = [MatchNames];
-            else:
-                ExcludeNames = [];
+        if not ExcludeNames.__class__ == list:
+            ExcludeNames = [ExcludeNames]
+
 
         for i in range(0, len(ExcludeNames)):
-            ExcludeNames[i] = ExcludeNames[i].lower();
+            ExcludeNames[i] = ExcludeNames[i].lower()
 
     for level in ExcludedDownsampleLevels:
-        ExcludeNames.append(DownsampleFormat % level);
+        ExcludeNames.append(DownsampleFormat % level)
 
     if MatchNames is not None:
         if MatchNames.__class__ != list:
-            MatchNames = [MatchNames];
+            MatchNames = [MatchNames]
 
         for i in range(0, len(MatchNames)):
-            MatchNames[i] = MatchNames[i].lower();
+            MatchNames[i] = MatchNames[i].lower()
 
     if(not RequiredFiles is None):
         if(RequiredFiles.__class__ != list):
-            RequiredFiles = [RequiredFiles];
+            RequiredFiles = [RequiredFiles]
 
-    Dirlist = list();
+    Dirlist = list()
 
     # Exclude takes priority over included files
     if ExcludedFiles is not None:
         if(ExcludedFiles.__class__ != list):
             # If not a list then it should be a regular expression string
-            files = glob.glob(os.path.join(Path, ExcludedFiles));
+            files = glob.glob(os.path.join(Path, ExcludedFiles))
             if(len(files) > 0):
                 # We found a match, do not add this directory to the list and search no further
-                return Dirlist;
+                return
         else:
             for filename in ExcludedFiles:
                 if os.path.exists(os.path.join(Path, filename)):
                     # We found a match, do not add this directory to the list and search no further
-                    return Dirlist;
+                    return
 
     if RequiredFiles is not None:
         for filename in RequiredFiles:
             if os.path.exists(os.path.join(Path, filename)):
                 # We found a match, add this directory to the list but search no further
-                Dirlist.append(Path);
-                return Dirlist;
+                Dirlist.append(Path)
+                return
+
             elif '*' in filename or '?' in filename:
-                files = glob.glob(os.path.join(Path, filename));
+                files = glob.glob(os.path.join(Path, filename))
                 if(len(files) > 0):
                     # We found a match, add this directory to the list but search no further
-                    Dirlist.append(Path);
-                    return Dirlist;
+                    Dirlist.append(Path)
+                    return
 
         # If we do not return it means the directory did not contain the required file, but we continue the search of subdirectories
     elif MatchNames is None:
         # Include directory if no required file specified
-        Dirlist.append(Path);
+        Dirlist.append(Path)
 
     # If we made it this far we did not match either Required or Excluded Files
 
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
-    dirs = [];
+    dirs = []
     try:
-    #    prettyoutput.Log( os.path.join(Path, '*[!png]');
-        dirs = os.listdir(Path);
+    #    prettyoutput.Log( os.path.join(Path, '*[!png]')
+        dirs = os.listdir(Path)
     except:
-        prettyoutput.Log("RecurseSubdirectories could not enumerate " + str(Path));
-        return [];
+        prettyoutput.Log("RecurseSubdirectories could not enumerate " + str(Path))
+        return
 
     for d in dirs:
         if os.path.isfile(d):
-            continue;
+            continue
 
         # Skip if it contains a .
         if d.find('.') > -1:
-            continue;
+            continue
 
         # Skip if it contains words from the exclude list
-        name = os.path.basename(d);
-        name = name.lower();
+        name = os.path.basename(d)
+        name = name.lower()
 
         if MatchNames is not None:
             if name in MatchNames:
-                Dirlist.append(os.path.join(Path, d));
-                continue;
+                yield d
+                # Dirlist.append(os.path.join(Path, d))
+                # continue
 
         if (name in ExcludeNames):
-            continue;
+            continue
+
+        if MatchNames is None:
+            yield d
 
         # Add directory tree to list and keep looking
-        fullpath = os.path.join(Path, d);
+        fullpath = os.path.join(Path, d)
         if os.path.isdir(os.path.join(Path, d)):
-            Dirlist = Dirlist + RecurseSubdirectories(fullpath,
-                                                      RequiredFiles = RequiredFiles,
-                                                      ExcludedFiles = ExcludedFiles,
-                                                      MatchNames = MatchNames,
-                                                      ExcludeNames = ExcludeNames,
-                                                      ExcludedDownsampleLevels = ExcludedDownsampleLevels);
-    return Dirlist;
-
+            for subd in RecurseSubdirectories(fullpath,
+                                  RequiredFiles=RequiredFiles,
+                                  ExcludedFiles=ExcludedFiles,
+                                  MatchNames=MatchNames,
+                                  ExcludeNames=ExcludeNames,
+                                  ExcludedDownsampleLevels=ExcludedDownsampleLevels):
+                yield os.path.join(d, subd)
+    return
 
 
 def RemoveDirectorySpaces(Path):
@@ -186,35 +209,36 @@ def RemoveDirectorySpaces(Path):
 
     if os.path.exists(Path) == False:
         prettyoutput.Log("No valid path provided as first argument")
-        return;
+        return
 
-    Dirlist = list();
-    Dirlist.append(Path);
+    Dirlist = list()
+    Dirlist.append(Path)
 
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
-    dirs = [];
+    dirs = []
     try:
     #    prettyoutput.Log( os.path.join(Path, '*[!png]'))
-        dirs = glob.glob(os.path.join(Path, '*'));
+        dirs = glob.glob(os.path.join(Path, '*'))
     except:
         prettyoutput.Log("RecurseSubdirectories could not enumerate " + Path)
-        return [];
+        return []
 
     for d in dirs:
         if os.path.isfile(d):
-            continue;
+            continue
 
         # Skip if it contains a .
         if d.find('.') > -1:
-            continue;
+            continue
 
         # Skip if it contains words from the exclude list
-        name = os.path.basename(d);
-        parentDir = os.path.dirname(d);
-        nameNoSpaces = name.replace(' ', '_');
+        name = os.path.basename(d)
+        parentDir = os.path.dirname(d)
+        nameNoSpaces = name.replace(' ', '_')
         if(name != nameNoSpaces):
-            fullnameNoSpace = os.path.join(parentDir, nameNoSpaces);
-            shutil.move(d, fullnameNoSpace);
+            fullnameNoSpace = os.path.join(parentDir, nameNoSpaces)
+            shutil.move(d, fullnameNoSpace)
+
 
 def RemoveFilenameSpaces(Path, ext):
     '''Replaces spaces in filenames with _'''
@@ -222,17 +246,17 @@ def RemoveFilenameSpaces(Path, ext):
 
     if os.path.exists(Path) == False:
         prettyoutput.Log("No valid path provided as first argument")
-        return;
+        return
 
     if(ext[0] != '.'):
-        ext = '.' + ext;
+        ext = '.' + ext
 
-    globext = '*' + ext;
+    globext = '*' + ext
 
     prettyoutput.Log(os.path.join(Path, ext))
 
     # List all of the .mrc files in the path
-    files = glob.glob(os.path.join(Path, globext));
+    files = glob.glob(os.path.join(Path, globext))
 
     # We expect .mrc files to be named ####_string.mrc
     # #### is a section number
@@ -240,13 +264,13 @@ def RemoveFilenameSpaces(Path, ext):
 
     prettyoutput.Log(files)
     for f in files:
-        filename = os.path.basename(f);
-        dirname = os.path.dirname(f);
+        filename = os.path.basename(f)
+        dirname = os.path.dirname(f)
 
         # Remove spaces if they are found
-        filenameNoSpaces = filename.replace(' ', '_');
-        filePathNoSpaces = os.path.join(dirname, filenameNoSpaces);
-        shutil.move(f, filePathNoSpaces);
+        filenameNoSpaces = filename.replace(' ', '_')
+        filePathNoSpaces = os.path.join(dirname, filenameNoSpaces)
+        shutil.move(f, filePathNoSpaces)
 
 if __name__ == '__main__':
     pass
