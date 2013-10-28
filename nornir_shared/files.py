@@ -129,15 +129,16 @@ def RecurseSubdirectoriesGenerator(Path,
         for filename in RequiredFiles:
             if os.path.exists(os.path.join(Path, filename)):
                 # We found a match, add this directory to the list but search no further
-                Dirlist.append(Path)
+                yield Path
                 return
 
             elif '*' in filename or '?' in filename:
                 files = glob.glob(os.path.join(Path, filename))
                 if(len(files) > 0):
                     # We found a match, add this directory to the list but search no further
-                    Dirlist.append(Path)
+                    yield Path
                     return
+
 
         # If we do not return it means the directory did not contain the required file, but we continue the search of subdirectories
     elif MatchNames is None:
@@ -163,24 +164,26 @@ def RecurseSubdirectoriesGenerator(Path,
         if d.find('.') > -1:
             continue
 
+        fullpath = os.path.join(Path, d)
+
         # Skip if it contains words from the exclude list
         name = os.path.basename(d)
         name = name.lower()
 
         if MatchNames is not None:
             if name in MatchNames:
-                yield d
+                yield fullpath
                 # Dirlist.append(os.path.join(Path, d))
                 # continue
 
         if (name in ExcludeNames):
             continue
 
-        if MatchNames is None:
-            yield d
+        if MatchNames is None and RequiredFiles is None:
+            yield fullpath
 
         # Add directory tree to list and keep looking
-        fullpath = os.path.join(Path, d)
+
         if os.path.isdir(os.path.join(Path, d)):
             for subd in RecurseSubdirectories(fullpath,
                                   RequiredFiles=RequiredFiles,
@@ -188,7 +191,7 @@ def RecurseSubdirectoriesGenerator(Path,
                                   MatchNames=MatchNames,
                                   ExcludeNames=ExcludeNames,
                                   ExcludedDownsampleLevels=ExcludedDownsampleLevels):
-                yield os.path.join(d, subd)
+                yield subd
     return
 
 

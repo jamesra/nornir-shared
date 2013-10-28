@@ -73,21 +73,23 @@ class TestFiles(unittest.TestCase):
     def testName(self):
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=None, ExcludeNames=[], ExcludedDownsampleLevels=[])
-        expectedDirs = RecurseDictValues(TestFiles.DirTree, "")
+        expectedDirs = RecurseDictValues(TestFiles.DirTree, self.TestOutputPath)
         self.IsSubset(dirs, expectedDirs)
 
         # One known match in root dir
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['aaa'], ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, 'aaa')
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'aaa'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['baaa'], ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, 'bbb\\baaa')
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath,'bbb\\baaa'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['cca'], ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, 'ccc\\cc\\cca')
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath,'ccc\\cc\\cca'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
-        self.IsSubset(dirs, ['aaa', 'bbb', 'bbb\\baaa'])
+        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]
+        self.IsSubset(dirs, expectedVals)
+
 
 
 
