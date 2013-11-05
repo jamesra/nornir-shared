@@ -22,9 +22,11 @@ class TaskTimer:
     def End(self, task, PrintElapsed = True):
         '''Stop a timer for a task, print output if PrintElapsed is not explicitely set to False'''
         tend = time.time();
-        tstart = self._TaskStartTime.pop(task, self.DefaultStartTime);
-
-        if(tstart == self.DefaultStartTime):
+        
+        tstart = self.DefaultStartTime
+        if task in self._TaskStartTime:
+            tstart = self._TaskStartTime.pop(task, self.DefaultStartTime)
+        else:
             prettyoutput.Log('No timer started for task ' + task + ' using default value');
 
         tdelta = tend - tstart;
