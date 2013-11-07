@@ -278,6 +278,8 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     SampleCmdPrinted = False
 
     colorspaceString = __Fix_sRGB_String(ImagesToConvertDict.keys()[0])
+    
+    tasks = []
 
     for f in ImagesToConvertDict.keys():
         OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
@@ -309,11 +311,15 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
             prettyoutput.Log('Converting images, example command:')
             prettyoutput.CurseString('Cmd', cmd)
         # prettyoutput.CurseString('Cmd', cmd)
-        ProcPool.add_task(OpNameStr, cmd, shell=True)
+        tasks.append( ProcPool.add_task(OpNameStr, cmd, shell=True) )
 
     # Keep waiting until all processes are finished
     # WaitForAllProcesses(Procs)
     ProcPool.wait_completion()
+    
+    for t in tasks:
+        if t.returncode > 0:
+            prettyoutput.LogErr("Failed to convert " + t.name)
 
     if bDeleteOriginal and (originalFileName != targetFileName):
         for f in ImagesToConvertDict.keys():
