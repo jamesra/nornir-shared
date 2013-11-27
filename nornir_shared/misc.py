@@ -7,10 +7,11 @@ Functions that are broadly used in Python programs but don't have a specific cat
 '''
 import os
 import logging
+import sys
 import time
 import atexit
 
-def RunWithProfiler(functionStr, outputpath = None):
+def RunWithProfiler(functionStr, outputpath=None):
     import cProfile
     import pstats
     import sys
@@ -26,7 +27,7 @@ def RunWithProfiler(functionStr, outputpath = None):
 
     logger = logging.getLogger('RunWithProfiler')
 
-    
+
     logger.info("Profiling: " + functionStr)
 
     try:
@@ -44,7 +45,7 @@ def RunWithProfiler(functionStr, outputpath = None):
 
     pr.print_callers(.1)
 
-def SetupLogging(OutputPath = None, Level = None):
+def SetupLogging(OutputPath=None, Level=None):
 
     if(Level is None):
         Level = logging.INFO
@@ -82,6 +83,40 @@ def SetupLogging(OutputPath = None, Level = None):
 
     # Automatically shutdown logging when our process ends
     atexit.register(logging.shutdown)
+
+
+def lowpriority():
+    """ Set the priority of the process to below-normal.
+        Copied from: http://stackoverflow.com/questions/1023038/change-process-priority-in-python-cross-platform"""
+
+    try:
+        sys.getwindowsversion()
+    except:
+        isWindows = False
+    else:
+        isWindows = True
+
+    try:
+        if isWindows:
+            # Based on:
+            #   "Recipe 496767: Set Process Priority In Windows" on ActiveState
+            #   http://code.activestate.com/recipes/496767/
+            import win32api, win32process, win32con
+            pid = os.getpid()
+            handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
+            win32process.SetPriorityClass(handle, win32process.BELOW_NORMAL_PRIORITY_CLASS)
+            win32api.CloseHandle(handle)
+        else:
+            # Unix and Mac should have a nice function
+            os.nice(1)
+    except:
+        logger = logging.getLogger('lowpriority')
+        if not logger is None:
+            logger.warn("Could not lower process priority")
+            if isWindows:
+                logger.warn("Are you missing Win32 extensions for python? http://sourceforge.net/projects/pywin32/")
+        pass
+
 
 def enum(*sequential, **named):
     '''Generates a dictionary of names to number values used as an enumeration'''
@@ -127,7 +162,7 @@ def GenNameFromDict(dictObj):
     return outstr
 
 
-def SortedListFromDelimited(value, delimiter = None):
+def SortedListFromDelimited(value, delimiter=None):
     if delimiter is None:
         delimiter = ','
 
@@ -153,7 +188,7 @@ def SortedListFromDelimited(value, delimiter = None):
     return ValueList
 
 def ListFromAttribute(attrib):
-    return SortedListFromDelimited(attrib, delimiter = ',')
+    return SortedListFromDelimited(attrib, delimiter=',')
 
 
 if __name__ == '__main__':
