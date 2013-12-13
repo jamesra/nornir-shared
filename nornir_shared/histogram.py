@@ -238,12 +238,20 @@ class Histogram:
             self.Bins[i] = self.Bins[i] + count
             self.NumSamples = self.NumSamples + count
 
+
+    def __mapaddfunc(self, value):
+        self.Bins[self.MapIntensityToBin(value)] += 1
+
     def Add(self, values):
         '''Add a list of individual values to the histogram'''
-        for val in values:
-            iTargetBin = self.MapIntensityToBin(val)
-            self.Bins[iTargetBin] = self.Bins[iTargetBin] + 1
-            self.NumSamples = self.NumSamples + 1
+
+        map(self.__mapaddfunc, values)
+
+#         for val in values:
+#             iTargetBin = self.MapIntensityToBin(val)
+#             self.Bins[iTargetBin] = self.Bins[iTargetBin] + 1
+
+        self.NumSamples += len(values)
 
         # prettyoutput.Log(str(self))
 

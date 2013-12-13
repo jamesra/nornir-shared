@@ -161,7 +161,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
             if(Pool is None):
                 SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
             else:
-                TaskList.append(Pool.add_task(filename, cmd + " && exit", shell=True))
+                TaskList.append(Pool.add_process(filename, cmd + " && exit", shell=True))
         except subprocess.CalledProcessError as CPE:
             # Identify returned an error, so the file is bad
             return False
@@ -278,7 +278,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     SampleCmdPrinted = False
 
     colorspaceString = __Fix_sRGB_String(ImagesToConvertDict.keys()[0])
-    
+
     tasks = []
 
     for f in ImagesToConvertDict.keys():
@@ -311,12 +311,12 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
             prettyoutput.Log('Converting images, example command:')
             prettyoutput.CurseString('Cmd', cmd)
         # prettyoutput.CurseString('Cmd', cmd)
-        tasks.append( ProcPool.add_task(OpNameStr, cmd, shell=True) )
+        tasks.append(ProcPool.add_process(OpNameStr, cmd, shell=True))
 
     # Keep waiting until all processes are finished
     # WaitForAllProcesses(Procs)
     ProcPool.wait_completion()
-    
+
     for t in tasks:
         if t.returncode > 0:
             prettyoutput.LogErr("Failed to convert " + t.name)

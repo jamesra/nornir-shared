@@ -130,13 +130,13 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         plt.show()
 
 
-def Scatter(x, y, s=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
+def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
 
     if s is None:
         s = 7
     # print Hist.Bins
     plt.cla()
-    plt.scatter(x, y, s=s, marker='o', edgecolor=None, **kwargs)
+    plt.scatter(x, y, s=s, c=c, marker='o', edgecolor=None, **kwargs)
 
     if not Title is None:
         plt.title(Title)
