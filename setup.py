@@ -14,7 +14,7 @@ if __name__ == '__main__':
     use_setuptools()
 
     setup(name='nornir_shared',
-          version='1.0.1',
+          version='1.0.2',
           description="Shared routines for Nornir python packages and scripts",
           author="James Anderson",
           author_email="James.R.Anderson@utah.edu",
