@@ -48,7 +48,7 @@ def RunWithProfiler(functionStr, outputpath=None):
 def SetupLogging(OutputPath=None, Level=None):
 
     if(Level is None):
-        Level = logging.WARNING
+        Level = logging.INFO
 
     if OutputPath is None:
         OutputPath = "C:\\Temp"
@@ -64,10 +64,11 @@ def SetupLogging(OutputPath=None, Level=None):
     logFileName = os.path.join(LogPath, logFileName)
     errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
     errlogFileName = os.path.join(LogPath, errlogFileName)
-    logging.basicConfig(filename=logFileName, level='DEBUG', format='%(levelname)s - %(name)s - %(message)s')
+    
+    logging.basicConfig(filename = logFileName, level = logging.DEBUG, format = '%(levelname)s - %(name)s - %(message)s')
 
     eh = logging.FileHandler(errlogFileName)
-    eh.setLevel(logging.WARNING)
+    eh.setLevel(logging.ERROR)
     eh.setFormatter(formatter)
 
     ch = logging.StreamHandler()
