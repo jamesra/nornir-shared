@@ -90,11 +90,6 @@ class TestFiles(unittest.TestCase):
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]
         self.IsSubset(dirs, expectedVals)
 
-
-
-
-
-
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
