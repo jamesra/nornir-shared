@@ -64,8 +64,8 @@ def SetupLogging(OutputPath=None, Level=None):
     logFileName = os.path.join(LogPath, logFileName)
     errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
     errlogFileName = os.path.join(LogPath, errlogFileName)
-    
-    logging.basicConfig(filename = logFileName, level = logging.DEBUG, format = '%(levelname)s - %(name)s - %(message)s')
+
+    logging.basicConfig(filename=logFileName, level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
 
     eh = logging.FileHandler(errlogFileName)
     eh.setLevel(logging.ERROR)
@@ -161,8 +161,7 @@ def GenNameFromDict(dictObj):
 
     return outstr
 
-
-def SortedListFromDelimited(value, delimiter=None):
+def ListFromDelimited(value, delimiter=None):
     if delimiter is None:
         delimiter = ','
 
@@ -184,11 +183,15 @@ def SortedListFromDelimited(value, delimiter=None):
     elif not isinstance(value, list):
         ValueList = [value]
 
+    return ValueList
+
+def SortedListFromDelimited(value, delimiter=None):
+    ValueList = ListFromDelimited(value, delimiter)
     ValueList.sort()
     return ValueList
 
 def ListFromAttribute(attrib):
-    return SortedListFromDelimited(attrib, delimiter=',')
+    return ListFromDelimited(attrib, delimiter=',')
 
 
 if __name__ == '__main__':
