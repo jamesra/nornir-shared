@@ -2,6 +2,8 @@ import time
 import sys
 import os
 import logging
+import subprocess 
+import socket
 
 ECLIPSE = 'ECLIPSE' in os.environ;
 CURSES = 'CURSES' in os.environ;
@@ -235,4 +237,92 @@ def LogErr(error_message = None):
 
 	sys.stderr.write(error_message);
 	logging.error(error_message);
+	
 
+def PrettyOutputModulePath():
+
+    try:
+        path = os.path.dirname(__file__)
+    except:
+        path = os.getcwd()
+
+    return os.path.join(path, 'prettyoutput.py')
+   
+
+class Console(object):
+	'''
+	Creates a second window which recieves text output sent to the Console object
+	'''
+	HOST = '127.0.0.1'    # The remote host
+	PORT = 50007          # The same port as used by the serve
+	
+	def __init__(self, *args, **kwargs):
+		super(Console, self).__init__(*args, **kwargs)
+		self._socket = None
+		self._consoleProc = None
+	
+	@classmethod
+	def CreateConsoleProc(cls):
+		pycmd = "python -u " + PrettyOutputModulePath()
+		return subprocess.Popen("start " + pycmd, stdin=subprocess.PIPE, shell=True)
+		
+	@property
+	def socket(self):
+		if self._consoleProc is None:
+			self._consoleProc = Console.CreateConsoleProc()
+			
+		if self._socket is None:
+			self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self._socket.connect((Console.HOST, Console.PORT))
+		
+		return self._socket
+	
+	@property
+	def ConsoleProc(self):
+		return self._consoleProc
+
+	def WriteMessage(self, text):
+		self.socket.sendall(text) 
+		
+	def Close(self):
+		
+		if not self._socket is None:
+			self._socket.sendall('PrettyOutput.Exit') 
+			self._socket.close()
+			self._socket = None
+# 			
+#  		if not self._consoleProc is None:
+#  			self._consoleProc.terminate()
+#  			self._consoleProc = None
+		
+if __name__ == '__main__':
+	import sys
+	import time
+	import socket
+	
+	sys.stdout.write("Starting second output window\n")
+	HOST = '127.0.0.1'    # The remote host
+	PORT = 50007          # The same port as used by the server
+
+	while True:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.bind((HOST, PORT))
+		s.listen(1)
+		conn, addr = s.accept()
+		#print 'Connected by', addr
+		data = None
+		
+		while 1:
+			data = conn.recv(1024)
+			if not data: break
+		
+			sys.stdout.write(data)
+			if 'PrettyOutput.Exit' in data:
+				break
+		
+		conn.close()
+		
+		if 'PrettyOutput.Exit' in data:
+			sys.stdout.write("Exit output process")
+			break
+		  

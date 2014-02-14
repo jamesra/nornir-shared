@@ -318,7 +318,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     ProcPool.wait_completion()
 
     for t in tasks:
-        if t.returncode > 0:
+        if not t.returncode == 0:
             prettyoutput.LogErr("Failed to convert " + t.name)
 
     if bDeleteOriginal and (originalFileName != targetFileName):
