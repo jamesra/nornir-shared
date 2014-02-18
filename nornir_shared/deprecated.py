@@ -3,7 +3,8 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 
-Functions that were used in the past but should no longer be used.
+Functions that were used in the past but should no longer be used.  Mostly replaced by thread and cluster pools.
+
 '''
 import platform
 import PrettyOutput
@@ -166,7 +167,7 @@ def ProcessThrottleCheck(Procs, maxProcs, SleepTime):
 
     return [SleepTime, CompletedProcs];
 
-def WaitForAllProcesses(Procs, SleepTime = None, Progress = None, Total = None):
+def WaitForAllProcesses(Procs, SleepTime=None, Progress=None, Total=None):
     '''
     Waits until all processes in the Procs list have completed
     The SleepTime is the value passed to sleep calls
