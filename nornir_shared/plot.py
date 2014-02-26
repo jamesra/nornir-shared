@@ -73,7 +73,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         # PrettyOutput.Log( "Line Positions: " + str(LinePosList))
 
     ShowCutoffs = False
-    if(MinCutoffPercent is not None and MaxCutoffPercent is not None):
+    if(MinCutoffPercent is not None or MaxCutoffPercent is not None):
         ShowCutoffs = True
 
     if(ShowCutoffs):
@@ -114,10 +114,17 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.xlim([Hist.MinValue, Hist.MaxValue])
 
     if(ShowCutoffs):
-        plt.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
-        plt.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
-        plt.annotate(str(float(MinCutoffPercent) * 100) + '%', [MinCutoff, yMax * 0.5])
-        plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
+        if MinCutoff:
+            plt.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
+
+            if MinCutoffPercent:
+                plt.annotate(str(float(MinCutoffPercent) * 100) + '%', [MinCutoff, yMax * 0.5])
+
+        if MaxCutoff:
+            plt.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
+
+            if MaxCutoffPercent:
+                plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
 
     if(ShowLine):
         for linePos in LinePosList:
