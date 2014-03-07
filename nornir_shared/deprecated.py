@@ -7,7 +7,7 @@ Functions that were used in the past but should no longer be used.  Mostly repla
 
 '''
 import platform
-import PrettyOutput
+from . import PrettyOutput
 import os
 import time
 
@@ -161,7 +161,7 @@ def ProcessThrottleCheck(Procs, maxProcs, SleepTime):
             time.sleep(SleepTime);
 
     Procs.sort();
-    PIDList = map(lambda p: str(p.pid) + ' ', Procs)
+    PIDList = [str(p.pid) + ' ' for p in Procs]
 
     PrettyOutput.CurseString('PIDs', ' %s ' % ''.join(PIDList));
 
@@ -195,7 +195,7 @@ def WaitForAllProcesses(Procs, SleepTime=None, Progress=None, Total=None):
             PrettyOutput.CurseProgress(None, Progress, Total)
 
             Procs.sort();
-            PIDList = map(lambda p: ' ' + str(p.pid), Procs)
+            PIDList = [' ' + str(p.pid) for p in Procs]
             PrettyOutput.CurseString('PIDs', ' %s ' % ''.join(PIDList));
             CompletedProcs.append(proc);
 

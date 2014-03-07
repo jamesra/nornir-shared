@@ -2,14 +2,14 @@ import sys
 import xml.dom.minidom
 import string
 import os
-import prettyoutput
+from . import prettyoutput
 import copy
 import math
 
 class Histogram:
 
     def __init__(self):
-        self.MinValue = sys.maxint
+        self.MinValue = sys.maxsize
         self.MaxValue = 0
         self.NumBins = 0
         self.NumSamples = 0
@@ -245,7 +245,7 @@ class Histogram:
     def Add(self, values):
         '''Add a list of individual values to the histogram'''
 
-        map(self.__mapaddfunc, values)
+        list(map(self.__mapaddfunc, values))
 
 #         for val in values:
 #             iTargetBin = self.MapIntensityToBin(val)

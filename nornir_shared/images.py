@@ -5,9 +5,9 @@ Created on Jul 11, 2012
 '''
 import os
 import subprocess
-import prettyoutput
-import processoutputinterceptor
-import files
+from . import prettyoutput
+from . import processoutputinterceptor
+from . import files
 import multiprocessing
 import logging
 import math
@@ -277,11 +277,11 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
     SampleCmdPrinted = False
 
-    colorspaceString = __Fix_sRGB_String(ImagesToConvertDict.keys()[0])
+    colorspaceString = __Fix_sRGB_String(list(ImagesToConvertDict.keys())[0])
 
     tasks = []
 
-    for f in ImagesToConvertDict.keys():
+    for f in list(ImagesToConvertDict.keys()):
         OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
 
 
@@ -322,7 +322,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
             prettyoutput.LogErr("Failed to convert " + t.name)
 
     if bDeleteOriginal and (originalFileName != targetFileName):
-        for f in ImagesToConvertDict.keys():
+        for f in list(ImagesToConvertDict.keys()):
             # Don't delete unless the target file was created
             if(os.path.exists(ImagesToConvertDict[f])):
                 prettyoutput.Log("Deleting: " + f)
@@ -441,5 +441,5 @@ def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTar
 
 
 if __name__ == '__main__':
-    print IsValidImage(' C:\data\\rc2_mini_pipeline\\TEM\\0022\TEM\Raw8\TilePyramid\\004\\007.png')
+    print(IsValidImage(' C:\data\\rc2_mini_pipeline\\TEM\\0022\TEM\Raw8\TilePyramid\\004\\007.png'))
     pass

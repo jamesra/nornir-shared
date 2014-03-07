@@ -1,5 +1,5 @@
 
-import prettyoutput;
+from . import prettyoutput;
 import os
 import hashlib
 

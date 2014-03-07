@@ -91,7 +91,7 @@ def CurseString(topic, text):
 		y = 0;
 		x = 0;
 
-		if(cursesCoords.has_key(topic)):
+		if(topic in cursesCoords):
 			y = cursesCoords[topic];
 
 		(yMax, xMax) = statusWindow.getmaxyx()
@@ -142,10 +142,10 @@ def CurseProgress(text, Progress, Total = None):
 	if CURSES:
 		(yMax, xMax) = statusWindow.getmaxyx()
 
-		if(cursesCoords.has_key("Task")):
+		if("Task" in cursesCoords):
 			TaskY = cursesCoords["Task"];
 
-		if(cursesCoords.has_key("Progress")):
+		if("Progress" in cursesCoords):
 			ProgressY = cursesCoords["Progress"];
 
 

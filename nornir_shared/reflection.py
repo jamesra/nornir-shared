@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 
-import prettyoutput
+from . import prettyoutput
 
 __ModuleClassCacheDict = dict();
 
