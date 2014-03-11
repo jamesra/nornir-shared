@@ -162,20 +162,20 @@ class Test(unittest.TestCase):
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins, binVals=binVals)
 
         # This should be a pixel intensity of 100 and 200.
-        CutoffPercent = (binCount / 2) / NumSamples
+        CutoffPercent = (binCount / 2.0) / NumSamples
         [MinCutoff, MaxCutoff] = hist.AutoLevel(CutoffPercent, CutoffPercent)
-        self.assertEqual(MinCutoff, ExpectedBinWidth / 2)
-        self.assertEqual(MaxCutoff, maxVal - (ExpectedBinWidth / 2))
+        self.assertEqual(MinCutoff, ExpectedBinWidth / 2.0)
+        self.assertEqual(MaxCutoff, maxVal - (ExpectedBinWidth / 2.0))
 
         # This should be a pixel intensity of 100 and 200.
-        CutoffPercent = (binCount * 3 / 2) / NumSamples
+        CutoffPercent = (binCount * 3 / 2.0) / NumSamples
         [MinCutoff, MaxCutoff] = hist.AutoLevel(CutoffPercent, CutoffPercent)
         self.assertEqual(MinCutoff, 3 * ExpectedBinWidth / 2)
-        self.assertEqual(MaxCutoff, maxVal - (3 * ExpectedBinWidth / 2))
+        self.assertEqual(MaxCutoff, maxVal - (3 * ExpectedBinWidth / 2.0))
 
         [MinCutoff, MaxCutoff] = hist.AutoLevel(0.25, 0.25)
-        self.assertEqual(MinCutoff, (maxVal + 1) / 4)
-        self.assertEqual(MaxCutoff, 3 * maxVal / 4)
+        self.assertEqual(MinCutoff, (maxVal + 1) / 4.0)
+        self.assertEqual(MaxCutoff, int(3 * maxVal / 4.0))
 
 
     def testHistogramAdd(self):
