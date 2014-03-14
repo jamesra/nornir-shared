@@ -3,7 +3,7 @@ Created on Dec 29, 2011
 
 @author: Jamesan
 '''
-from . import prettyoutput
+import prettyoutput
 import os
 import shutil
 import random

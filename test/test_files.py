@@ -9,8 +9,8 @@ import shutil
 from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator 
 
 def CreateDirTree(path, dictSubTrees):
-    print(str(dictSubTrees))
-    for key in list(dictSubTrees.keys()):
+    print str(dictSubTrees)
+    for key in dictSubTrees.keys():
         subtreepath = os.path.join(path, key)
         os.makedirs(subtreepath)
 
@@ -18,9 +18,9 @@ def CreateDirTree(path, dictSubTrees):
 
 
 def RecurseDictValues(dictSubTrees, path):
-    vals = list(dictSubTrees.keys())
+    vals = dictSubTrees.keys()
 
-    for key in list(dictSubTrees.keys()):
+    for key in dictSubTrees.keys():
         subpath = os.path.join(path, key)
         vals.append(subpath)
         vals.extend(RecurseDictValues(dictSubTrees[key], subpath))

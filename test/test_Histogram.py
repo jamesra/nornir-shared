@@ -31,7 +31,7 @@ class Test(unittest.TestCase):
         self.assertEqual(len(hist.Bins), numBins)
         self.assertEqual(hist.BinWidth, 1)
 
-        binVals = list(range(1, numBins + 1))
+        binVals = range(1, numBins + 1)
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins, binVals=binVals)
         self.assertEqual(hist.NumBins, numBins)
         self.assertEqual(hist.MaxValue, maxVal)
@@ -130,7 +130,7 @@ class Test(unittest.TestCase):
         self.assertEqual(len(hist.Bins), numBins)
         self.assertEqual(hist.BinWidth, ExpectedBinWidth)
 
-        binVals = list(range(1, numBins + 1))
+        binVals = range(1, numBins + 1)
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins, binVals=binVals)
         self.assertEqual(hist.NumBins, numBins)
         self.assertEqual(hist.MaxValue, maxVal)
@@ -193,13 +193,13 @@ class Test(unittest.TestCase):
         self.assertEqual(len(hist.Bins), numBins)
         self.assertEqual(hist.BinWidth, ExpectedBinWidth)
 
-        inputVals = [(x * ExpectedBinWidth) - 1 for x in range(1, numBins + 1)]
+        inputVals = map(lambda x : (x * ExpectedBinWidth) - 1, range(1, numBins + 1))
 
         for i in range(0, len(inputVals)):
             inputVals.extend([inputVals[i]] * i)
 
 
-        binVals = list(range(1, numBins + 1))
+        binVals = range(1, numBins + 1)
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins)
         hist.Add(inputVals)
 

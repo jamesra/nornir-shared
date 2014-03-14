@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-from . import histogram
+import histogram
 import argparse
-from . import prettyoutput as PrettyOutput
+import prettyoutput as PrettyOutput
 
 
 def ProcessArgs():
@@ -99,7 +99,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     # PrettyOutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
     # PrettyOutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
     if(ShowCutoffs):
-        print([MinCutoff, MaxCutoff])
+        print [MinCutoff, MaxCutoff]
 
     yMax = max(Hist.Bins)
  #  print 'Bins: ' + str(Hist.Bins)

@@ -40,7 +40,7 @@ def RunWithProfiler(functionStr, outputpath=None):
         pr = pstats.Stats(ProfilePath)
         if not pr is None:
             pr.sort_stats('time')
-            print(str(pr.print_stats(.1)))
+            print str(pr.print_stats(.1))
             logger.info(str(pr.print_stats(0.1)))
 
     pr.print_callers(.1)
@@ -120,7 +120,7 @@ def lowpriority():
 
 def enum(*sequential, **named):
     '''Generates a dictionary of names to number values used as an enumeration'''
-    enums = dict(list(zip(sequential, list(range(len(sequential))))), **named)
+    enums = dict(zip(sequential, range(len(sequential))), **named)
     return type('Enum', (), enums)
 
 
@@ -130,7 +130,7 @@ def ArgumentsFromDict(dictObj):
 
     outstr = " "
 
-    for entry in dictObj.items():
+    for entry in dictObj.iteritems():
         assert(isinstance(entry[0], str))
         outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
 
@@ -141,7 +141,7 @@ def GenNameFromDict(dictObj):
        Take the first three letters from each entry name, append the value, and build a mangled name'''
     outstr = ""
 
-    for entry in list(dictObj.items()):
+    for entry in dictObj.items():
         assert(isinstance(entry[0], str))
         nameMangle = entry[0]
         if(len(nameMangle) > 3):

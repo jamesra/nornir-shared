@@ -51,7 +51,7 @@ class TaskTimer:
     def __str__(self):
         s = '';
 
-        for task in list(self._TaskDeltaTime.keys()):
+        for task in self._TaskDeltaTime.keys():
             outstr = self.ElapsedString(task);
             s = s + outstr + '\n';
 
