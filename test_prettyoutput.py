@@ -10,7 +10,7 @@ class Test(unittest.TestCase):
 
 
     def testPipes(self):
-        p = nornir_shared.prettyoutput.GetOutputProc()
+        p = nornir_shared.prettyoutput.Console.CreateConsoleProc()
         self.assertIsNotNone(p, "None process for prettyoutput")
         p.stdin.write("Hello world\n")
         p.stdin.write("This is a test\n")
@@ -19,5 +19,5 @@ class Test(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testPipes']
+    # import sys;sys.argv = ['', 'Test.testPipes']
     unittest.main()
