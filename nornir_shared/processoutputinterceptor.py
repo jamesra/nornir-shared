@@ -30,7 +30,7 @@ class ProcessOutputInterceptor(object):
 
     def Parse(self, line=None):
         '''Parse line of input from the process.  Should be overridden by a derived class'''
-        raise "No method defined for abstract class ProcessOutputInterceptor"
+        raise Exception("No method defined for abstract class ProcessOutputInterceptor")
 
     @classmethod
     def Intercept(self, lineparseobj):
