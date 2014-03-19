@@ -137,25 +137,49 @@ class Histogram:
         return ActualValue
 
     @property
-    def Mean(self):
-        MeanValue = self.__FindValueAtPercentile(self.Bins, (0.5 * float(self.NumSamples)))
-        return MeanValue
+    def Median(self):
+        MedianValue = self.__FindValueAtPercentile(self.Bins, (0.5 * float(self.NumSamples))) + self.MinValue
+        return MedianValue
+
+    def BinValue(self, iBin, fraction=0.0):
+        '''
+        :param int iBin: Bin number
+        :param float: Fraction within bin to return value for, defaults to minimum possible value
+        :return: The value of the bin
+        '''
+        assert(fraction >= 0.0)
+        assert(fraction <= 1.0)
+        return (iBin * self.BinWidth) + (fraction * self.BinWidth) + self.MinValue
 
     @property
-    def Median(self):
+    def Mean(self):
+
+        iBin = 0
+        maxBin = 0
+        sum = long()
+
+        for ibin, bincount in enumerate(self.Bins):
+            sum += bincount * self.BinValue(ibin, fraction=0.5)
+
+        return sum / self.NumSamples
+
+    @property
+    def PeakValue(self):
 
         iBin = 0
         maxBin = 0
         iMax = 0
 
-        for b in self.Bins:
-            if maxBin < b:
-                iMax = iBin
-                maxBin = b
+        PeakList = []
 
-            iBin += 1
+        for iBin, bincount in enumerate(self.Bins):
+            if maxBin < bincount:
+                maxBin = bincount
+                PeakList = [self.BinValue(iBin, fraction=0.5)]
+            elif maxBin == bincount:
+                PeakList.append(self.BinValue(iBin, fraction=0.5))
 
-        return float(iMax) * self.BinWidth
+        return math.fsum(PeakList) / float(len(PeakList))
 
     def GammaAtValue(self, val, minVal=None, maxVal=None):
         '''Return the gamma value required to set target value to 0.5 in a leveled value'''

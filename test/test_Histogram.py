@@ -9,6 +9,50 @@ from nornir_shared.histogram import *
 
 class Test(unittest.TestCase):
 
+    def testHistogram8bppMinVals(self):
+
+        minVal = 64
+        maxVal = 191
+        numBins = 128
+
+        hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=None, binVals=None)
+        self.assertEqual(hist.NumBins, numBins)
+        self.assertEqual(hist.MaxValue, maxVal)
+        self.assertEqual(hist.MinValue, minVal)
+        self.assertEqual(len(hist.Bins), numBins)
+        self.assertEqual(hist.BinWidth, 1)
+
+        hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins, binVals=None)
+        self.assertEqual(hist.NumBins, numBins)
+        self.assertEqual(hist.MaxValue, maxVal)
+        self.assertEqual(hist.MinValue, minVal)
+        self.assertEqual(len(hist.Bins), numBins)
+        self.assertEqual(hist.BinWidth, 1)
+
+        binVals = [10] * numBins
+        hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins, binVals=binVals)
+        self.assertEqual(hist.NumBins, numBins)
+        self.assertEqual(hist.MaxValue, maxVal)
+        self.assertEqual(hist.MinValue, minVal)
+        self.assertEqual(len(hist.Bins), numBins)
+        self.assertEqual(hist.Bins, binVals)
+        self.assertEqual(hist.BinWidth, 1)
+
+        # Test cutoff values
+        [MinCutoff, MaxCutoff] = hist.AutoLevel(0.0, 0.0)
+        # Should be equal to min and max values
+        self.assertEqual(MinCutoff, minVal)
+        self.assertEqual(MaxCutoff, maxVal)
+
+        median = hist.Median
+        self.assertEqual(median, (maxVal + 1 + minVal) / 2.0)
+
+        mean = hist.Mean
+        self.assertEqual(mean, (maxVal + 1 + minVal) / 2.0)
+
+        peak = hist.PeakValue
+        self.assertEqual(peak, (maxVal + 1 + minVal) / 2.0)
+
 
     def testHistogram8bpp(self):
         '''Test histogram code with typical 8 bit per pixel numbers'''
