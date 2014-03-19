@@ -44,14 +44,26 @@ class Test(unittest.TestCase):
         self.assertEqual(MinCutoff, minVal)
         self.assertEqual(MaxCutoff, maxVal)
 
-        median = hist.Median
-        self.assertEqual(median, (maxVal + 1 + minVal) / 2.0)
+        median = hist.Median()
+        self.assertEqual(median, (maxVal + minVal) / 2.0)
 
-        mean = hist.Mean
-        self.assertEqual(mean, (maxVal + 1 + minVal) / 2.0)
+        mean = hist.Mean()
+        self.assertEqual(mean, (maxVal + minVal) / 2.0)
 
-        peak = hist.PeakValue
-        self.assertEqual(peak, (maxVal + 1 + minVal) / 2.0)
+        peak = hist.PeakValue()
+        self.assertEqual(peak, (maxVal + minVal) / 2.0)
+
+
+        minCutoff = 128
+        maxCutoff = 160
+        median = hist.Median(minVal=minCutoff, maxVal=maxCutoff)
+        self.assertEqual(median, (maxCutoff + minCutoff) / 2.0)
+
+        mean = hist.Mean(minVal=minCutoff, maxVal=maxCutoff)
+        self.assertEqual(mean, (maxCutoff + minCutoff) / 2.0)
+
+        peak = hist.PeakValue(minVal=minCutoff, maxVal=maxCutoff)
+        self.assertEqual(peak, (maxCutoff + minCutoff) / 2.0)
 
 
     def testHistogram8bpp(self):
@@ -139,7 +151,7 @@ class Test(unittest.TestCase):
         self.assertEqual(MinCutoff, 64)
         self.assertEqual(MaxCutoff, 191)
 
-        mean = hist.Mean
+        mean = hist.Mean()
         self.assertEqual(mean, 128.0)
 
         gamma = hist.GammaAtValue(191)
