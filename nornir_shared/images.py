@@ -441,5 +441,5 @@ def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTar
 
 
 if __name__ == '__main__':
-    print IsValidImage(' C:\data\\rc2_mini_pipeline\\TEM\\0022\TEM\Raw8\TilePyramid\\004\\007.png')
+    print(IsValidImage(' C:\data\\rc2_mini_pipeline\\TEM\\0022\TEM\Raw8\TilePyramid\\004\\007.png'))
     pass
