@@ -25,7 +25,7 @@ def TryEnterLockFile(LockFile):
 
     outStr = MyID + " trying to take a lock on: " + LockFile;
     # PrettyOutput.CurseString("Lock", outStr);
-    print outStr;
+    print(outStr)
 
     # If the file exists we can't take the lock
     if(os.path.exists(LockFile)):
@@ -43,14 +43,14 @@ def TryEnterLockFile(LockFile):
             CreationTimeSec = time.mktime(CreationTime);
             now = time.time();
             Elapsed = now - CreationTimeSec;
-            print "Elapsed: " + str(Elapsed);
-            print "Elapsed Hours: " + str(Elapsed / (60 * 60));
+            print("Elapsed: " + str(Elapsed))
+            print("Elapsed Hours: " + str(Elapsed / (60 * 60)))
             if((Elapsed / (60 * 60)) > 48):
-                print "Removing stale lock file: " + LockFile;
+                print("Removing stale lock file: " + LockFile)
                 try:
                     os.remove(LockFile);
                 except:
-                    print "Exception removing: " + LockFile;
+                    print("Exception removing: " + LockFile)
         except:
             return False;
 
@@ -59,7 +59,7 @@ def TryEnterLockFile(LockFile):
         try:
             hLockFile = open(LockFile, 'r');
             LockingParty = hLockFile.readline().rstrip('\n');
-            print LockFile + " locked by: " + LockingParty + " I am: " + MyID;
+            print(LockFile + " locked by: " + LockingParty + " I am: " + MyID)
             if(LockingParty == MyID):
                 return True;
             else:
@@ -77,7 +77,7 @@ def TryEnterLockFile(LockFile):
         hLockFile.close();
 
     except:
-        print "Could not create lock file: " + LockFile
+        print("Could not create lock file: " + LockFile)
         return False;
 
     # Try to open the file we just created, if it has our ID we got the lock
@@ -88,13 +88,13 @@ def TryEnterLockFile(LockFile):
 
 
         if(LockingParty == MyID):
-            print "Successful lock";
+            print("Successful lock")
             return True;
         else:
-            print  "Failed Lock: " + LockingParty + " got the lock on: " + LockFile;
+            print("Failed Lock: " + LockingParty + " got the lock on: " + LockFile)
             return False;
     except:
-        print "Exception opening lock file we just created";
+        print("Exception opening lock file we just created")
         return False;
 
 # Deletes a lock file in the specified directory if we created it
@@ -112,10 +112,10 @@ def ReleaseLockFile(LockFile):
         hLockFile.close();
         MyID = platform.node();
         if(LockingParty == MyID):
-            print MyID + " removed lock on " + LockFile;
+            print(MyID + " removed lock on " + LockFile)
             os.remove(LockFile);
         else:
-            print "Tried to remove another processes lock " + LockFile;
+            print("Tried to remove another processes lock " + LockFile)
     except:
-        print "Exception releasing Lock File: " + LockFile;
+        print("Exception releasing Lock File: " + LockFile)
         return;
