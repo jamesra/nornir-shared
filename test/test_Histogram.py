@@ -249,13 +249,13 @@ class Test(unittest.TestCase):
         self.assertEqual(len(hist.Bins), numBins)
         self.assertEqual(hist.BinWidth, ExpectedBinWidth)
 
-        inputVals = map(lambda x : (x * ExpectedBinWidth) - 1, range(1, numBins + 1))
+        inputVals = list(map(lambda x : (x * ExpectedBinWidth) - 1, range(1, numBins + 1)))
 
         for i in range(0, len(inputVals)):
             inputVals.extend([inputVals[i]] * i)
 
 
-        binVals = range(1, numBins + 1)
+        binVals = list(range(1, numBins + 1))
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins)
         hist.Add(inputVals)
 
@@ -263,7 +263,10 @@ class Test(unittest.TestCase):
         self.assertEqual(hist.MaxValue, maxVal)
         self.assertEqual(hist.MinValue, minVal)
         self.assertEqual(len(hist.Bins), numBins)
-        self.assertEqual(hist.Bins, binVals)
+
+        for iBin in range(0, len(hist.Bins)):
+            self.assertEqual(hist.Bins[iBin], binVals[iBin], "Bins do not match bins passed to constructor")
+        # self.assertEqual(hist.Bins, binVals)
         self.assertEqual(hist.BinWidth, ExpectedBinWidth)
 
         # Test cutoff values

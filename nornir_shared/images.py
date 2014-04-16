@@ -12,7 +12,6 @@ import multiprocessing
 import logging
 import math
 import shutil
-
 import nornir_pools as Pools
 
 def GetImageBpp(path):

@@ -7,7 +7,7 @@ Functions that were used in the past but should no longer be used.  Mostly repla
 
 '''
 import platform
-import PrettyOutput
+import prettyoutput
 import os
 import time
 

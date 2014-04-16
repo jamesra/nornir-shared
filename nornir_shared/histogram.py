@@ -5,6 +5,7 @@ import os
 import prettyoutput
 import copy
 import math
+import six
 from decimal import *
 
 
@@ -37,7 +38,7 @@ def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
 class Histogram:
 
     def __init__(self):
-        self.MinValue = sys.maxint
+        self.MinValue = float('NaN')
         self.MaxValue = 0
         self.NumBins = 0
         self.NumSamples = 0
@@ -241,7 +242,7 @@ class Histogram:
         if not MaxCutoff is None:
             assert(isinstance(MaxCutoff, float))
             # MaxCutoffCount = float(MaxCutoff) * float(self.NumSamples)
-            ReversedBins = copy.copy(self.Bins)
+            ReversedBins = list(copy.copy(self.Bins))
             ReversedBins.reverse()
             CutoffValue = _FindValueAtPercentile(Bins=ReversedBins, Percentile=MaxCutoff, BinWidth=self.BinWidth, BinMinValue=0)
             MaxCutoffValue = self.MaxValue - CutoffValue
@@ -293,7 +294,8 @@ class Histogram:
     def Add(self, values):
         '''Add a list of individual values to the histogram'''
 
-        map(self.__mapaddfunc, values)
+        for v in values:
+            self.__mapaddfunc(v)
 
 #         for val in values:
 #             iTargetBin = self.MapIntensityToBin(val)

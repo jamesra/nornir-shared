@@ -21,8 +21,7 @@ def FilesizeChecksum(filename):
 
 def DataChecksum(data):
     '''
-    Removes whitespace from strings before calculating md5 checksum
-    
+     Removes whitespace from strings before calculating md5 checksum
     :param obj data: string, list or object convertible to string
     :return: md5 checksum
     :rtype str:
@@ -35,12 +34,14 @@ def DataChecksum(data):
 
     if(isinstance(data, str)):
         data = "".join(data.split());
-        m.update(data)
+        m.update(data.encode())
     elif(isinstance(data, list)):
         for item in data:
-            m.update(str(item));
+            m.update(str(item).encode());
+    elif(isinstance(data, bytes)):
+        m.update(data)
     else:
-        data = str(data)
+        data = str(data).encode()
         m.update(data)
 
     return m.hexdigest()
