@@ -1,6 +1,5 @@
 import sys
 import xml.dom.minidom
-import string
 import os
 import prettyoutput
 import copy
@@ -120,12 +119,12 @@ class Histogram:
 
         BinNode = ChannelElem.firstChild
         BinString = BinNode.data
-        BinStrings = string.split(BinString)
+        BinStrings = str.split(BinString)
 
         obj.Bins = list()
 
         for i in range(0, len(BinStrings)):
-            obj.Bins.append(string.atoi(BinStrings[i]))
+            obj.Bins.append(int(BinStrings[i]))
 
         if(len(obj.Bins) != obj.NumBins):
             prettyoutput.Log("ERROR: obj.Bins != obj.NumBins")
