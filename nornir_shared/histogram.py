@@ -119,7 +119,8 @@ class Histogram:
 
         BinNode = ChannelElem.firstChild
         BinString = BinNode.data
-        BinStrings = str.split(BinString)
+
+        BinStrings = BinString.split()
 
         obj.Bins = list()
 

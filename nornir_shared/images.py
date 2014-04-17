@@ -4,6 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
+import six
 import subprocess
 import prettyoutput
 import logging
@@ -117,6 +118,10 @@ def GetImageSize(path):
     [stdoutdata, stderrdata] = proc.communicate()
 
     Output = stdoutdata.strip()
+
+    if six.PY3:
+        Output = Output.decode()
+
     Parts = Output.split('x')
     if len(Parts) < 2:
         raise ValueError("Invalid image file passed to GetImageSize: " + path)
