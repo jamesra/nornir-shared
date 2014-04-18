@@ -14,7 +14,11 @@ if __name__ == '__main__':
 
     install_requires = ["six"]
 
+    classifiers = ['Programming Language :: Python :: 3.4',
+                   'Programming Language :: Python :: 2.7']
+
     setup(name='nornir_shared',
+          classifiers=classifiers,
           version='1.1.7',
           description="Shared routines for Nornir python packages and scripts",
           author="James Anderson",
