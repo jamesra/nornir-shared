@@ -1,11 +1,11 @@
 import sys
 import xml.dom.minidom
 import os
-import prettyoutput
 import copy
 import math
 import six
 from decimal import *
+from . import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):

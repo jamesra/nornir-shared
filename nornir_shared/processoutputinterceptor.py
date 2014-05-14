@@ -3,11 +3,13 @@ Created on Dec 29, 2011
 
 @author: Jamesan
 '''
-import prettyoutput
+
 import os
 import shutil
 import random
 import subprocess
+
+from . import prettyoutput
 # import nornir_pools as pools
 
 class ProcessOutputInterceptor(object):

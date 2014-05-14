@@ -1,7 +1,7 @@
 
-import prettyoutput;
 import os
 import hashlib
+from . import prettyoutput
 
 def FilesizeChecksum(filename):
     '''

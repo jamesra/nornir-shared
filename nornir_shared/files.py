@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
-import nornir_shared.prettyoutput as prettyoutput
+from . import prettyoutput
 import glob
 
 DownsampleFormat = '%03d'

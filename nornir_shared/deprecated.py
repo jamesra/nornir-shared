@@ -7,9 +7,9 @@ Functions that were used in the past but should no longer be used.  Mostly repla
 
 '''
 import platform
-import prettyoutput
 import os
 import time
+from . import prettyoutput
 
 # Attempt to create a file that tells other machines the directory is in use.
 def TryEnterLockPath(Path):
