@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     setup(name='nornir_shared',
           classifiers=classifiers,
-          version='1.1.7',
+          version='1.2.0',
           description="Shared routines for Nornir python packages and scripts",
           author="James Anderson",
           author_email="James.R.Anderson@utah.edu",
