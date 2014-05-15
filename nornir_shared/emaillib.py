@@ -6,7 +6,7 @@
 
 
 import smtplib
-import nornir_shared.prettyoutput as PrettyOutput
+from . import prettyoutput
 import os
 from email.mime import multipart, text, image
 from email.utils import COMMASPACE, formatdate
@@ -58,7 +58,7 @@ def SendMail(**kwargs):
         ccAddressList = [ccAddressList]
 
     if len(toAddressString) == 0 and len(ccAddressString) == 0:
-        PrettyOutput.Log('No Email addresses specified for report, no report E-mailed.')
+        prettyoutput.Log('No Email addresses specified for report, no report E-mailed.')
         return
 
     smtpConn = smtplib.SMTP(host, port)
@@ -67,13 +67,13 @@ def SendMail(**kwargs):
         try:
         	smtpConn.starttls()
         except:
-        	PrettyOutput.Log("Could not start secure session")
+        	prettyoutput.Log("Could not start secure session")
 
         try:
         	if(username is not None):
         		smtpConn.login(username, password)
         except:
-        	PrettyOutput.Log("Could not use provided credentials")
+        	prettyoutput.Log("Could not use provided credentials")
 
 #        #Build the message
 #        ConcatenatedToAddress = ""
@@ -93,7 +93,7 @@ def SendMail(**kwargs):
         if not files is None:
             for f in files:
                 if not os.path.exists(f):
-                    PrettyOutput.Log("Attachment Not found: " + f)
+                    prettyoutput.Log("Attachment Not found: " + f)
                     continue
 
                 hFile = open(f, 'rb')
@@ -107,10 +107,10 @@ def SendMail(**kwargs):
                 part.add_header('Content-Disposition', 'attachment filename="%s"' % f)
                 msg.attach(part)
 
-        PrettyOutput.Log("\nTo: " + toAddressString)
-        PrettyOutput.Log("\nCC: " + ccAddressString)
-        PrettyOutput.Log("Message:")
-        PrettyOutput.Log('\t' + message)
+        prettyoutput.Log("\nTo: " + toAddressString)
+        prettyoutput.Log("\nCC: " + ccAddressString)
+        prettyoutput.Log("Message:")
+        prettyoutput.Log('\t' + message)
 
         AllRecipientAddresses = toAddressList + ccAddressList
 

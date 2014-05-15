@@ -4,11 +4,11 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 
-import prettyoutput
+from . import  prettyoutput
 
 __ModuleClassCacheDict = dict();
 
-def get_module_class(module, kls, LogErrIfNotFound = True):
+def get_module_class(module, kls, LogErrIfNotFound=True):
     '''Load a class from a string'''
 
     key = module + '.' + kls;
@@ -18,7 +18,7 @@ def get_module_class(module, kls, LogErrIfNotFound = True):
         return m;
 
     # m = importlib.import_module(module);
-    m = __import__(module, fromlist = ['*'])
+    m = __import__(module, fromlist=['*'])
     parts = kls.split('.')
 
     try:

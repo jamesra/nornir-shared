@@ -4,16 +4,17 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
+import six
 import subprocess
-import prettyoutput
-import processoutputinterceptor
-import files
-import multiprocessing
+
 import logging
 import math
 import shutil
-
 import nornir_pools as Pools
+
+from . import prettyoutput
+from . import processoutputinterceptor
+
 
 def GetImageBpp(path):
     '''Returns how many bits per pixel the image at the provided path uses'''
@@ -103,8 +104,8 @@ def IdentifyImage(ImageFilePath):
         prettyoutput.Log('Eror calling ' + cmd)
         pass
 
-    interceptor = utils.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
-    utils.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
+    interceptor = processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
+    processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
 
     return interceptor
 
@@ -121,6 +122,10 @@ def GetImageSize(path):
     [stdoutdata, stderrdata] = proc.communicate()
 
     Output = stdoutdata.strip()
+
+    if six.PY3:
+        Output = Output.decode()
+
     Parts = Output.split('x')
     if len(Parts) < 2:
         raise ValueError("Invalid image file passed to GetImageSize: " + path)
