@@ -40,7 +40,7 @@ def RunWithProfiler(functionStr, outputpath=None):
         pr = pstats.Stats(ProfilePath)
         if not pr is None:
             pr.sort_stats('time')
-            print str(pr.print_stats(.1))
+            print(str(pr.print_stats(.1)))
             logger.info(str(pr.print_stats(0.1)))
 
     pr.print_callers(.1)

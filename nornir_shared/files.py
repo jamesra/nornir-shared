@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import os
-import prettyoutput
+from . import prettyoutput
 import glob
 
 DownsampleFormat = '%03d'
@@ -53,11 +53,11 @@ def RemoveOutdatedFile(ReferenceFilename, TestFilename):
 
 
 def RecurseSubdirectories(Path,
-                          RequiredFiles = None,
-                          ExcludedFiles = None,
-                          MatchNames = None,
-                          ExcludeNames = None,
-                          ExcludedDownsampleLevels = None):
+                          RequiredFiles=None,
+                          ExcludedFiles=None,
+                          MatchNames=None,
+                          ExcludeNames=None,
+                          ExcludedDownsampleLevels=None):
     '''Recurse Subdirectories adds Path and every subdirectory to a list
        If MatchNames is not null we add the matching directory, but do not recurse subdirectories underneath
        If ExcludeNames  is not null we do not add the directory to the list and do not recurse subdirectories/

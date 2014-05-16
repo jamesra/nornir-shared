@@ -12,9 +12,9 @@ class Test(unittest.TestCase):
     def testPipes(self):
         p = nornir_shared.prettyoutput.Console.CreateConsoleProc()
         self.assertIsNotNone(p, "None process for prettyoutput")
-        p.stdin.write("Hello world\n")
-        p.stdin.write("This is a test\n")
-        p.stdin.write("PrettyOutput.Exit\n")
+        p.stdin.write("Hello world\n".encode())
+        p.stdin.write("This is a test\n".encode())
+        p.stdin.write("PrettyOutput.Exit\n".encode())
         pass
 
 

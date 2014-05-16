@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import histogram
 import argparse
-import prettyoutput as PrettyOutput
+from . import prettyoutput
 
 
 def ProcessArgs():
@@ -55,14 +55,14 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     Hist = histogram.Histogram.Load(HistogramFilename)
 
     if(Hist is None):
-        PrettyOutput.LogErr("PlotHistogram: Histogram file not found " + HistogramFilename)
+        prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramFilename)
         return
 
     if(Title is None):
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
 
-    # PrettyOutput.Log("Graphing histogram:")
-    # PrettyOutput.Log(str(Hist))
+    # prettyoutput.Log("Graphing histogram:")
+    # prettyoutput.Log(str(Hist))
 
     ShowLine = False
     if(LinePosList is not None):
@@ -70,7 +70,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         if not isinstance(LinePosList, list):
             LinePosList = [LinePosList]
 
-        # PrettyOutput.Log( "Line Positions: " + str(LinePosList))
+        # prettyoutput.Log( "Line Positions: " + str(LinePosList))
 
     ShowCutoffs = False
     if(MinCutoffPercent is not None or MaxCutoffPercent is not None):
@@ -92,12 +92,12 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         return
 
     if(ShowCutoffs):
-        # PrettyOutput.Log( "MinCutoff: " + str(float(MinCutoffPercent)*100) + '%')
-        # PrettyOutput.Log( "MaxCutoff: " + str((1 - float(MaxCutoffPercent))*100) + '%')
+        # prettyoutput.Log( "MinCutoff: " + str(float(MinCutoffPercent)*100) + '%')
+        # prettyoutput.Log( "MaxCutoff: " + str((1 - float(MaxCutoffPercent))*100) + '%')
         pass
 
-    # PrettyOutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
-    # PrettyOutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
+    # prettyoutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
+    # prettyoutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
     if(ShowCutoffs):
         print [MinCutoff, MaxCutoff]
 
@@ -193,4 +193,4 @@ if(__name__ == '__main__'):
     args = ProcessArgs()
     PlotHistogram(args.HistogramFilename, args.ImageFilename, args.MinCutoffPercent, args.MaxCutoffPercent, args.LinePosition)
 
-    PrettyOutput.Log(args)
+    prettyoutput.Log(args)

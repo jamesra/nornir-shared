@@ -6,10 +6,10 @@ Created on Oct 21, 2013
 import unittest
 import os
 import shutil
-from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator 
+from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator
 
 def CreateDirTree(path, dictSubTrees):
-    print str(dictSubTrees)
+    print(str(dictSubTrees))
     for key in dictSubTrees.keys():
         subtreepath = os.path.join(path, key)
         os.makedirs(subtreepath)
@@ -18,7 +18,7 @@ def CreateDirTree(path, dictSubTrees):
 
 
 def RecurseDictValues(dictSubTrees, path):
-    vals = dictSubTrees.keys()
+    vals = list(dictSubTrees.keys())
 
     for key in dictSubTrees.keys():
         subpath = os.path.join(path, key)
@@ -81,10 +81,10 @@ class TestFiles(unittest.TestCase):
         self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'aaa'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['baaa'], ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath,'bbb\\baaa'))
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'bbb\\baaa'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['cca'], ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath,'ccc\\cc\\cca'))
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'ccc\\cc\\cca'))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]

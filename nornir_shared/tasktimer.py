@@ -1,6 +1,6 @@
 import time
-import nornir_shared.prettyoutput as prettyoutput
 import math
+from . import  prettyoutput
 
 
 class TaskTimer:
@@ -19,10 +19,10 @@ class TaskTimer:
     def Start(self, task):
         self._TaskStartTime[task] = time.time();
 
-    def End(self, task, PrintElapsed = True):
+    def End(self, task, PrintElapsed=True):
         '''Stop a timer for a task, print output if PrintElapsed is not explicitely set to False'''
         tend = time.time();
-        
+
         tstart = self.DefaultStartTime
         if task in self._TaskStartTime:
             tstart = self._TaskStartTime.pop(task, self.DefaultStartTime)

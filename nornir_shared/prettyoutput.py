@@ -2,7 +2,7 @@ import time
 import sys
 import os
 import logging
-import subprocess 
+import subprocess
 import socket
 
 ECLIPSE = 'ECLIPSE' in os.environ;
@@ -30,8 +30,8 @@ if os.path.exists('Logs') == False:
 	except OSError as E:
 		if E.errno == 17:
 			# Log("Log dir already exists: " + 'Logs');
-			pass 
-	
+			pass
+
 
 if CURSES:
 	import curses
@@ -78,7 +78,7 @@ if CURSES:
 		logWindow.move(0, 0);
 		logWindow.standout();
 		statusWindow.standend();
-		
+
 		atexit.register(__EndCurses__)
 	except Exception as e:
 		curses.endwin();
@@ -103,10 +103,10 @@ def CurseString(topic, text):
 		statusWindow.move(yMax - 1, 0);
 		statusWindow.refresh();
 	else:
-		#print(topic + ": " + text);
+		# print(topic + ": " + text);
 		return
 
-def CurseProgress(text, Progress, Total = None):
+def CurseProgress(text, Progress, Total=None):
 	'''If Total is specified we display a percentage, otherwise
        a number'''
 
@@ -185,7 +185,7 @@ def CurseProgress(text, Progress, Total = None):
 					progText = progText + ' ' * (80 - len(progText));
 					print(progText);
 
-def Log(text = None):
+def Log(text=None):
 
 	if text is None or len(text) == 0:
 		text = os.linesep;
@@ -226,7 +226,7 @@ def Log(text = None):
 		print(text);
 
 
-def LogErr(error_message = None):
+def LogErr(error_message=None):
 	if error_message is None  or len(error_message) == 0:
 		error_message = "\n";
 	elif not isinstance(error_message, str):
@@ -237,7 +237,7 @@ def LogErr(error_message = None):
 
 	sys.stderr.write(error_message);
 	logging.error(error_message);
-	
+
 
 def PrettyOutputModulePath():
 
@@ -247,82 +247,81 @@ def PrettyOutputModulePath():
         path = os.getcwd()
 
     return os.path.join(path, 'prettyoutput.py')
-   
+
 
 class Console(object):
 	'''
 	Creates a second window which recieves text output sent to the Console object
 	'''
-	HOST = '127.0.0.1'    # The remote host
-	PORT = 50007          # The same port as used by the serve
-	
+	HOST = '127.0.0.1'  # The remote host
+	PORT = 50007  # The same port as used by the serve
+
 	def __init__(self, *args, **kwargs):
 		super(Console, self).__init__(*args, **kwargs)
 		self._socket = None
 		self._consoleProc = None
-	
+
 	@classmethod
 	def CreateConsoleProc(cls):
 		pycmd = "python -u " + PrettyOutputModulePath()
 		return subprocess.Popen("start " + pycmd, stdin=subprocess.PIPE, shell=True)
-		
+
 	@property
 	def socket(self):
 		if self._consoleProc is None:
 			self._consoleProc = Console.CreateConsoleProc()
-			
+
 		if self._socket is None:
 			self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self._socket.connect((Console.HOST, Console.PORT))
-		
+
 		return self._socket
-	
+
 	@property
 	def ConsoleProc(self):
 		return self._consoleProc
 
 	def WriteMessage(self, text):
-		self.socket.sendall(text) 
-		
+		self.socket.sendall(text.encode())
+
 	def Close(self):
-		
+
 		if not self._socket is None:
-			self._socket.sendall('PrettyOutput.Exit') 
+			self._socket.sendall('PrettyOutput.Exit'.encode())
 			self._socket.close()
 			self._socket = None
-# 			
+#
 #  		if not self._consoleProc is None:
 #  			self._consoleProc.terminate()
 #  			self._consoleProc = None
-		
+
 if __name__ == '__main__':
 	import sys
 	import time
 	import socket
-	
+
 	sys.stdout.write("Starting second output window\n")
-	HOST = '127.0.0.1'    # The remote host
-	PORT = 50007          # The same port as used by the server
+	HOST = '127.0.0.1'  # The remote host
+	PORT = 50007  # The same port as used by the server
 
 	while True:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.bind((HOST, PORT))
 		s.listen(1)
 		conn, addr = s.accept()
-		#print 'Connected by', addr
+		# print 'Connected by', addr
 		data = None
-		
+
 		while 1:
 			data = conn.recv(1024)
 			if not data: break
-		
+
 			sys.stdout.write(data)
 			if 'PrettyOutput.Exit' in data:
 				break
-		
+
 		conn.close()
-		
+
 		if 'PrettyOutput.Exit' in data:
 			sys.stdout.write("Exit output process")
 			break
-		  

@@ -1,15 +1,43 @@
 import sys
 import xml.dom.minidom
-import string
 import os
-import prettyoutput
 import copy
 import math
+import six
+from decimal import *
+from . import prettyoutput
+
+
+def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
+        Count = 0
+        iCutoffBin = 0
+
+        NumValues = sum(Bins)
+        CutoffCount = float(NumValues) * Percentile
+
+        # OK, find the index where the cutoff occurs
+        for i in range(0, len(Bins)):
+            Count += Bins[i]
+            iCutoffBin = i
+            if Count > CutoffCount:
+                break
+
+        # OK, find where inside the bin the cutoff occurs
+        StartingCount = Count - Bins[iCutoffBin]
+
+        IntrabinPercentile = float(CutoffCount - StartingCount) / float(Bins[iCutoffBin])
+
+        # Calculate the value
+        BaseValue = iCutoffBin * BinWidth
+
+        ActualValue = BaseValue + (BinWidth * IntrabinPercentile) + BinMinValue
+
+        return ActualValue
 
 class Histogram:
 
     def __init__(self):
-        self.MinValue = sys.maxint
+        self.MinValue = float('NaN')
         self.MaxValue = 0
         self.NumBins = 0
         self.NumSamples = 0
@@ -91,12 +119,13 @@ class Histogram:
 
         BinNode = ChannelElem.firstChild
         BinString = BinNode.data
-        BinStrings = string.split(BinString)
+
+        BinStrings = BinString.split()
 
         obj.Bins = list()
 
         for i in range(0, len(BinStrings)):
-            obj.Bins.append(string.atoi(BinStrings[i]))
+            obj.Bins.append(int(BinStrings[i]))
 
         if(len(obj.Bins) != obj.NumBins):
             prettyoutput.Log("ERROR: obj.Bins != obj.NumBins")
@@ -112,33 +141,27 @@ class Histogram:
         return float((self.MaxValue + 1) - self.MinValue) / float(self.NumBins)
 
 
-    def __FindValueAtPercentile(self, Bins, CutoffCount):
+    def _MinMaxBinIndicies(self, minVal=None, maxVal=None):
+        '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals'''
 
-        Count = 0
-        iCutoffBin = 0
+        AdjustedMin = self.MinValue
 
-        # OK, find the index where the cutoff occurs
-        for i in range(0, len(Bins)):
-            Count += Bins[i]
-            iCutoffBin = i
-            if Count > CutoffCount:
-                break
+        iMin = 0
+        if not minVal is None:
+            iMin = self.MapIntensityToBin(minVal)
+            AdjustedMin = minVal
 
-        # OK, find where inside the bin the cutoff occurs
-        StartingCount = Count - Bins[iCutoffBin]
+        iMax = self.NumBins - 1
+        if not maxVal is None:
+            iMax = self.MapIntensityToBin(maxVal)
 
-        IntrabinPercentile = float(CutoffCount - StartingCount) / float(Bins[iCutoffBin])
+        return (iMin, iMax, AdjustedMin)
 
-        # Calculate the value
-        BaseValue = iCutoffBin * self.BinWidth
+    def Median(self, minVal=None, maxVal=None):
 
-        ActualValue = BaseValue + (self.BinWidth * IntrabinPercentile)
+        (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
-        return ActualValue
-
-    @property
-    def Median(self):
-        MedianValue = self.__FindValueAtPercentile(self.Bins, (0.5 * float(self.NumSamples))) + self.MinValue
+        MedianValue = _FindValueAtPercentile(self.Bins[iMin:iMax], 0.5, self.BinWidth, AdjustedMin)
         return MedianValue
 
     def BinValue(self, iBin, fraction=0.0):
@@ -151,33 +174,36 @@ class Histogram:
         assert(fraction <= 1.0)
         return (iBin * self.BinWidth) + (fraction * self.BinWidth) + self.MinValue
 
-    @property
-    def Mean(self):
+    def Mean(self, minVal=None, maxVal=None):
 
         iBin = 0
         maxBin = 0
-        sum = long()
+        sum = Decimal()
+        totalcount = Decimal()
 
-        for ibin, bincount in enumerate(self.Bins):
-            sum += bincount * self.BinValue(ibin, fraction=0.5)
+        (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
-        return sum / self.NumSamples
+        for ibin in range(iMin, iMax):
+            bincount = self.Bins[ibin]
+            sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
+            totalcount += bincount
 
-    @property
-    def PeakValue(self):
+        return float(sum) / float(totalcount)
 
-        iBin = 0
+    def PeakValue(self, minVal=None, maxVal=None):
+
         maxBin = 0
-        iMax = 0
+        (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
         PeakList = []
 
-        for iBin, bincount in enumerate(self.Bins):
+        for ibin in range(iMin, iMax):
+            bincount = self.Bins[ibin]
             if maxBin < bincount:
                 maxBin = bincount
-                PeakList = [self.BinValue(iBin, fraction=0.5)]
+                PeakList = [self.BinValue(ibin, fraction=0.5)]
             elif maxBin == bincount:
-                PeakList.append(self.BinValue(iBin, fraction=0.5))
+                PeakList.append(self.BinValue(ibin, fraction=0.5))
 
         return math.fsum(PeakList) / float(len(PeakList))
 
@@ -199,27 +225,26 @@ class Histogram:
            If none is passed either min or max value is returned
            If the percentile falls within the center of a bin we use a linear approximation to estimate the value'''
 
-        MinCutoffCount = None
-        MaxCutoffCount = None
+        # MinCutoffCount = None
+        # MaxCutoffCount = None
 
-        iMaxBin = 0
-        iMinBin = 0
+        # iMaxBin = 0
+        # iMinBin = 0
 
         MinCutoffValue = self.MinValue
         MaxCutoffValue = self.MaxValue
 
         if not MinCutoff is None:
             assert(isinstance(MinCutoff, float))
-            MinCutoffCount = float(MinCutoff) * float(self.NumSamples)
-            MinCutoffValue = self.__FindValueAtPercentile(Bins=self.Bins, CutoffCount=MinCutoffCount)
-            MinCutoffValue += self.MinValue
+            # MinCutoffCount = float(MinCutoff) * float(self.NumSamples)
+            MinCutoffValue = _FindValueAtPercentile(Bins=self.Bins, Percentile=MinCutoff, BinWidth=self.BinWidth, BinMinValue=self.MinValue)
 
         if not MaxCutoff is None:
             assert(isinstance(MaxCutoff, float))
-            MaxCutoffCount = float(MaxCutoff) * float(self.NumSamples)
-            ReversedBins = copy.copy(self.Bins)
+            # MaxCutoffCount = float(MaxCutoff) * float(self.NumSamples)
+            ReversedBins = list(copy.copy(self.Bins))
             ReversedBins.reverse()
-            CutoffValue = self.__FindValueAtPercentile(Bins=ReversedBins, CutoffCount=MaxCutoffCount)
+            CutoffValue = _FindValueAtPercentile(Bins=ReversedBins, Percentile=MaxCutoff, BinWidth=self.BinWidth, BinMinValue=0)
             MaxCutoffValue = self.MaxValue - CutoffValue
 
 #
@@ -269,7 +294,8 @@ class Histogram:
     def Add(self, values):
         '''Add a list of individual values to the histogram'''
 
-        map(self.__mapaddfunc, values)
+        for v in values:
+            self.__mapaddfunc(v)
 
 #         for val in values:
 #             iTargetBin = self.MapIntensityToBin(val)
