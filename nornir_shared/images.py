@@ -343,7 +343,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     GridTileNameTemplate = '%(prefix)sX%(X)' + GridTileCoordFormat + '_Y%(Y)' + GridTileCoordFormat + '%(postfix)s.png'
 
     if(Logger is None):
-        Logger = logging.getLogger('TilesFromImage')
+        Logger = logging.getLogger(__name__)
 
     prettyoutput.CurseString('Stage', "Tiles from Image")
     if ImageExt is None:

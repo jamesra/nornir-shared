@@ -25,7 +25,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     if not os.path.exists(ProfileDir):
         os.makedirs(ProfileDir)
 
-    logger = logging.getLogger('RunWithProfiler')
+    logger = logging.getLogger(__name__ + '.RunWithProfiler')
 
 
     logger.info("Profiling: " + functionStr)
@@ -110,7 +110,7 @@ def lowpriority():
             # Unix and Mac should have a nice function
             os.nice(1)
     except:
-        logger = logging.getLogger('lowpriority')
+        logger = logging.getLogger(__name__ + '.lowpriority')
         if not logger is None:
             logger.warn("Could not lower process priority")
             if isWindows:
