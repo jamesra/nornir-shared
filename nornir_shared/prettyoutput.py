@@ -190,10 +190,10 @@ def CurseProgress(text, Progress, Total=None):
 
 
 def get_calling_func_name():
+   '''Beware that calling this function is fairly slow.'''
    records = inspect.stack()[2]
    mod_name = inspect.getmodule(records[0]).__name__
    func_name = records[3]
-
    return mod_name + "." + func_name
 
 #   stack = traceback.extract_stack()
@@ -202,7 +202,7 @@ def get_calling_func_name():
 #   return funcName
 
 
-def Log(text=None):
+def Log(text=None, logger_name=None):
 
 	if text is None or len(text) == 0:
 		text = os.linesep
@@ -214,7 +214,10 @@ def Log(text=None):
 	text = tabs + text
 	text.replace('\n', '\n' + tabs)
 
-	logger = logging.getLogger(get_calling_func_name())
+	# if logger_name is None:
+		# logger_name = get_calling_func_name()
+
+	logger = logging.getLogger(logger_name)
 	logger.info(text)
 
 	if CURSES:
