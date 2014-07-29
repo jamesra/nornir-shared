@@ -5,7 +5,7 @@ import copy
 import math
 import six
 from decimal import *
-from . import prettyoutput
+import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
