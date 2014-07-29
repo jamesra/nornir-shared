@@ -11,6 +11,8 @@ import sys
 import time
 import atexit
 
+logging_setup = False
+
 def RunWithProfiler(functionStr, outputpath=None):
     import cProfile
     import pstats
@@ -46,6 +48,12 @@ def RunWithProfiler(functionStr, outputpath=None):
     pr.print_callers(.1)
 
 def SetupLogging(OutputPath=None, Level=None):
+    
+    global logging_setup
+    if(logging_setup):
+        return 
+    
+    logging_setup = True
 
     if(Level is None):
         Level = logging.INFO
