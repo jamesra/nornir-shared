@@ -112,6 +112,9 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.ylabel('Counts')
     plt.xlabel('Intensity')
     plt.xlim([Hist.MinValue, Hist.MaxValue])
+    plt.xticks([])
+    plt.yticks([])
+    
 
     if(ShowCutoffs):
         if MinCutoff:
@@ -135,6 +138,8 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         plt.savefig(ImageFilename)
     else:
         plt.show()
+        
+    plt.close()
 
 
 def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
@@ -159,6 +164,8 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
         plt.savefig(OutputFilename)
     else:
         plt.show()
+        
+    plt.close()
 
 
 def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None):
@@ -186,6 +193,8 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.savefig(OutputFilename)
     else:
         plt.show()
+        
+    plt.close()
 
 
 if(__name__ == '__main__'):
