@@ -190,11 +190,27 @@ def CurseProgress(text, Progress, Total=None):
 
 
 def get_calling_func_name():
-   '''Beware that calling this function is fairly slow.'''
-   records = inspect.stack()[2]
-   mod_name = inspect.getmodule(records[0]).__name__
-   func_name = records[3]
-   return mod_name + "." + func_name
+	'''Beware that calling this function is fairly slow.'''
+	stack  = inspect.stack()
+	if len(stack) < 3:
+		return None
+	
+	records = stack[2]
+	if records is None:
+		return None
+	
+	if len(records) < 4:
+		return None
+	
+	func_name = records[3]
+	
+	module = inspect.getmodule(records[0])
+	if module is None:
+		return func_name 
+	
+	mod_name = inspect.getmodule(records[0]).__name__
+	
+	return mod_name + "." + func_name
 
 #   stack = traceback.extract_stack()
 #   filename, codeline, funcName, text = stack[-3]
