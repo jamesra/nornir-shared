@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import histogram
 import argparse
 from . import prettyoutput
+from collections import Iterable
 
 
 def ProcessArgs():
@@ -51,7 +52,7 @@ def ProcessArgs():
     return args
 
 
-def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, Title=None):
+def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None):
     Hist = histogram.Histogram.Load(HistogramFilename)
 
     if(Hist is None):
@@ -112,8 +113,10 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.ylabel('Counts')
     plt.xlabel('Intensity')
     plt.xlim([Hist.MinValue, Hist.MaxValue])
-    plt.xticks([])
-    plt.yticks([])
+    
+    #Ticks seem to be rendering very slowly, but they are needed for most histogram uses
+    #plt.xticks([])
+    #plt.yticks([])
     
 
     if(ShowCutoffs):
@@ -130,8 +133,16 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
                 plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
 
     if(ShowLine):
-        for linePos in LinePosList:
-            plt.plot([linePos, linePos], [0, yMax], color='green')
+        color = 'green'
+        if not LineColorList is None:
+            if not isinstance(LineColorList,Iterable):
+                color = LineColorList
+                
+        for i,linePos in enumerate(LinePosList):
+            if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
+                color = LineColorList[i]
+                    
+            plt.plot([linePos, linePos], [0, yMax], color=color)
             plt.annotate(str(linePos), [linePos, yMax * 0.9])
 
     if(ImageFilename is not None):
