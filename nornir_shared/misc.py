@@ -11,6 +11,8 @@ import sys
 import time
 import atexit
 
+logging_setup = False
+
 def RunWithProfiler(functionStr, outputpath=None):
     import cProfile
     import pstats
@@ -25,7 +27,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     if not os.path.exists(ProfileDir):
         os.makedirs(ProfileDir)
 
-    logger = logging.getLogger('RunWithProfiler')
+    logger = logging.getLogger(__name__ + '.RunWithProfiler')
 
 
     logger.info("Profiling: " + functionStr)
@@ -46,40 +48,47 @@ def RunWithProfiler(functionStr, outputpath=None):
     pr.print_callers(.1)
 
 def SetupLogging(OutputPath=None, Level=None):
+    
+    global logging_setup
+    if(logging_setup):
+        return 
+    
+    logging_setup = True
 
     if(Level is None):
         Level = logging.INFO
 
-    if OutputPath is None:
-        OutputPath = "C:\\Temp"
-
-    LogPath = os.path.join(OutputPath, 'Logs')
-
-    if not os.path.exists(LogPath):
-        os.makedirs(LogPath)
-
     formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
 
-    logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
-    logFileName = os.path.join(LogPath, logFileName)
-    errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
-    errlogFileName = os.path.join(LogPath, errlogFileName)
+    if not OutputPath is None:
+        OutputPath = "C:\\Temp"
 
-    logging.basicConfig(filename=logFileName, level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
+        LogPath = os.path.join(OutputPath, 'Logs')
 
-    eh = logging.FileHandler(errlogFileName)
-    eh.setLevel(logging.ERROR)
-    eh.setFormatter(formatter)
+        if not os.path.exists(LogPath):
+            os.makedirs(LogPath)
+
+        logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
+        logFileName = os.path.join(LogPath, logFileName)
+        errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
+        errlogFileName = os.path.join(LogPath, errlogFileName)
+
+        logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
+
+        eh = logging.FileHandler(errlogFileName)
+        eh.setLevel(logging.ERROR)
+        eh.setFormatter(formatter)
+        logger = logging.getLogger()
+        logger.addHandler(eh)
+    else:
+        logging.basicConfig(level=Level, format='%(levelname)s - %(name)s - %(message)s')
 
     ch = logging.StreamHandler()
     ch.setLevel(Level)
     ch.setFormatter(formatter)
 
     logger = logging.getLogger()
-    logger.addHandler(eh)
     logger.addHandler(ch)
-
-    eh.setFormatter(formatter)
 
     # Automatically shutdown logging when our process ends
     atexit.register(logging.shutdown)
@@ -110,7 +119,7 @@ def lowpriority():
             # Unix and Mac should have a nice function
             os.nice(1)
     except:
-        logger = logging.getLogger('lowpriority')
+        logger = logging.getLogger(__name__ + '.lowpriority')
         if not logger is None:
             logger.warn("Could not lower process priority")
             if isWindows:
