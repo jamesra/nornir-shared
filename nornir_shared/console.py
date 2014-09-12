@@ -12,8 +12,12 @@ import argparse
 import traceback 
 
 curses_available = None
-import nornir_shared.curses_console
-curses_available = True
+try:
+    import nornir_shared.curses_console
+    curses_available = True
+except:
+    print("Curses library not available")
+    pass
 
 import atexit
 
@@ -22,6 +26,7 @@ import atexit
 _console_exit_string = 'Console.Exit\n'
 DefaultPort = 50007
 DefaultHost = '127.0.0.1'
+_DEBUG = False
 
 def CreateParser():
     parser = argparse.ArgumentParser()
@@ -46,6 +51,13 @@ def CreateParser():
                         action='store_true',
                         help='Indicates the curses library should be used for the second window',
                         dest='curses')
+    
+    parser.add_argument('-debug',
+                        required=False,
+                        default=False,  
+                        action='store_true',
+                        help='Create text files for second console with recieved lines and exception information',
+                        dest='debug')
     
     return parser
     
@@ -91,13 +103,14 @@ class Console(object):
          
     def pycmd(self, title, host, port):
         '''Command to use to launch python'''
-        pycmd = "python -m nornir_shared.console -host %s -port %d -usecurses " % (host, int(port))
+        pycmd = "python -m nornir_shared.console -host %s -port %d " % (host, int(port))
         debug = False
-        cmd_prefix = 'start "%s" %s' % (title, pycmd)
+        cmd = 'start "%s" %s' % (title, pycmd)
         if debug:
-            cmd_prefix = 'cmd.exe /k %s' % (pycmd)
+            #Debug does not seem to be working for non-curses consoles for some reason
+            cmd = 'start "%s" %s -debug' % (title, pycmd)
             
-        return cmd_prefix + pycmd
+        return cmd
 
     @property
     def socket(self):
@@ -105,6 +118,7 @@ class Console(object):
             self._consoleProc = subprocess.Popen(self.pycmd(self.title, self.HOST, self.PORT), stdin=subprocess.PIPE, shell=True)
 
         if self._socket is None:
+            
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._socket.connect((self.HOST, self.PORT))
             atexit.register(self._socket.close)
@@ -133,12 +147,12 @@ class CursesConsole(Console):
     def pycmd(self, title, host, port):
         '''Command to use to launch python'''
         pycmd = "python -m nornir_shared.console -host %s -port %d -usecurses " % (host, int(port))
-        debug = True
-        cmd_prefix = 'start "%s" %s ' % (title,pycmd)
+        debug = False
+        cmd = 'start "%s" %s ' % (title,pycmd)
         if debug:
-            cmd_prefix = 'start "%s" %s ' % (title,pycmd)
+            cmd = 'start "%s" %s -debug' % (title,pycmd)
             
-        return cmd_prefix
+        return cmd
      
 
 def _CreateConnection(HOST, PORT):
@@ -182,6 +196,12 @@ def IsLineAvailable():
     
     return '\n' in line_buffer_str
 
+
+def CreateDebugInfoFile(filename=None):
+    if filename is None:
+        filename = 'Console_Debug_Output.txt'
+        
+    return open(os.path.join(os.getcwd(),filename), mode='w')
              
 def ListenLoop(HOST, PORT, handler_func):
     '''
@@ -191,14 +211,17 @@ def ListenLoop(HOST, PORT, handler_func):
     #sys.stdout.write("Starting second output window on %s:%d\n" % (HOST, PORT)) 
 
     global curses_available
+    global _DEBUG
     
+    hFile = None
     try:
-        hFile = open('C:\\Temp\\ListenLoop.txt', mode='w')
-    
-        hFile.write('HOST=%s\n' % HOST)
-        hFile.write('PORT=%d\n' % PORT)
-        hFile.write('Func=%s\n' % str(handler_func))
-        hFile.write('Curses_Available=%d\n' % curses_available)
+        if _DEBUG:
+            hFile = CreateDebugInfoFile()
+        
+            hFile.write('HOST=%s\n' % HOST)
+            hFile.write('PORT=%d\n' % PORT)
+            hFile.write('Func=%s\n' % str(handler_func))
+            hFile.write('Curses_Available=%d\n' % curses_available)
         
         exit_signal_received = False
             
@@ -208,7 +231,8 @@ def ListenLoop(HOST, PORT, handler_func):
             try:
                 conn = _CreateConnection(HOST, PORT)
                 
-                #pydevd.settrace(suspend=False)
+                if _DEBUG:
+                    pydevd.settrace(suspend=False)
                 
                 incoming_line = None
                 while not exit_signal_received:
@@ -216,7 +240,9 @@ def ListenLoop(HOST, PORT, handler_func):
                     
                     while IsLineAvailable():
                         incoming_line = GetNextLine()
-                        hFile.write(incoming_line)
+                        
+                        if _DEBUG:
+                            hFile.write(incoming_line)
                         
                         if _console_exit_string in incoming_line:
                             exit_signal_received = True
@@ -230,12 +256,16 @@ def ListenLoop(HOST, PORT, handler_func):
                     conn = None
             
     except Exception as e:
+        if hFile is None:
+            hFile = CreateDebugInfoFile()
+            
         hFile.write(str(e)+'\n')
         sys.stdout.write(traceback.format_exc()) 
         hFile.write(traceback.format_exc()+'\n')
         exit_signal_received = True 
     finally:
-        hFile.close()
+        if not hFile is None:
+            hFile.close()
         
         
 def CursesHandler(data_str):
@@ -257,32 +287,45 @@ _curses_screen = None
 Mapping 
 '''
 _curses_topic_line_dict = {}
+
+try:
+    import pydevd
+except:
+    print("Pydevd not available, debugging in Eclipse is disabled")
+    pass
  
         
 if __name__ == '__main__':
     
-    import pydevd
-    
-    parser = CreateParser()
-    args = parser.parse_args()
-    print('HOST=%s\n' % args.HOST)
-    print('PORT=%d\n' % args.PORT) 
-    print('Curses=%d\n' % args.curses)
-    if not args.curses:
-        ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=sys.stdout.write)
-    else: 
-        hFile = open('C:\\Temp\\OuterLoop.txt', mode='w')
+    try:
+        parser = CreateParser()
+        args = parser.parse_args()
         
-        try:
-            nornir_shared.curses_console.InitCurses()
-            hFile.write("Init OK")
-        except Exception as e:
-            hFile.write(traceback.format_exc(e))  
-        finally:
-            hFile.close()
-            
-        ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=CursesHandler)
-
-    print("This window will close in 30 seconds")
-    time.sleep(30)
+        _DEBUG = args.debug
+        
+        print('HOST=%s\n' % args.HOST)
+        print('PORT=%d\n' % args.PORT) 
+        print('Curses=%d\n' % args.curses)
+        print('Debug=%d\n' % _DEBUG)
+        
+        if _DEBUG: 
+            pydevd.settrace(suspend=False)
+        
+        if not args.curses:
+            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=sys.stdout.write)
+        else: 
+            try:
+                nornir_shared.curses_console.InitCurses()
+            except Exception as e:
+                sys.stdout.write(traceback.format_exc()) 
+                hFile = CreateDebugInfoFile('Console_Curses_Error.txt')
+                hFile.write(traceback.format_exc(e))
+                hFile.close()  
+                
+            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=CursesHandler)
+    except:
+        sys.stdout.write(traceback.format_exc()) 
+        pass
+    finally:
+        time.sleep(15)
     
