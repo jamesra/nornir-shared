@@ -18,6 +18,7 @@ if __name__ == '__main__':
                    'Programming Language :: Python :: 2.7']
 
     setup(name='nornir_shared',
+          zip_safe=True,
           classifiers=classifiers,
           version='1.2.2',
           description="Shared routines for Nornir python packages and scripts",
