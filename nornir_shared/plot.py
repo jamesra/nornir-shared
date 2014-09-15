@@ -70,6 +70,8 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
         ShowLine = True
         if not isinstance(LinePosList, list):
             LinePosList = [LinePosList]
+    else:
+        LinePosList = []
 
         # prettyoutput.Log( "Line Positions: " + str(LinePosList))
 
@@ -107,17 +109,19 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
  #  print 'Bin Sum: ' + str(sum(Hist.Bins))
 
     # print Hist.Bins
-    plt.cla()
-    plt.bar(BinValues, Hist.Bins, color='blue', edgecolor='blue', linewidth=0, width=Hist.BinWidth)
+    plt.clf()
+    plt.bar(BinValues, Hist.Bins, color='blue', edgecolor=None, linewidth=0, width=Hist.BinWidth)
     plt.title(Title)
     plt.ylabel('Counts')
     plt.xlabel('Intensity')
-    plt.xlim([Hist.MinValue, Hist.MaxValue])
-    
-    #Ticks seem to be rendering very slowly, but they are needed for most histogram uses
     #plt.xticks([])
-    #plt.yticks([])
+    plt.yticks([])
     
+    minX = min(LinePosList + [Hist.MinValue])
+    maxX = max(LinePosList + [Hist.MaxValue])
+    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
+    
+    #For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
     if(ShowCutoffs):
         if MinCutoff:
@@ -131,6 +135,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
 
             if MaxCutoffPercent:
                 plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
+
 
     if(ShowLine):
         color = 'green'
@@ -146,6 +151,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
             plt.annotate(str(linePos), [linePos, yMax * 0.9])
 
     if(ImageFilename is not None):
+        #plt.show()
         plt.savefig(ImageFilename)
     else:
         plt.show()
