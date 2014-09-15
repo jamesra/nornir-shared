@@ -222,7 +222,6 @@ def ListenLoop(HOST, PORT, handler_func):
 
     global curses_available
     global _DEBUG
-    global pydevd_available
     
     hFile = None
     try:
@@ -299,8 +298,6 @@ Mapping
 '''
         
 if __name__ == '__main__':
-    
-    global pydevd_available
     
     try:
         parser = CreateParser()
