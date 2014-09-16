@@ -16,7 +16,16 @@ try:
     import nornir_shared.curses_console
     curses_available = True
 except:
-    print("Curses library not available")
+    pass
+
+
+_curses_topic_line_dict = {}
+pydevd_available = False
+
+try:
+    import pydevd
+    pydevd_available = True
+except: 
     pass
 
 import atexit
@@ -231,7 +240,7 @@ def ListenLoop(HOST, PORT, handler_func):
             try:
                 conn = _CreateConnection(HOST, PORT)
                 
-                if _DEBUG:
+                if pydevd_available and _DEBUG:
                     pydevd.settrace(suspend=False)
                 
                 incoming_line = None
@@ -286,14 +295,6 @@ _curses_screen = None
 '''
 Mapping 
 '''
-_curses_topic_line_dict = {}
-
-try:
-    import pydevd
-except:
-    print("Pydevd not available, debugging in Eclipse is disabled")
-    pass
- 
         
 if __name__ == '__main__':
     
@@ -307,9 +308,13 @@ if __name__ == '__main__':
         print('PORT=%d\n' % args.PORT) 
         print('Curses=%d\n' % args.curses)
         print('Debug=%d\n' % _DEBUG)
+        print('pydevd_available=%d' % pydevd_available)
         
-        if _DEBUG: 
-            pydevd.settrace(suspend=False)
+        if _DEBUG:
+            if not pydevd_available:
+                print("Debug flag set but pydevd is not available.  Try running debug flag in eclipse to use breakpoints in remote process.")
+            else:  
+                pydevd.settrace(suspend=False)
         
         if not args.curses:
             ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=sys.stdout.write)
