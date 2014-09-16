@@ -6,7 +6,7 @@ import subprocess
 import socket
 import traceback
 import inspect
-import console
+from . import console
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = 'CURSES' in os.environ
