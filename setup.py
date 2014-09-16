@@ -1,4 +1,4 @@
-'''
+packages'''
 Created on Aug 30, 2013
 
 @author: u0490822
@@ -27,6 +27,6 @@ if __name__ == '__main__':
           author="James Anderson",
           author_email="James.R.Anderson@utah.edu",
           url="https://github.com/jamesra/nornir-shared",
-          packages=["nornir_shared"],
+          packages=packages,
           install_requires=install_requires,
           test_suite='test')
