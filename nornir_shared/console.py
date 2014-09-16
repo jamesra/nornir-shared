@@ -16,7 +16,6 @@ try:
     import nornir_shared.curses_console
     curses_available = True
 except:
-    print("Curses library not available")
     pass
 
 

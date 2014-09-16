@@ -10,7 +10,9 @@ from ez_setup import use_setuptools
 if __name__ == '__main__':
     use_setuptools()
 
-    from setuptools import setup
+    from setuptools import setup, find_packages
+
+    packages = find_packages()
 
     install_requires = ["six"]
 
@@ -25,6 +27,6 @@ if __name__ == '__main__':
           author="James Anderson",
           author_email="James.R.Anderson@utah.edu",
           url="https://github.com/jamesra/nornir-shared",
-          packages=["nornir_shared"],
+          packages=packages,
           install_requires=install_requires,
           test_suite='test')
