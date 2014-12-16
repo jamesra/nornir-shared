@@ -183,10 +183,18 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
 
     return InvalidImageList
 
-# Shrinks the passed image file, return procedure handle of invoked command
+
 def Shrink(InFile, OutFile, ShrinkFactor):
+    '''Shrinks the passed image file, return procedure handle of invoked command
+       Quality follows image magick documentation for -quality flag.  Here are some
+       test results from 774 1024x1024 images.  We had issues with ir-tools reading
+       images compressed with 106.  Going to 0 resolved the issue.
+       0: 614,393KB
+       75: 614,393KB
+       106: 475,508KB
+       '''
     Percentage = (1 / float(ShrinkFactor)) * 100.0
-    cmd = "Convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 106  -colorspace gray " + OutFile
+    cmd = "Convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
     prettyoutput.CurseString('Cmd', cmd)
     NewP = subprocess.Popen(cmd + " && exit", shell=True)
     return NewP
