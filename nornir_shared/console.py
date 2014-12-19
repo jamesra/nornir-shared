@@ -179,6 +179,7 @@ def ReadFromStream(conn):
     
     data = conn.recv(1024)
     if not data:
+        time.sleep(0.5)
         return None
     
     data_str = data.decode('utf8')

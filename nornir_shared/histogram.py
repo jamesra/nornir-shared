@@ -79,6 +79,17 @@ class Histogram:
             obj.NumBins = len(binVals)
 
         return obj
+    
+    @classmethod
+    def FromArray(cls, hist_array, minValue, binSize):
+        obj = Histogram()
+        
+        obj.NumBins = len(hist_array)
+        obj.Bins = list(hist_array)
+        obj.MinValue = minValue 
+        obj.MaxValue = minValue + (binSize * obj.NumBins)
+        return obj
+        
 
     @classmethod
     def Load(cls, filename):
