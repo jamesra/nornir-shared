@@ -3,6 +3,7 @@ import histogram
 import argparse
 from . import prettyoutput
 from collections import Iterable
+import numpy
 
 
 def ProcessArgs():
@@ -212,6 +213,25 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.show()
         
     plt.close()
+    
+
+def VectorField(Points, Offsets, OutputFilename=None):
+    
+    plt.cla()
+    assert(Points.shape[0] == Offsets.shape[0])
+    for iRow in range(0,Points.shape[0]):
+        Origin = Points[iRow,:]
+        Offset = Offsets[iRow,:]
+         
+        Destination = Origin + Offset
+         
+        line = numpy.vstack((Origin, Destination))
+        plt.plot(line[:,1], line[:,0], color='blue', marker='o', markevery=2)
+         
+    if(OutputFilename is not None):
+        plt.savefig(OutputFilename)
+    else:
+        plt.show()
 
 
 if(__name__ == '__main__'):
