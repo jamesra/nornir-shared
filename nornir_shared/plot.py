@@ -216,6 +216,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
     
 
 def VectorField(Points, Offsets, OutputFilename=None):
+     
     
     plt.cla()
     assert(Points.shape[0] == Offsets.shape[0])
@@ -226,10 +227,10 @@ def VectorField(Points, Offsets, OutputFilename=None):
         Destination = Origin + Offset
          
         line = numpy.vstack((Origin, Destination))
-        plt.plot(line[:,1], line[:,0], color='blue', marker='o', markevery=2)
+        plt.plot(line[:,1], line[:,0], color='blue', marker='s', fillstyle="none", mec="red", markevery=2)
          
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename)
+        plt.savefig(OutputFilename,dpi=300)
     else:
         plt.show()
 
