@@ -212,7 +212,7 @@ def __Fix_sRGB_String(path):
 
     return " -colorspace Gray "
 
-def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None):
+def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
     
     The key and value in the dictionary have the full path of an image to convert.
@@ -328,7 +328,8 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
     # Keep waiting until all processes are finished
     # WaitForAllProcesses(Procs)
-    ProcPool.wait_completion()
+    if not Async:
+        ProcPool.wait_completion()
 
     for t in tasks:
         if not t.returncode == 0:
