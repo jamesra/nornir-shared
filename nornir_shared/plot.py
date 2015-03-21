@@ -118,9 +118,6 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     #plt.xticks([])
     plt.yticks([])
     
-    minX = min(LinePosList + [Hist.MinValue])
-    maxX = max(LinePosList + [Hist.MaxValue])
-    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
     
     #For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
@@ -150,6 +147,11 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
                     
             plt.plot([linePos, linePos], [0, yMax], color=color)
             plt.annotate(str(linePos), [linePos, yMax * 0.9])
+            
+    
+    minX = min(LinePosList + [Hist.MinValue])
+    maxX = max(LinePosList + [Hist.MaxValue])
+    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
 
     if(ImageFilename is not None):
         #plt.show()
