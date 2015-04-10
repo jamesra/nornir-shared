@@ -4,6 +4,7 @@ import argparse
 from . import prettyoutput
 from collections import Iterable
 import numpy
+from matplotlib.lines import fillStyles
 
 
 def ProcessArgs():
@@ -221,6 +222,8 @@ def VectorField(Points, Offsets, OutputFilename=None):
      
     
     plt.cla()
+    plt.scatter(Points[:,1], Points[:,0], color='red', marker='s', alpha=0.5)
+    
     assert(Points.shape[0] == Offsets.shape[0])
     for iRow in range(0,Points.shape[0]):
         Origin = Points[iRow,:]
@@ -229,7 +232,7 @@ def VectorField(Points, Offsets, OutputFilename=None):
         Destination = Origin + Offset
          
         line = numpy.vstack((Origin, Destination))
-        plt.plot(line[:,1], line[:,0], color='blue', marker='s', fillstyle="none", mec="red", markevery=2)
+        plt.plot(line[:,1], line[:,0], color='blue')
          
     if(OutputFilename is not None):
         plt.savefig(OutputFilename,dpi=300)
