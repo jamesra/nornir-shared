@@ -137,13 +137,18 @@ def GetImageSize(path):
 
 
 def IsValidImage(filename, ImageDir=None, Pool=None):
-    '''Return true/false if passed a single image.  Returns a list of bad images if passed a list'''
+    '''Return true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
     filenamelist = filename
     if not isinstance(filename, list):
         filenamelist = [filename]
+     
+    if len(filenamelist) == 0:
+        return []
+        
+    IsSingleImage = len(filenamelist) == 1
 
-    if Pool is None and len(filenamelist) > 1:
+    if Pool is None and not IsSingleImage:
         Pool = Pools.GetGlobalClusterPool()
 
     if ImageDir is None:
@@ -163,19 +168,21 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         cmd = 'identify -format "  %f %G %b" ' + ImageFullPath
 
         try:
-            if(Pool is None):
+            if IsSingleImage:
                 SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
             else:
                 TaskList.append(Pool.add_process(filename, cmd + " && exit", shell=True))
         except subprocess.CalledProcessError as CPE:
             # Identify returned an error, so the file is bad
-            return False
+            InvalidImageList.append(filename) 
+            continue
+        
+    if not Pool is None:
+        Pool.wait_completion()
 
     # If check_call succeeded then we know the file is good and we can return
-    if(Pool is None):
-        return True
-
-    Pool.wait_completion()
+    if IsSingleImage:
+        return len(InvalidImageList) == 0
 
     for Task in TaskList:
         if Task.returncode > 0:
@@ -212,7 +219,7 @@ def __Fix_sRGB_String(path):
 
     return " -colorspace Gray "
 
-def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None):
+def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
     
     The key and value in the dictionary have the full path of an image to convert.
@@ -328,7 +335,8 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
     # Keep waiting until all processes are finished
     # WaitForAllProcesses(Procs)
-    ProcPool.wait_completion()
+    if not Async:
+        ProcPool.wait_completion()
 
     for t in tasks:
         if not t.returncode == 0:

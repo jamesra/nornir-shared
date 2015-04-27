@@ -273,21 +273,23 @@ def LogErr(error_message=None):
 
 	if(error_message[-1] != '\n'):
 		error_message = error_message + '\n'
-		
-	try:
-		global _error_console
-		
-		if _error_console is None:
-			_error_console = console.Console()
+	
+	if not ECLIPSE:
+		try:
+			global _error_console
 			
-		_error_console.WriteMessage(error_message)
-	except:
-		_error_console = None
-		sys.stderr(error_message)
-		pass
-
-	logger = logging.getLogger(get_calling_func_name())
-	logger.error(error_message)
+			if _error_console is None:
+				_error_console = console.Console()
+			
+			
+			_error_console.WriteMessage(error_message)
+		except:
+			_error_console = None
+			sys.stderr(error_message)
+			pass
+	else:
+		logger = logging.getLogger(get_calling_func_name())
+		logger.error(error_message)
 
 
 def PrettyOutputModulePath():

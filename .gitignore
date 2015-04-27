@@ -17,6 +17,7 @@ develop-eggs
 .installed.cfg
 lib
 lib64
+obj
 
 # Installer logs
 pip-log.txt
@@ -38,3 +39,4 @@ nosetests.xml
 Logs
 *.py.bak
 /__pycache__/
+__pycache__
