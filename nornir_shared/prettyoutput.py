@@ -285,7 +285,8 @@ def LogErr(error_message=None):
 			_error_console.WriteMessage(error_message)
 		except:
 			_error_console = None
-			sys.stderr(error_message)
+			logger = logging.getLogger(get_calling_func_name())
+			logger.error(error_message)
 			pass
 	else:
 		logger = logging.getLogger(get_calling_func_name())
