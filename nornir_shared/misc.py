@@ -149,22 +149,25 @@ def GenNameFromDict(dictObj):
     '''Creates a mangled name unique to the contents of a dictionary.
        Take the first three letters from each entry name, append the value, and build a mangled name'''
     outstr = ""
+    
+    sorted_keys = sorted(dictObj.keys())
 
-    for entry in dictObj.items():
-        assert(isinstance(entry[0], str))
-        nameMangle = entry[0]
+    for key in sorted_keys:
+        value = dictObj[key]
+        assert(isinstance(key, str))
+        nameMangle = key
         if(len(nameMangle) > 3):
             nameMangle = nameMangle[0:3]
 
         ValueStr = ""
-        if entry[1] is None:
+        if value is None:
             ValueStr = "None"
-        elif(isinstance(entry[1], list)):
-            ValueStr = str(entry[1][0])
-            for e in entry[1][1:-1]:
+        elif(isinstance(value, list)):
+            ValueStr = str(value[0])
+            for e in value[1:-1]:
                 ValueStr = 'x' + str(e)
         else:
-            ValueStr = str(entry[1])
+            ValueStr = str(value)
 
         outstr = outstr + "_" + nameMangle + ValueStr
 
