@@ -215,6 +215,9 @@ class Histogram:
                 PeakList = [self.BinValue(ibin, fraction=0.5)]
             elif maxBin == bincount:
                 PeakList.append(self.BinValue(ibin, fraction=0.5))
+                
+        if len(PeakList) == 0:
+            return None
 
         return math.fsum(PeakList) / float(len(PeakList))
 
