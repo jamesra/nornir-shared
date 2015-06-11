@@ -43,7 +43,29 @@ def NumberList(argstr):
             try:
                 val = int(entry)
                 listNums.append(val)
-            except ValueError as ve:
-                raise argparse.ArgumentTypeError()
+            except ValueError:
+                raise argparse.ArgumentTypeError("NumberList function could not convert %s to integer value" % entry)
 
     return listNums
+
+def NumberPair(argstr):
+    '''Return a pair of numbers based on a comma delimited string
+    :param argstr:  A string defining one or two numbers.  If only one number is defined it is returned twice.  Commas separate values. Ex: 1,3
+    :rtype: tuple of 2 integers
+    '''
+    
+    listNums = []
+    argstr = argstr.replace(' ', '')
+    
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) > 2 or len(arg_values) <= 0:
+        raise  argparse.ArgumentTypeError("Number pair expects one number or two comma delimited numbers without spaces.  For example 1,3.  Passed value %s was invalid" % argstr)
+    
+    try:
+        if len(arg_values) == 1:
+            val = int(arg_values[0])
+            return (val, val)
+        else:
+            return (int(arg_values[0]), int(arg_values[1]))
+    except ValueError:
+        raise argparse.ArgumentTypeError("NumberPair function could not convert %s to integer value(s)" % argstr)

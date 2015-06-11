@@ -12,7 +12,8 @@ DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
 
 def NewestFile(fileA, fileB):
-    '''Returns parameter which is the newest, or none if equal.'''
+    ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
+    
     if(fileA is None):
         return None
     if(fileB is None):
@@ -31,7 +32,14 @@ def NewestFile(fileA, fileB):
     elif(AStats.st_mtime < BStats.st_mtime):
         return fileB
     else:
-        return None
+        return fileB
+    
+def IsOutdated(ReferenceFilename, TestFilename):
+    '''
+    :return: True if TestFilename is older than ReferenceFilename
+    '''
+    newestFile = NewestFile(ReferenceFilename, TestFilename)
+    return newestFile == ReferenceFilename
 
 def OutdatedFile(ReferenceFilename, TestFilename):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''

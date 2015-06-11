@@ -3,6 +3,8 @@ import histogram
 import argparse
 from . import prettyoutput
 from collections import Iterable
+import numpy
+from matplotlib.lines import fillStyles
 
 
 def ProcessArgs():
@@ -117,9 +119,6 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     #plt.xticks([])
     plt.yticks([])
     
-    minX = min(LinePosList + [Hist.MinValue])
-    maxX = max(LinePosList + [Hist.MaxValue])
-    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
     
     #For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
@@ -149,6 +148,11 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
                     
             plt.plot([linePos, linePos], [0, yMax], color=color)
             plt.annotate(str(linePos), [linePos, yMax * 0.9])
+            
+    
+    minX = min(LinePosList + [Hist.MinValue])
+    maxX = max(LinePosList + [Hist.MaxValue])
+    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
 
     if(ImageFilename is not None):
         #plt.show()
@@ -212,6 +216,28 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.show()
         
     plt.close()
+    
+
+def VectorField(Points, Offsets, OutputFilename=None):
+     
+    
+    plt.cla()
+    plt.scatter(Points[:,1], Points[:,0], color='red', marker='s', alpha=0.5)
+    
+    assert(Points.shape[0] == Offsets.shape[0])
+    for iRow in range(0,Points.shape[0]):
+        Origin = Points[iRow,:]
+        Offset = Offsets[iRow,:]
+         
+        Destination = Origin + Offset
+         
+        line = numpy.vstack((Origin, Destination))
+        plt.plot(line[:,1], line[:,0], color='blue')
+         
+    if(OutputFilename is not None):
+        plt.savefig(OutputFilename,dpi=300)
+    else:
+        plt.show()
 
 
 if(__name__ == '__main__'):
