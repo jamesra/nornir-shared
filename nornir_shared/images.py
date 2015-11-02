@@ -12,6 +12,8 @@ import math
 import shutil
 import nornir_pools as Pools
 
+import numpy as np
+
 from . import prettyoutput
 from . import processoutputinterceptor
 
@@ -109,35 +111,42 @@ def IdentifyImage(ImageFilePath):
 
     return interceptor
 
+def IsImageNumpyFormat(path):
+    (root, ext) = os.path.splitext(path)
+    return '.npy' == ext
+
 def GetImageSize(path):
-    '''Returns size of image, [Width,Height]'''
-
-    if not os.path.exists(path):
-        return None
-
-    cmd = 'identify -format %G "' + path + '" '
-    proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
-    proc.wait()
-
-    [stdoutdata, stderrdata] = proc.communicate()
-
-    Output = stdoutdata.strip()
-
-    if six.PY3:
-        Output = Output.decode()
-
-    Parts = Output.split('x')
-    if len(Parts) < 2:
-        raise ValueError("Invalid image file passed to GetImageSize: " + path)
-
-    Width = int(Parts[0])
-    Height = int(Parts[1])
-
-    return (Width, Height)
-
+    '''
+    :param str path: An image path or ndarray
+    Returns size of image, [Width,Height]'''
+    
+    if isinstance(path, str):
+        if not os.path.exists(path):
+            return None        
+               
+        cmd = 'identify -format %G "' + path + '" '
+        proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
+        proc.wait()
+    
+        [stdoutdata, stderrdata] = proc.communicate()
+    
+        Output = stdoutdata.strip()
+    
+        if six.PY3:
+            Output = Output.decode()
+    
+        Parts = Output.split('x')
+        if len(Parts) < 2:
+            raise ValueError("Invalid image file passed to GetImageSize: " + path)
+    
+        Width = int(Parts[0])
+        Height = int(Parts[1])
+    
+        return (Width, Height)      
+        
 
 def IsValidImage(filename, ImageDir=None, Pool=None):
-    '''Return true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
+    ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
     filenamelist = filename
     if not isinstance(filename, list):
@@ -163,6 +172,10 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         ImageFullPath = os.path.join(ImageDir, filename)
         if not os.path.exists(ImageFullPath):
             InvalidImageList.append(filename)
+            continue
+        
+        (root, ext) = os.path.splitext(filename)
+        if ext == '.npy':
             continue
 
         cmd = 'identify -format "  %f %G %b" ' + ImageFullPath
