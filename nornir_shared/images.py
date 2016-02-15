@@ -228,7 +228,7 @@ def __Fix_sRGB_String(path):
         return " -colorspace Gray "
 
     if colorspace == "sRGB":
-        return " -set colorspace RGB -colorspace Gray "
+        return " -colorspace Gray " #" -set colorspace RGB -colorspace Gray " # I removed this on 1/29/2016.  Image magick was telling me a BMP image was an sRGB colorspace.  When I converted to RGB the conversion to PNG grayscale was shifting the image.
 
     return " -colorspace Gray "
 
