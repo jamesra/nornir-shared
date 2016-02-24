@@ -228,7 +228,8 @@ def __Fix_sRGB_String(path):
         return " -colorspace Gray "
 
     if colorspace == "sRGB":
-        return " -colorspace Gray " #" -set colorspace RGB -colorspace Gray " # I removed this on 1/29/2016.  Image magick was telling me a BMP image was an sRGB colorspace.  When I converted to RGB the conversion to PNG grayscale was shifting the image.
+        # I removed this on 1/29/2016.  Image magick was telling me a BMP image was an sRGB colorspace.  When I converted to RGB the conversion to PNG grayscale was shifting the image.
+        return " -colorspace Gray "  # " -set colorspace RGB -colorspace Gray " 
 
     return " -colorspace Gray "
 
@@ -467,9 +468,9 @@ def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTar
     with  open(XMLOutputPath, 'w') as newXML:
 
         newXML.write('<?xml version="1.0" ?> \n')
-        newXML.write('<Level GridDimX=\"' + '%d' % XDim + '\" GridDimY=\"' + '%d' % YDim +
-                     '\" TileXDim=\"' + '%d' % TileXDim + '\" TileYDim=\"' + '%d' % TileYDim +
-                     '\" Downsample=\"' + '%d' % DownsampleTarget + '\" FilePrefix=\"' +
+        newXML.write('<Level GridDimX=\"' + '%d' % XDim + '\" GridDimY=\"' + '%d' % YDim + 
+                     '\" TileXDim=\"' + '%d' % TileXDim + '\" TileYDim=\"' + '%d' % TileYDim + 
+                     '\" Downsample=\"' + '%d' % DownsampleTarget + '\" FilePrefix=\"' + 
                      FilePrefix + '\" FilePostfix=\"' + FilePostfix + '\" /> \n')
     return
 
