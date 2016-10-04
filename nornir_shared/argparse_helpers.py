@@ -8,7 +8,7 @@ def _IsNumberRange(argstr):
 
 def _NumberRangeToList(argstr):
     '''
-    :param argstr: Pair of number seperated by a hyphen defining a range, inclusive.  Example: 1-3 = [1,2,3]
+    :param argstr: Pair of number separated by a hyphen defining a range, inclusive.  Example: 1-3 = [1,2,3]
     '''
 
     numbers = []
@@ -26,7 +26,7 @@ def _NumberRangeToList(argstr):
 
 def NumberList(argstr):
     '''Return a list of numbers based on a range defined by a string 
-       :param argstr:  A string defining a list of numbers.  Commas seperate values and hyphens define ranges.  Ex: 1, 3, 5-8, 11 = [1,3,5,6,7,8,11]
+       :param argstr:  A string defining a list of numbers.  Commas separate values and hyphens define ranges.  Ex: 1, 3, 5-8, 11 = [1,3,5,6,7,8,11]
        :rtype: List of integers
     '''
 
