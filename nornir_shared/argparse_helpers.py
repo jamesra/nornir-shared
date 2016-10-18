@@ -69,6 +69,34 @@ def NumberPair(argstr):
             return (int(arg_values[0]), int(arg_values[1]))
     except ValueError:
         raise argparse.ArgumentTypeError("NumberPair function could not convert %s to integer value(s)" % argstr)
+
+def Tuple(argstr): 
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 2:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+
+def Triple(argstr): 
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 3:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+    
+def Quadruple(argstr): 
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 4:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+        
     
 def FloatRange(argstr):
     '''Return a pair of numbers based on a comma delimited string
