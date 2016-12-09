@@ -70,7 +70,10 @@ def NumberPair(argstr):
     except ValueError:
         raise argparse.ArgumentTypeError("NumberPair function could not convert %s to integer value(s)" % argstr)
 
-def Tuple(argstr): 
+def Tuple(argstr):
+    if len(argstr) == 0:
+        return None
+     
     argstr = argstr.replace(' ', '')
         
     arg_values = argstr.strip().split(',')
@@ -80,6 +83,9 @@ def Tuple(argstr):
     return NumberList(argstr)
 
 def Triple(argstr): 
+    if len(argstr) == 0:
+        return None
+    
     argstr = argstr.replace(' ', '')
         
     arg_values = argstr.strip().split(',')
@@ -89,6 +95,9 @@ def Triple(argstr):
     return NumberList(argstr)
     
 def Quadruple(argstr): 
+    if len(argstr) == 0:
+        return None
+    
     argstr = argstr.replace(' ', '')
         
     arg_values = argstr.strip().split(',')
