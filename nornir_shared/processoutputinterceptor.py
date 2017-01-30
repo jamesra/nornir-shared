@@ -5,13 +5,14 @@ Created on Dec 29, 2011
 '''
 
 import os
-import shutil
 import random
+import shutil
 import subprocess
 
 from . import prettyoutput
-# import nornir_pools as pools
 
+
+# import nornir_pools as pools
 class ProcessOutputInterceptor(object):
     '''
     Examines the output of the process in real time and calls lineparsefunc passing each line of output.

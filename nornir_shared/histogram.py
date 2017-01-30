@@ -1,10 +1,12 @@
+import copy
+from decimal import *
+import math
+import os
 import sys
 import xml.dom.minidom
-import os
-import copy
-import math
+
 import six
-from decimal import *
+
 import prettyoutput
 
 

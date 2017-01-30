@@ -1,5 +1,6 @@
-import re
 import argparse
+import re
+
 
 def _IsNumberRange(argstr):
     '''Return true if the string has a hypen with two numbers between'''
@@ -117,7 +118,7 @@ def FloatRange(argstr):
     listNums = []
     argstr = argstr.replace(' ', '')
     
-    if(argstr is None or len(argstr) == 0 ):
+    if(argstr is None or len(argstr) == 0):
         return None
     
     arg_values = argstr.strip().split(':')

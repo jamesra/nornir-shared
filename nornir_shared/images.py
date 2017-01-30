@@ -3,15 +3,15 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
-import os
-import six
-import subprocess
-
 import logging
 import math
+import os
 import shutil
-import nornir_pools as Pools
+import subprocess
 
+import six
+
+import nornir_pools as Pools
 import numpy as np
 
 from . import prettyoutput

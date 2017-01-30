@@ -6,6 +6,7 @@ Created on Jul 11, 2012
 
 from . import  prettyoutput
 
+
 __ModuleClassCacheDict = dict();
 
 def get_module_class(module, kls, LogErrIfNotFound=True):

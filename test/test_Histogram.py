@@ -7,6 +7,7 @@ import unittest
 
 from nornir_shared.histogram import *
 
+
 class Test(unittest.TestCase):
 
     def testHistogram8bppMinVals(self):
