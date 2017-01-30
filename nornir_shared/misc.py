@@ -191,7 +191,9 @@ def ListFromDelimited(value, delimiter=None):
                 except:
                     ValueList.append(floatVal)
             except:
-                ValueList.append(Value)
+                if len(Value) > 0:
+                    ValueList.append(Value)
+                    
     elif not isinstance(value, list):
         ValueList = [value]
 
