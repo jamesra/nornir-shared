@@ -3,15 +3,15 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
-import os
-import six
-import subprocess
-
 import logging
 import math
+import os
 import shutil
-import nornir_pools as Pools
+import subprocess
 
+import six
+
+import nornir_pools as Pools
 import numpy as np
 
 from . import prettyoutput
@@ -233,18 +233,23 @@ def __Fix_sRGB_String(path):
 
     return " -colorspace Gray "
 
-def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
+def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
-    
     The key and value in the dictionary have the full path of an image to convert.
     MinMax is a tuple [Min,Max] passed to the -level parameter if it is not None
     RightLeftShift is a tuple containing a right then left then return to center shift which should be done to remove useless bits from the data
     I do not use an and because I do not calculate ImageMagick's quantum size yet.
     Every image must share the same colorspace
+    
+    :return: True if images were converted
+    :rtype: bool 
     '''
 
     if len(ImagesToConvertDict) == 0:
-        return
+        return False
+
+    if Bpp is None:
+        Bpp = GetImageBpp(ImagesToConvertDict.keys[0])
 
     prettyoutput.CurseString('Stage', "ConvertImagesInDict")
     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
@@ -281,7 +286,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
         # Track the shift required to return to center
 
-
         if(RightLeftShift[0] > 0):
             RightLeftShiftStr = " -evaluate rightshift " + str(RightLeftShift[0]) + ' '
 
@@ -304,7 +308,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     if Flop:
         flopStr = " -flop "
 
-
     QualityStr = ''
     if Bpp <= 8:
         QualityStr = ' -quality 106 '
@@ -318,7 +321,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     for f in ImagesToConvertDict.keys():
         OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
 
-
         originalFileName = '"' + f + '"'
 
         # I move images to a temporary file, then rename at the end to prevent half-written files when the user uses CTRL+C
@@ -331,14 +333,12 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
         # prettyoutput.Log(f + ' -> ' + ImagesToConvertDict[f])
 
-
-
         # Find out if we need to flip the image
         if(originalFileName != targetFileName) or Flip or Flop:
             cmd = "convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
         else:
             # Nothing to do, source and target names match and no flipping required, skip everything
-            return
+            return False
 
         if not SampleCmdPrinted:
             SampleCmdPrinted = True
@@ -362,6 +362,8 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
             if(os.path.exists(ImagesToConvertDict[f])):
                 prettyoutput.Log("Deleting: " + f)
                 os.remove(f)
+
+    return len(tasks) > 0
 
 
 def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, DownsampleList=None, GridTileCoordFormat=None, Logger=None):

@@ -1,5 +1,6 @@
-import re
 import argparse
+import re
+
 
 def _IsNumberRange(argstr):
     '''Return true if the string has a hypen with two numbers between'''
@@ -8,7 +9,7 @@ def _IsNumberRange(argstr):
 
 def _NumberRangeToList(argstr):
     '''
-    :param argstr: Pair of number seperated by a hyphen defining a range, inclusive.  Example: 1-3 = [1,2,3]
+    :param argstr: Pair of number separated by a hyphen defining a range, inclusive.  Example: 1-3 = [1,2,3]
     '''
 
     numbers = []
@@ -26,7 +27,7 @@ def _NumberRangeToList(argstr):
 
 def NumberList(argstr):
     '''Return a list of numbers based on a range defined by a string 
-       :param argstr:  A string defining a list of numbers.  Commas seperate values and hyphens define ranges.  Ex: 1, 3, 5-8, 11 = [1,3,5,6,7,8,11]
+       :param argstr:  A string defining a list of numbers.  Commas separate values and hyphens define ranges.  Ex: 1, 3, 5-8, 11 = [1,3,5,6,7,8,11]
        :rtype: List of integers
     '''
 
@@ -69,3 +70,82 @@ def NumberPair(argstr):
             return (int(arg_values[0]), int(arg_values[1]))
     except ValueError:
         raise argparse.ArgumentTypeError("NumberPair function could not convert %s to integer value(s)" % argstr)
+
+def Tuple(argstr):
+    if len(argstr) == 0:
+        return None
+     
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 2:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+
+def Triple(argstr): 
+    if len(argstr) == 0:
+        return None
+    
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 3:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+    
+def Quadruple(argstr): 
+    if len(argstr) == 0:
+        return None
+    
+    argstr = argstr.replace(' ', '')
+        
+    arg_values = argstr.strip().split(',')
+    if len(arg_values) != 4:
+        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+    
+    return NumberList(argstr)
+        
+    
+def FloatRange(argstr):
+    '''Return a pair of numbers based on a comma delimited string
+    :param argstr:  A string defining either: A single number or a pair of hyphen delimited numbers indicating a range.
+                    A trailing comma indicates the step size for the floating point values. Ex: 0:0.5:2 -> [0, 0.5, 1, 1.5, 2] 
+    :rtype: list of floats
+    '''
+    
+    listNums = []
+    argstr = argstr.replace(' ', '')
+    
+    if(argstr is None or len(argstr) == 0):
+        return None
+    
+    arg_values = argstr.strip().split(':')
+    if len(arg_values) > 3 or len(arg_values) <= 0:
+        raise  argparse.ArgumentTypeError("Number pair expects at most one step size argument.  For example '0:0.5:2'. Passed value %s was invalid" % argstr)
+    
+    step_size = 1.0
+    start_val = None
+    end_val = None
+    
+    try:
+        if len(arg_values) == 1:
+            start_val = float(arg_values[0])
+            end_val = float(arg_values[0])
+        elif len(arg_values) == 2:
+            start_val = float(arg_values[0])
+            end_val = float(arg_values[1])
+        elif len(arg_values) == 3:
+            start_val = float(arg_values[0])
+            step_size = float(arg_values[1])
+            end_val = float(arg_values[2])
+    except ValueError:
+        raise argparse.ArgumentTypeError("NumberPair function could not convert %s to integer value(s)" % argstr)
+    
+    NextVal = start_val
+    while NextVal <= end_val:
+        listNums.append(NextVal)
+        NextVal += step_size
+        
+    return listNums

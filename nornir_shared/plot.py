@@ -1,10 +1,13 @@
-import matplotlib.pyplot as plt
-import histogram
 import argparse
-from . import prettyoutput
 from collections import Iterable
-import numpy
+
 from matplotlib.lines import fillStyles
+import numpy
+
+import histogram
+import matplotlib.pyplot as plt
+
+from . import prettyoutput
 
 
 def ProcessArgs():
@@ -116,11 +119,11 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.title(Title)
     plt.ylabel('Counts')
     plt.xlabel('Intensity')
-    #plt.xticks([])
+    # plt.xticks([])
     plt.yticks([])
     
     
-    #For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
+    # For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
     if(ShowCutoffs):
         if MinCutoff:
@@ -139,10 +142,10 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     if(ShowLine):
         color = 'green'
         if not LineColorList is None:
-            if not isinstance(LineColorList,Iterable):
+            if not isinstance(LineColorList, Iterable):
                 color = LineColorList
                 
-        for i,linePos in enumerate(LinePosList):
+        for i, linePos in enumerate(LinePosList):
             if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
                 color = LineColorList[i]
                     
@@ -152,10 +155,10 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     
     minX = min(LinePosList + [Hist.MinValue])
     maxX = max(LinePosList + [Hist.MaxValue])
-    plt.xlim([minX-Hist.BinWidth, maxX+Hist.BinWidth])
+    plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if(ImageFilename is not None):
-        #plt.show()
+        # plt.show()
         plt.savefig(ImageFilename)
     else:
         plt.show()
@@ -222,20 +225,20 @@ def VectorField(Points, Offsets, OutputFilename=None):
      
     
     plt.cla()
-    plt.scatter(Points[:,1], Points[:,0], color='red', marker='s', alpha=0.5)
+    plt.scatter(Points[:, 1], Points[:, 0], color='red', marker='s', alpha=0.5)
     
     assert(Points.shape[0] == Offsets.shape[0])
-    for iRow in range(0,Points.shape[0]):
-        Origin = Points[iRow,:]
-        Offset = Offsets[iRow,:]
+    for iRow in range(0, Points.shape[0]):
+        Origin = Points[iRow, :]
+        Offset = Offsets[iRow, :]
          
         Destination = Origin + Offset
          
         line = numpy.vstack((Origin, Destination))
-        plt.plot(line[:,1], line[:,0], color='blue')
+        plt.plot(line[:, 1], line[:, 0], color='blue')
          
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename,dpi=300)
+        plt.savefig(OutputFilename, dpi=300)
     else:
         plt.show()
 

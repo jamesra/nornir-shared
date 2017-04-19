@@ -3,10 +3,12 @@ Created on Oct 21, 2013
 
 @author: u0490822
 '''
-import unittest
 import os
 import shutil
+import unittest
+
 from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator
+
 
 def CreateDirTree(path, dictSubTrees):
     print(str(dictSubTrees))

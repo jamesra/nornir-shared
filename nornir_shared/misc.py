@@ -5,11 +5,12 @@ Created on Jul 11, 2012
 
 Functions that are broadly used in Python programs but don't have a specific category
 '''
-import os
+import atexit
 import logging
+import os
 import sys
 import time
-import atexit
+
 
 logging_setup = False
 
@@ -191,7 +192,9 @@ def ListFromDelimited(value, delimiter=None):
                 except:
                     ValueList.append(floatVal)
             except:
-                ValueList.append(Value)
+                if len(Value) > 0:
+                    ValueList.append(Value)
+                    
     elif not isinstance(value, list):
         ValueList = [value]
 

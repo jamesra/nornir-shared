@@ -5,12 +5,14 @@
 '''
 
 
-import smtplib
-from . import prettyoutput
-import os
+from email import encoders
 from email.mime import multipart, text, image
 from email.utils import COMMASPACE, formatdate
-from email import encoders
+import os
+import smtplib
+
+from . import prettyoutput
+
 
 def SendMail(**kwargs):
     '''Sends an email
