@@ -5,9 +5,7 @@ Created on Dec 29, 2011
 '''
 
 import os
-import random
 import shutil
-import subprocess
 
 from . import prettyoutput
 
