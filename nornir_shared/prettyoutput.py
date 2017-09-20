@@ -37,7 +37,6 @@ if os.path.exists('Logs') == False:
 			# Log("Log dir already exists: " + 'Logs')
 			pass
 
-
 if CURSES:
 	import curses
 	import curses.wrapper
@@ -64,8 +63,6 @@ if CURSES:
 					"Path": 8,
 					"Cmd" : 9
 					}
-
-
 
 	# sys.stdout = logFile
 

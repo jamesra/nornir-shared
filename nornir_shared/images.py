@@ -11,8 +11,7 @@ import subprocess
 
 import six
 
-import nornir_pools as Pools
-import numpy as np
+import nornir_pools as Pools 
 
 from . import prettyoutput
 from . import processoutputinterceptor

@@ -208,6 +208,12 @@ def SortedListFromDelimited(value, delimiter=None):
 def ListFromAttribute(attrib):
     return ListFromDelimited(attrib, delimiter=',')
 
+def IsSequence(arg):
+    '''Return true if arg is iterable and not a string'''
+    return (not hasattr(arg, "strip") and
+            hasattr(arg, "__getitem__") or
+            hasattr(arg, "__iter__"))
+
 
 if __name__ == '__main__':
     pass

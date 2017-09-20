@@ -56,6 +56,18 @@ class Histogram:
  #       s += 'Bin Values: ' + str(self.Bins) + '\n'
         return s
 
+    def __getstate__(self):
+        dict = {}
+        dict['MinValue'] = self.MinValue
+        dict['MaxValue'] = self.MaxValue
+        dict['NumBins'] = self.NumBins
+        dict['NumSamples'] = self.NumSamples
+        dict['Bins'] = self.Bins
+        return dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     @classmethod
     def Init(cls, minVal, maxVal, numBins=None, binVals=None):
         obj = Histogram()
@@ -81,27 +93,27 @@ class Histogram:
             obj.NumBins = len(binVals)
 
         return obj
-    
+
     @classmethod
     def FromArray(cls, hist_array, minValue, binSize):
         obj = Histogram()
-        
+
         obj.NumBins = len(hist_array)
         obj.Bins = list(hist_array)
         obj.MinValue = minValue 
         obj.MaxValue = minValue + (binSize * obj.NumBins)
         return obj
-        
 
     @classmethod
-    def Load(cls, filename):
+    def FromXML(self, xml):
         obj = Histogram()
 
-        if(os.path.exists(filename) == False):
-            prettyoutput.Log("Mosaic file not found: " + filename)
-            return
-
-        xmlDoc = xml.dom.minidom.parse(filename)
+        if isinstance(xml, str):
+            xmlDoc = xml.dom.minidom.parseString(xml)
+        else:
+            xmlDoc = xml
+        #else:
+            #raise InvalidOperation("xml parameter was not a string or XML minidom object")
 
         Elems = xmlDoc.getElementsByTagName('Histogram')
         if(len(Elems) != 1):
@@ -146,7 +158,14 @@ class Histogram:
             return
 
         return obj
-       # prettyoutput.Log( self.Bins)
+
+    @classmethod
+    def Load(cls, filename): 
+        if(os.path.exists(filename) == False):
+            prettyoutput.Log("Mosaic file not found: " + filename)
+            return
+
+        return Histogram.FromXML(xml.dom.minidom.parse(filename))
 
     @property
     def BinWidth(self):
@@ -339,8 +358,7 @@ class Histogram:
 
         return binsString
 
-    def Save(self, filename):
-
+    def ToXML(self):
         impl = xml.dom.minidom.getDOMImplementation()
 
         xmlDoc = impl.createDocument(None, 'Histogram', None)
@@ -365,6 +383,11 @@ class Histogram:
         ChannelElem = HistogramElem.appendChild(ChannelElem)
 
         xmlStr = xmlDoc.toprettyxml()
+        return xmlStr
+
+    def Save(self, filename):
+        xmlStr = self.ToXML()
+
         with open(filename, 'w') as xmlFile:
             xmlFile.write(xmlStr)
             xmlFile.close()
