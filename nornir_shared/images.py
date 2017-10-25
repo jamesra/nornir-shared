@@ -213,7 +213,7 @@ def Shrink(InFile, OutFile, ShrinkFactor):
        106: 475,508KB
        '''
     Percentage = (1 / float(ShrinkFactor)) * 100.0
-    cmd = "Convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
+    cmd = "magick convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
     prettyoutput.CurseString('Cmd', cmd)
     NewP = subprocess.Popen(cmd + " && exit", shell=True)
     return NewP
@@ -334,7 +334,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
 
         # Find out if we need to flip the image
         if(originalFileName != targetFileName) or Flip or Flop:
-            cmd = "convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
+            cmd = "magick convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
         else:
             # Nothing to do, source and target names match and no flipping required, skip everything
             return False
@@ -418,11 +418,11 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 
     XMLFilePath = os.path.join(DownSampleDirectory, str(Downsample) + ".xml")
 
-    utils.Files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
+    files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
 
     if not os.path.exists(XMLFilePath):
         # Convert is going to create a list of names.
-        cmd = 'convert -crop ' + str(TileSize[0]) + 'x' + str(TileSize[1]) + ' ' + ImageFullPath + ' -depth 8 -quality 106 -type Grayscale -extent ' + str(XDim) + 'x' + str(YDim) + ' ' + tilePrefixPath
+        cmd = 'magick convert '  + ImageFullPath + ' -crop ' + str(TileSize[0]) + 'x' + str(TileSize[1]) + ' -depth 8 -quality 106 -type Grayscale -extent ' + str(XDim) + 'x' + str(YDim) + ' ' + tilePrefixPath
         prettyoutput.CurseString('Cmd', cmd)
         subprocess.call(cmd + ' && exit', shell=True)
 
