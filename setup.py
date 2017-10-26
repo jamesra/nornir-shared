@@ -19,10 +19,12 @@ if __name__ == '__main__':
     classifiers = ['Programming Language :: Python :: 3.4',
                    'Programming Language :: Python :: 2.7']
 
+    #Starting with 1.3.4 Image Magick 7 is required
+
     setup(name='nornir_shared',
           zip_safe=True,
           classifiers=classifiers,
-          version='1.3.3',
+          version='1.3.4',
           description="Shared routines for Nornir python packages and scripts",
           author="James Anderson",
           author_email="James.R.Anderson@utah.edu",
