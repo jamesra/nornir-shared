@@ -123,7 +123,7 @@ def GetImageSize(path):
         if not os.path.exists(path):
             return None        
                
-        cmd = 'identify -format %G "' + path + '" '
+        cmd = 'magick identify -format %G "' + path + '" '
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
         proc.wait()
     
@@ -177,7 +177,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         if ext == '.npy':
             continue
 
-        cmd = 'identify -format "  %f %G %b" ' + ImageFullPath
+        cmd = 'magick identify -format "  %f %G %b" ' + ImageFullPath
 
         try:
             if IsSingleImage:
@@ -461,7 +461,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 #            BuildTilePyramids(Dir, InputImageDir, XmlFilePath, OutputImageDir, TargetDownsample)
 
 
-    return
+    return (XGridDim, YGridDim)
 
 def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTarget, FilePrefix, FilePostfix=".png"):
     # Write a new XML file
