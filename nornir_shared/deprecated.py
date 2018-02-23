@@ -6,10 +6,12 @@ Created on Jul 11, 2012
 Functions that were used in the past but should no longer be used.  Mostly replaced by thread and cluster pools.
 
 '''
-import platform
 import os
+import platform
 import time
+
 from . import prettyoutput
+
 
 # Attempt to create a file that tells other machines the directory is in use.
 def TryEnterLockPath(Path):

@@ -3,16 +3,15 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
-import os
-import six
-import subprocess
-
 import logging
 import math
+import os
 import shutil
-import nornir_pools as Pools
+import subprocess
 
-import numpy as np
+import six
+
+import nornir_pools as Pools 
 
 from . import prettyoutput
 from . import processoutputinterceptor
@@ -124,7 +123,7 @@ def GetImageSize(path):
         if not os.path.exists(path):
             return None        
                
-        cmd = 'identify -format %G "' + path + '" '
+        cmd = 'magick identify -format %G "' + path + '" '
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
         proc.wait()
     
@@ -178,7 +177,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         if ext == '.npy':
             continue
 
-        cmd = 'identify -format "  %f %G %b" ' + ImageFullPath
+        cmd = 'magick identify -format "  %f %G %b" ' + ImageFullPath
 
         try:
             if IsSingleImage:
@@ -214,7 +213,7 @@ def Shrink(InFile, OutFile, ShrinkFactor):
        106: 475,508KB
        '''
     Percentage = (1 / float(ShrinkFactor)) * 100.0
-    cmd = "Convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
+    cmd = "magick convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
     prettyoutput.CurseString('Cmd', cmd)
     NewP = subprocess.Popen(cmd + " && exit", shell=True)
     return NewP
@@ -233,18 +232,23 @@ def __Fix_sRGB_String(path):
 
     return " -colorspace Gray "
 
-def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
+def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
-    
     The key and value in the dictionary have the full path of an image to convert.
     MinMax is a tuple [Min,Max] passed to the -level parameter if it is not None
     RightLeftShift is a tuple containing a right then left then return to center shift which should be done to remove useless bits from the data
     I do not use an and because I do not calculate ImageMagick's quantum size yet.
     Every image must share the same colorspace
+    
+    :return: True if images were converted
+    :rtype: bool 
     '''
 
     if len(ImagesToConvertDict) == 0:
-        return
+        return False
+
+    if Bpp is None:
+        Bpp = GetImageBpp(ImagesToConvertDict.keys[0])
 
     prettyoutput.CurseString('Stage', "ConvertImagesInDict")
     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
@@ -281,7 +285,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
         # Track the shift required to return to center
 
-
         if(RightLeftShift[0] > 0):
             RightLeftShiftStr = " -evaluate rightshift " + str(RightLeftShift[0]) + ' '
 
@@ -304,7 +307,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     if Flop:
         flopStr = " -flop "
 
-
     QualityStr = ''
     if Bpp <= 8:
         QualityStr = ' -quality 106 '
@@ -318,7 +320,6 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
     for f in ImagesToConvertDict.keys():
         OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
 
-
         originalFileName = '"' + f + '"'
 
         # I move images to a temporary file, then rename at the end to prevent half-written files when the user uses CTRL+C
@@ -331,14 +332,12 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
 
         # prettyoutput.Log(f + ' -> ' + ImagesToConvertDict[f])
 
-
-
         # Find out if we need to flip the image
         if(originalFileName != targetFileName) or Flip or Flop:
-            cmd = "convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
+            cmd = "magick convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
         else:
             # Nothing to do, source and target names match and no flipping required, skip everything
-            return
+            return False
 
         if not SampleCmdPrinted:
             SampleCmdPrinted = True
@@ -362,6 +361,8 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=8, Inve
             if(os.path.exists(ImagesToConvertDict[f])):
                 prettyoutput.Log("Deleting: " + f)
                 os.remove(f)
+
+    return len(tasks) > 0
 
 
 def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, DownsampleList=None, GridTileCoordFormat=None, Logger=None):
@@ -417,11 +418,11 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 
     XMLFilePath = os.path.join(DownSampleDirectory, str(Downsample) + ".xml")
 
-    utils.Files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
+    files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
 
     if not os.path.exists(XMLFilePath):
         # Convert is going to create a list of names.
-        cmd = 'convert -crop ' + str(TileSize[0]) + 'x' + str(TileSize[1]) + ' ' + ImageFullPath + ' -depth 8 -quality 106 -type Grayscale -extent ' + str(XDim) + 'x' + str(YDim) + ' ' + tilePrefixPath
+        cmd = 'magick convert '  + ImageFullPath + ' -crop ' + str(TileSize[0]) + 'x' + str(TileSize[1]) + ' -depth 8 -quality 106 -type Grayscale -extent ' + str(XDim) + 'x' + str(YDim) + ' ' + tilePrefixPath
         prettyoutput.CurseString('Cmd', cmd)
         subprocess.call(cmd + ' && exit', shell=True)
 
@@ -460,7 +461,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 #            BuildTilePyramids(Dir, InputImageDir, XmlFilePath, OutputImageDir, TargetDownsample)
 
 
-    return
+    return (XGridDim, YGridDim)
 
 def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTarget, FilePrefix, FilePostfix=".png"):
     # Write a new XML file

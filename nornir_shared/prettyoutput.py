@@ -1,12 +1,14 @@
-import time
-import sys
-import os
-import logging
-import subprocess
-import socket
-import traceback
 import inspect
+import logging
+import os
+import socket
+import subprocess
+import sys
+import time
+import traceback
+
 import nornir_shared.console as console
+
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = 'CURSES' in os.environ
@@ -35,7 +37,6 @@ if os.path.exists('Logs') == False:
 			# Log("Log dir already exists: " + 'Logs')
 			pass
 
-
 if CURSES:
 	import curses
 	import curses.wrapper
@@ -62,8 +63,6 @@ if CURSES:
 					"Path": 8,
 					"Cmd" : 9
 					}
-
-
 
 	# sys.stdout = logFile
 
@@ -190,7 +189,7 @@ def CurseProgress(text, Progress, Total=None):
 
 def get_calling_func_name():
 	'''Beware that calling this function is fairly slow.'''
-	stack  = inspect.stack()
+	stack = inspect.stack()
 	if len(stack) < 3:
 		return None
 	

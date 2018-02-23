@@ -1,6 +1,7 @@
-import time
 import math
-from . import  prettyoutput
+import time
+
+from . import prettyoutput
 
 
 class TaskTimer:

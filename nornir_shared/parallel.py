@@ -10,8 +10,7 @@ if __name__ == '__main__':
 import os
 import platform
 import time
-
-
+ 
 # Attempt to create a file that tells other machines the directory is in use.
 def TryEnterLockPath(Path):
     LockFile = os.path.join(Path, 'Path');

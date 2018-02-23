@@ -6,9 +6,9 @@ Created on Sep 3, 2014
 This facilitates the output console window to use the curses library
 '''
 
+import atexit
 import curses 
 
-import atexit
 
 _status_window = None
 _curses_screen = None
@@ -26,7 +26,7 @@ def GetOrCreateTopicRow(topic):
         return topic_row_list.index(topic)
     else: 
         topic_row_list.append(topic)
-        return len(topic_row_list)-1
+        return len(topic_row_list) - 1
     
 
 def CurseString(topic, text): 
@@ -56,8 +56,8 @@ def InitCurses():
 
     try:
         (num_rows, num_cols) = _curses_screen.getmaxyx()
-        #LogStartY = 16
-        #ScreenWidth = maxX
+        # LogStartY = 16
+        # ScreenWidth = maxX
 
         _status_window = curses.newwin(num_rows, num_cols, 0, 0)
 #===============================================================================

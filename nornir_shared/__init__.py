@@ -22,7 +22,7 @@ emaillib
 '''
 
 
-__all__ = ['checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
+__all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
 
 #
 #
@@ -38,3 +38,4 @@ __all__ = ['checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'pa
 # .. automodule:: nornir_shared.processoutputinterceptor
 # .. automodule:: nornir_shared.reflection
 # .. automodule:: nornir_shared.tasktimer
+# .. automodule:: nornir_shared.argparse_helpers

@@ -8,6 +8,7 @@ import unittest
 
 import nornir_shared.images as images
 
+
 class Test(unittest.TestCase):
 
 

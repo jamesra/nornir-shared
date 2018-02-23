@@ -4,7 +4,9 @@ Created on Oct 13, 2013
 @author: Jamesan
 '''
 import unittest
+
 import nornir_shared.prettyoutput
+
 
 class Test(unittest.TestCase):
 

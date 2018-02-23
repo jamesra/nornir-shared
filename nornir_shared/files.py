@@ -3,9 +3,11 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
-import os
-from . import prettyoutput
 import glob
+import os
+
+from . import prettyoutput
+
 
 DownsampleFormat = '%03d'
 DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]

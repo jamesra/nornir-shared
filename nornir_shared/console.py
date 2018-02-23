@@ -3,13 +3,15 @@ Created on Sep 3, 2014
 
 @author: u0490822
 '''
+import argparse 
+import atexit
 import os
-import subprocess
 import socket
+import subprocess
 import sys
 import time
-import argparse 
 import traceback 
+
 
 curses_available = None
 try:
@@ -28,7 +30,6 @@ try:
 except: 
     pass
 
-import atexit
 
     
 '''The string to send to a second console process to close it'''
@@ -56,14 +57,14 @@ def CreateParser():
     
     parser.add_argument('-usecurses', '-c',
                         required=False,
-                        default=False,  
+                        default=False,
                         action='store_true',
                         help='Indicates the curses library should be used for the second window',
                         dest='curses')
     
     parser.add_argument('-debug',
                         required=False,
-                        default=False,  
+                        default=False,
                         action='store_true',
                         help='Create text files for second console with recieved lines and exception information',
                         dest='debug')
@@ -116,7 +117,7 @@ class Console(object):
         debug = False
         cmd = 'start "%s" %s' % (title, pycmd)
         if debug:
-            #Debug does not seem to be working for non-curses consoles for some reason
+            # Debug does not seem to be working for non-curses consoles for some reason
             cmd = 'start "%s" %s -debug' % (title, pycmd)
             
         return cmd
@@ -157,9 +158,9 @@ class CursesConsole(Console):
         '''Command to use to launch python'''
         pycmd = "python -m nornir_shared.console -host %s -port %d -usecurses " % (host, int(port))
         debug = False
-        cmd = 'start "%s" %s ' % (title,pycmd)
+        cmd = 'start "%s" %s ' % (title, pycmd)
         if debug:
-            cmd = 'start "%s" %s -debug' % (title,pycmd)
+            cmd = 'start "%s" %s -debug' % (title, pycmd)
             
         return cmd
      
@@ -194,8 +195,8 @@ def GetNextLine():
     
     if '\n' in line_buffer_str:
         iNewline = line_buffer_str.find('\n')
-        line = line_buffer_str[:iNewline+1]
-        line_buffer_str = line_buffer_str[iNewline+1:]
+        line = line_buffer_str[:iNewline + 1]
+        line_buffer_str = line_buffer_str[iNewline + 1:]
         
         return line
 
@@ -211,14 +212,14 @@ def CreateDebugInfoFile(filename=None):
     if filename is None:
         filename = 'Console_Debug_Output.txt'
         
-    return open(os.path.join(os.getcwd(),filename), mode='w')
+    return open(os.path.join(os.getcwd(), filename), mode='w')
              
 def ListenLoop(HOST, PORT, handler_func):
     '''
     :param func handler_func: Function to pass data recieved on the socket to
     '''
     
-    #sys.stdout.write("Starting second output window on %s:%d\n" % (HOST, PORT)) 
+    # sys.stdout.write("Starting second output window on %s:%d\n" % (HOST, PORT)) 
 
     global curses_available
     global _DEBUG
@@ -269,9 +270,9 @@ def ListenLoop(HOST, PORT, handler_func):
         if hFile is None:
             hFile = CreateDebugInfoFile()
             
-        hFile.write(str(e)+'\n')
+        hFile.write(str(e) + '\n')
         sys.stdout.write(traceback.format_exc()) 
-        hFile.write(traceback.format_exc()+'\n')
+        hFile.write(traceback.format_exc() + '\n')
         exit_signal_received = True 
     finally:
         if not hFile is None:
