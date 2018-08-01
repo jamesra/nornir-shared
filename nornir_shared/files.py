@@ -5,6 +5,7 @@ Created on Jul 11, 2012
 '''
 import glob
 import os
+import time
 
 from . import prettyoutput
 
@@ -42,6 +43,27 @@ def IsOutdated(ReferenceFilename, TestFilename):
     '''
     newestFile = NewestFile(ReferenceFilename, TestFilename)
     return newestFile == ReferenceFilename
+
+def IsOlderThan(TestPath, DateTime, DateTimeFormat = None):
+    '''Return true if the file is older than the specified date string
+    :param str TestPath: Path we are using to retrieve the last modified time from
+    :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
+    :param str DateTimeFormat: Optional, if a string is passed this parameter indicates the string format.  Defaults to "%d %b %Y %H:%M:%S"
+    '''
+    if isinstance(DateTime, float):
+        DateTime = DateTime
+    elif isinstance(DateTime, int):
+        DateTime = float(DateTime)
+    elif isinstance(DateTime, str):
+        if DateTimeFormat is None:
+            DateTimeFormat = "%d %b %Y %H:%M:%S"
+            
+        DateTime = time.mktime(time.strptime(DateTime, DateTimeFormat))
+    else:
+        raise TypeError("IsOlderThan expects a string or floating parameter to compare against, got %s" % str(DateTime))
+    
+    return os.path.getmtime(TestPath) <  DateTime
+        
 
 def OutdatedFile(ReferenceFilename, TestFilename):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
