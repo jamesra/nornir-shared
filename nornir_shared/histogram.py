@@ -7,7 +7,7 @@ import xml.dom.minidom
 
 import six
 
-import prettyoutput
+from nornir_shared import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
@@ -71,6 +71,8 @@ class Histogram:
     @classmethod
     def Init(cls, minVal, maxVal, numBins=None, binVals=None):
         obj = Histogram()
+
+        numBins = int(math.ceil(numBins))
 
         if numBins is None:
             # Add one for being zero based

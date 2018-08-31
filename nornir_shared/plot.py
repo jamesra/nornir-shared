@@ -1,11 +1,13 @@
 import argparse
 from collections import Iterable
+import matplotlib.pyplot as plt
 
 from matplotlib.lines import fillStyles
 import numpy
 
-import histogram
-import matplotlib.pyplot as plt
+
+from . import histogram
+
 
 from . import prettyoutput
 
@@ -57,12 +59,17 @@ def ProcessArgs():
     return args
 
 
-def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None):
-    Hist = histogram.Histogram.Load(HistogramFilename)
+def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None):
+    Hist = None
+    
+    if isinstance(HistogramOrFilename, histogram.Histogram):
+        Hist = HistogramOrFilename
+    else:
+        Hist = histogram.Histogram.Load(HistogramOrFilename)
 
-    if(Hist is None):
-        prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramFilename)
-        return
+        if(Hist is None):
+            prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
+            return
 
     if(Title is None):
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
@@ -160,10 +167,9 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     if(ImageFilename is not None):
         # plt.show()
         plt.savefig(ImageFilename)
+        plt.close()
     else:
-        plt.show()
-        
-    plt.close()
+        plt.show() 
 
 
 def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
