@@ -166,7 +166,8 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
 
     if(ImageFilename is not None):
         # plt.show()
-        plt.savefig(ImageFilename)
+        plt.ioff()
+        plt.savefig(ImageFilename,  bbox_inches='tight')
         plt.close()
     else:
         plt.show() 
@@ -191,7 +192,8 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
     plt.ylim(0, max(y) + 1)
 
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename)
+        plt.ioff()
+        plt.savefig(OutputFilename) 
     else:
         plt.show()
         
@@ -220,7 +222,8 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.xlabel(XAxisLabel)
 
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename)
+        plt.ioff()
+        plt.savefig(OutputFilename) 
     else:
         plt.show()
         
@@ -244,6 +247,7 @@ def VectorField(Points, Offsets, OutputFilename=None):
         plt.plot(line[:, 1], line[:, 0], color='blue')
          
     if(OutputFilename is not None):
+        plt.ioff()
         plt.savefig(OutputFilename, dpi=300)
     else:
         plt.show()
