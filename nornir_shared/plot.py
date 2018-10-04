@@ -59,7 +59,7 @@ def ProcessArgs():
     return args
 
 
-def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None):
+def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None, xlabel=None, ylabel=None):
     Hist = None
     
     if isinstance(HistogramOrFilename, histogram.Histogram):
@@ -73,6 +73,12 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
 
     if(Title is None):
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
+        
+    if xlabel is None:
+        xlabel = 'Intensity'
+        
+    if ylabel is None:
+        ylabel = 'Counts'
 
     # prettyoutput.Log("Graphing histogram:")
     # prettyoutput.Log(str(Hist))
@@ -124,8 +130,8 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
     plt.clf()
     plt.bar(BinValues, Hist.Bins, color='blue', edgecolor=None, linewidth=0, width=Hist.BinWidth)
     plt.title(Title)
-    plt.ylabel('Counts')
-    plt.xlabel('Intensity')
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
     # plt.xticks([])
     plt.yticks([])
     
