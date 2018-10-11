@@ -295,6 +295,29 @@ def RemoveFilenameSpaces(Path, ext):
         filenameNoSpaces = filename.replace(' ', '_')
         filePathNoSpaces = os.path.join(dirname, filenameNoSpaces)
         shutil.move(f, filePathNoSpaces)
+        
+def try_locate_file(self, ImageFullPath, listAltDirs):
+        '''
+        Identify the path a file exists at.  If the path is absolute that will be
+        returned.  If the path is relative it will be combined with the list of 
+        alternative paths to see if it can be found
+        '''
+        if os.path.exists(ImageFullPath):
+            return ImageFullPath
+        else:
+            
+            filename = ImageFullPath
+             
+            #Do not use the base filename if the ImagePath is relative
+            if os.path.isabs(ImageFullPath):
+                filename = os.path.basename(ImageFullPath)
+                        
+            for dirname in listAltDirs:
+                nextPath = os.path.join(dirname, filename)
+                if os.path.exists(nextPath):
+                    return nextPath
+            
+        return None
 
 if __name__ == '__main__':
     pass

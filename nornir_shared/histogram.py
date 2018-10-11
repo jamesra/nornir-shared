@@ -72,12 +72,14 @@ class Histogram:
     def Init(cls, minVal, maxVal, numBins=None, binVals=None):
         obj = Histogram()
 
-        numBins = int(math.ceil(numBins))
+        
 
         if numBins is None:
             # Add one for being zero based
             obj.NumBins = (maxVal + 1) - minVal
+            obj.NumBins = int(obj.NumBins)
         else:
+            numBins = int(math.ceil(numBins))
             if not binVals is None:
                 assert(len(binVals) == numBins)
 
