@@ -99,7 +99,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
 
     if(ShowCutoffs):
         # If the either number is greater than 1 assume it is an absolute value
-        if(MinCutoffPercent >= 1 or MaxCutoffPercent >= 1):
+        if(MinCutoffPercent >= 1 or MaxCutoffPercent > 1):
             MinCutoff = MinCutoffPercent
             MinCutoffPercent = MinCutoff / Hist.MaxValue
             MaxCutoff = MaxCutoffPercent
@@ -120,7 +120,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
     # prettyoutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
     # prettyoutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
     if(ShowCutoffs):
-        print [MinCutoff, MaxCutoff]
+        print( [MinCutoff, MaxCutoff])
 
     yMax = max(Hist.Bins)
  #  print 'Bins: ' + str(Hist.Bins)
@@ -236,11 +236,17 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
     plt.close()
     
 
-def VectorField(Points, Offsets, OutputFilename=None):
+def VectorField(Points, Offsets, weights=None, OutputFilename=None):
      
     
-    plt.cla()
-    plt.scatter(Points[:, 1], Points[:, 0], color='red', marker='s', alpha=0.5)
+    plt.clf()
+    
+    if weights is None:
+        plt.scatter(Points[:, 1], Points[:, 0], color='red', marker='s', alpha=0.5)
+    else:
+        cm = plt.get_cmap('RdYlBu')
+        plt.scatter(Points[:, 1], Points[:, 0], c=weights, marker='s', vmin=0, vmax=max(weights), alpha=0.5, cmap=cm)
+        plt.colorbar()
     
     assert(Points.shape[0] == Offsets.shape[0])
     for iRow in range(0, Points.shape[0]):
