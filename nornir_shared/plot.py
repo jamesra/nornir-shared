@@ -235,17 +235,61 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         
     plt.close()
     
-
-def VectorField(Points, Offsets, weights=None, OutputFilename=None):
+    
+def __PlotVectorOriginShape(render_mask, shape, Points, weights=None, color=None, colormap=None):
+    '''Plot a subset of the points that are True in the mask with the specified shape
+    color is only used if weights is none.
+    '''
      
-    
-    plt.clf()
-    
     if weights is None:
-        plt.scatter(Points[:, 1], Points[:, 0], color='red', marker='s', alpha=0.5)
+        if color is None:
+            color = 'red' 
+        
+        plt.scatter(Points[:, 1], Points[:, 0], color=color, marker=shape, alpha=0.5)
     else:
-        cm = plt.get_cmap('RdYlBu')
-        plt.scatter(Points[:, 1], Points[:, 0], c=weights, marker='s', vmin=0, vmax=max(weights), alpha=0.5, cmap=cm)
+        if colormap is None:
+            colormap = plt.get_cmap('RdYlBu')
+        
+        plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0, vmax=max(weights), alpha=0.5, cmap=colormap)
+    
+
+def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None, ylim=None, xlim=None):
+     
+    plt.clf() 
+    
+    if shapes is None:
+        shapes = 's'
+         
+    if isinstance(shapes, str):
+        shapes = shapes
+        mask = numpy.ones(Points.shape[0], dtype=numpy.bool)
+        __PlotVectorOriginShape(mask, shapes, Points, weights)
+    else:
+        try:
+            _ = iter(shapes)
+        except TypeError:
+            raise ValueError("shapes must be None, string, or iterable type")
+    
+        #Iterable
+        if len(shapes) != Points.shape[0]:
+            raise ValueError("Length of shapes must match number of points")
+        
+        #Plot each batch of points with different shape
+        all_shapes = set(shapes)
+        
+        for shape in all_shapes:
+            mask = [s == shape for s in shapes]
+            mask = numpy.asarray(mask, dtype=numpy.bool)
+            
+            __PlotVectorOriginShape(mask, shape, Points, weights)
+            
+    if ylim is not None:
+        plt.ylim(ylim)
+        
+    if xlim is not None:
+        plt.xlim(xlim)
+             
+    if weights is not None:
         plt.colorbar()
     
     assert(Points.shape[0] == Offsets.shape[0])
