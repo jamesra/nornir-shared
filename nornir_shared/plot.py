@@ -1,16 +1,12 @@
 import argparse
 from collections import Iterable
 import matplotlib.pyplot as plt
-
 from matplotlib.lines import fillStyles
 import numpy
-
-
 from . import histogram
-
-
 from . import prettyoutput
 
+plt.ioff()
 
 def ProcessArgs():
     parser = argparse.ArgumentParser('AutoLevelHistogram')
@@ -61,6 +57,10 @@ def ProcessArgs():
 
 def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None, xlabel=None, ylabel=None):
     Hist = None
+    
+    if(ImageFilename is not None):
+        # plt.show()
+        plt.ioff()
     
     if isinstance(HistogramOrFilename, histogram.Histogram):
         Hist = HistogramOrFilename
@@ -171,8 +171,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
     plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if(ImageFilename is not None):
-        # plt.show()
-        plt.ioff()
+        # plt.show() 
         plt.savefig(ImageFilename,  bbox_inches='tight')
         plt.close()
     else:
@@ -310,8 +309,8 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
 
 
 if(__name__ == '__main__'):
-    # Executed as a script, call the plothistogram function
+    # Executed as a script, call the histogram function
     args = ProcessArgs()
-    PlotHistogram(args.HistogramFilename, args.ImageFilename, args.MinCutoffPercent, args.MaxCutoffPercent, args.LinePosition)
+    Histogram(HistogramOrFilename=args.HistogramFilename, ImageFilename=args.ImageFilename, MinCutoffPercent=args.MinCutoffPercent, MaxCutoffPercent=args.MaxCutoffPercent, LinePosList=args.LinePosition)
 
     prettyoutput.Log(args)

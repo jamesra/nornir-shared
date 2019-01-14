@@ -25,8 +25,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     ProfilePath = os.path.join(outputpath, 'BuildProfile.pr')
 
     ProfileDir = os.path.dirname(ProfilePath)
-    if not os.path.exists(ProfileDir):
-        os.makedirs(ProfileDir)
+    os.makedirs(ProfileDir, exist_ok=True)
 
     logger = logging.getLogger(__name__ + '.RunWithProfiler')
 
@@ -66,8 +65,7 @@ def SetupLogging(OutputPath=None, Level=None):
 
         LogPath = os.path.join(OutputPath, 'Logs')
 
-        if not os.path.exists(LogPath):
-            os.makedirs(LogPath)
+        os.makedirs(LogPath, exist_ok=True)
 
         logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
         logFileName = os.path.join(LogPath, logFileName)
@@ -140,9 +138,10 @@ def ArgumentsFromDict(dictObj):
 
     outstr = " "
 
-    for entry in dictObj.iteritems():
+    for entry in dictObj.items():
         assert(isinstance(entry[0], str))
-        outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
+        outstr = "{0} -{1} {2} ".format(outstr, entry[0], str(entry[1]))
+        #outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
 
     return outstr
 
@@ -170,7 +169,7 @@ def GenNameFromDict(dictObj):
         else:
             ValueStr = str(value)
 
-        outstr = outstr + "_" + nameMangle + ValueStr
+        outstr = "{0}_{1}{2}".format(outstr, nameMangle, ValueStr)
 
     return outstr
 

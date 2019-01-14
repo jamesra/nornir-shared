@@ -313,7 +313,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
 
     SampleCmdPrinted = False
 
-    colorspaceString = __Fix_sRGB_String(ImagesToConvertDict.keys()[0])
+    colorspaceString = __Fix_sRGB_String(list(ImagesToConvertDict.keys())[0])
 
     tasks = []
 
@@ -392,12 +392,9 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     Downsample = DownsampleList[0]
     DownSampleDirectory = os.path.join(OutputPath, '%03d' % Downsample)
     Logger.info("Assembling largest image using downsample " + str(Downsample) + " in directory " + str(DownSampleDirectory))
-
-    try:
-        os.makedirs(DownSampleDirectory)
-    except:
-        pass
-
+ 
+    os.makedirs(DownSampleDirectory, exist_ok=True)
+    
     # path is an image name-
     [XDim, YDim] = GetImageSize(ImageFullPath)
 
