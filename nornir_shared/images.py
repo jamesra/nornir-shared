@@ -23,7 +23,7 @@ def GetImageBpp(path):
     if not os.path.exists(path):
         raise ValueError('GetImageBpp File not found ' + path)
 
-    cmd = 'magick identify -format "%z" ' + path
+    cmd = 'magick identify -format "%z" -verbose ' + path
     proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
     proc.wait()
 
@@ -38,7 +38,7 @@ def GetImageBpp(path):
     return bpp
 
 def GetImageColorspace(path):
-    cmd = 'magick identify -format "colorspace:%[colorspace]\\n" ' + path
+    cmd = 'magick identify -verbose -format "colorspace:%[colorspace]\\n" ' + path
     colorspace = None
     try:
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
@@ -60,7 +60,7 @@ def GetImageColorspace(path):
 def GetImageStats(path):
     '''Returns [Min, Mean, Max, StdDev] of an image via ImageMagick'''
 
-    cmd = 'magick identify -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
+    cmd = 'magick identify -verbose -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
 
     StdDev = None
     Mean = None
@@ -123,7 +123,7 @@ def GetImageSize(path):
         if not os.path.exists(path):
             return None        
                
-        cmd = 'magick identify -format %G "' + path + '" '
+        cmd = 'magick identify -verbose -format %G -verbose "' + path + '" '
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
         proc.wait()
     
@@ -177,7 +177,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         if ext == '.npy':
             continue
 
-        cmd = 'magick identify -format "  %f %G %b" ' + ImageFullPath
+        cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
 
         try:
             if IsSingleImage:
