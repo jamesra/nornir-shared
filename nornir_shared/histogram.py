@@ -372,6 +372,61 @@ class Histogram(object):
             binsString = binsString + '\t' + str(int(binVal))
 
         return binsString
+    
+    @classmethod
+    def TryRemoveMaxValueOutlier(cls, hObj):
+        '''
+        This functions checks the maximum value bucket of the histogram and the second to last histogram bucket.  If the 2nd to last is zero and the last is non-zero
+        the last bucket is removed, all zeros from the last data value are removed, and a new histogram is returned.
+        
+        If the last bucket is zero then it is also removed  
+        '''
+        
+        if (hObj.Bins[-1] > 0 and hObj.Bins[-2] == 0) or hObj.Bins[-1] == 0:
+        
+            #Remove empty buckets from the high-end of the histogram
+            for i in range(len(hObj.Bins)-2, -1, -1):
+                if hObj.Bins[i] > 0:
+                    break
+            
+            #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
+            if i == 0:
+                return None
+            
+            newBins = hObj.Bins[0:i+1]
+            
+            hNew = cls.FromArray(newBins, hObj.MinValue, hObj.BinWidth)
+            return hNew
+    
+        return None
+    
+    @classmethod
+    def TryRemoveMinValueOutlier(cls, hObj):
+        '''
+        This functions checks the minimum value bucket of the histogram and the second bucket.  If the 2nd is zero and the first is non-zero
+        the first bucket is removed, all zero buckets beyond the first bucket are removed, and a new histogram is returned.
+          
+        If the first bucket is zero then it is also removed
+        '''
+        
+        if (hObj.Bins[0] > 0 and hObj.Bins[1] == 0) or hObj.Bins[0] == 0:
+        
+            #Remove empty buckets from the high-end of the histogram
+            for i, count in enumerate(hObj.Bins):
+                if count > 0:
+                    break
+            
+            #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
+            if i >= len(hObj.Bins) - 1:
+                return None
+            
+            newBins = hObj.Bins[i:]
+            
+            hNew = cls.FromArray(newBins, hObj.BinValue(i), hObj.BinWidth)
+            return hNew
+    
+        return None
+        
 
     def ToXML(self):
         impl = xml.dom.minidom.getDOMImplementation()
