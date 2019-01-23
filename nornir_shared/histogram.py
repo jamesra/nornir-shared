@@ -36,7 +36,7 @@ def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
 
         return ActualValue
 
-class Histogram:
+class Histogram(object):
 
     def __init__(self):
         self.MinValue = float('NaN')
@@ -322,7 +322,17 @@ class Histogram:
         self.Bins[iTargetBin] = self.Bins[iTargetBin] + count
         self.NumSamples = self.NumSamples + count
 
-    def AddHistogram(self, bins):
+    def AddHistogram(self, h):
+        bins = None
+        if isinstance(h, Histogram):
+            assert(h.MinValue == self.MinValue)
+            assert(h.BinWidth == self.BinWidth)
+            assert(len(h.Bins) == len(self.Bins))
+            bins = h.Bins
+        else: #Otherwise assume an iterator
+            assert(len(self.Bins) == len(h))
+            bins = h
+            
         for i, count in enumerate(bins):
             self.Bins[i] = self.Bins[i] + count
             self.NumSamples = self.NumSamples + count
