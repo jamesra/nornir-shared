@@ -374,7 +374,21 @@ class Histogram(object):
         return binsString
     
     @classmethod
-    def TryRemoveMaxValueOutlier(cls, hObj):
+    def Trim(cls, hObj):
+        '''Remove leading and trailing empty buckets from the histogram'''
+        
+        hNew = cls.TryRemoveMaxValueOutlier(hObj, TrimOnly=True)
+        if hNew is not None:
+            hObj = hNew
+            
+        hNew = cls.TryRemoveMinValueOutlier(hObj, TrimOnly=True)
+        if hNew is not None:
+            hObj = hNew
+        
+        return hObj
+    
+    @classmethod
+    def TryRemoveMaxValueOutlier(cls, hObj, TrimOnly=False):
         '''
         This functions checks the maximum value bucket of the histogram and the second to last histogram bucket.  If the 2nd to last is zero and the last is non-zero
         the last bucket is removed, all zeros from the last data value are removed, and a new histogram is returned.
@@ -382,7 +396,10 @@ class Histogram(object):
         If the last bucket is zero then it is also removed  
         '''
         
-        if (hObj.Bins[-1] > 0 and hObj.Bins[-2] == 0) or hObj.Bins[-1] == 0:
+        HasOutlier = (hObj.Bins[-1] > 0 and hObj.Bins[-2] == 0) and not TrimOnly
+        Trimmable = hObj.Bins[-1] == 0
+        
+        if HasOutlier or Trimmable:
         
             #Remove empty buckets from the high-end of the histogram
             for i in range(len(hObj.Bins)-2, -1, -1):
@@ -401,7 +418,7 @@ class Histogram(object):
         return None
     
     @classmethod
-    def TryRemoveMinValueOutlier(cls, hObj):
+    def TryRemoveMinValueOutlier(cls, hObj, TrimOnly=False):
         '''
         This functions checks the minimum value bucket of the histogram and the second bucket.  If the 2nd is zero and the first is non-zero
         the first bucket is removed, all zero buckets beyond the first bucket are removed, and a new histogram is returned.
@@ -409,7 +426,10 @@ class Histogram(object):
         If the first bucket is zero then it is also removed
         '''
         
-        if (hObj.Bins[0] > 0 and hObj.Bins[1] == 0) or hObj.Bins[0] == 0:
+        HasOutlier = (hObj.Bins[0] > 0 and hObj.Bins[1] == 0) and not TrimOnly
+        Trimmable = hObj.Bins[0] == 0
+        
+        if HasOutlier or Trimmable:
         
             #Remove empty buckets from the high-end of the histogram
             for i, count in enumerate(hObj.Bins):
