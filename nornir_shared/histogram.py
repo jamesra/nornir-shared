@@ -105,7 +105,7 @@ class Histogram(object):
         obj.NumBins = len(hist_array)
         obj.Bins = list(hist_array)
         obj.MinValue = minValue 
-        obj.MaxValue = minValue + (binSize * obj.NumBins)
+        obj.MaxValue = (minValue + (binSize * obj.NumBins))-1
         obj.NumSamples = sum(hist_array)
         return obj
 
