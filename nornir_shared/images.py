@@ -8,13 +8,14 @@ import math
 import os
 import shutil
 import subprocess
+import multiprocessing
 
 import six
 
 import numpy
 
 from PIL import Image
-import nornir_pools as Pools 
+import nornir_pools 
 
 from . import prettyoutput
 from . import processoutputinterceptor
@@ -177,7 +178,8 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
     IsSingleImage = len(filenamelist) == 1
 
     if Pool is None and not IsSingleImage:
-        Pool = Pools.GetGlobalThreadPool()
+        #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
+        Pool = nornir_pools.GetGlobalLocalMachinePool()
 
     if ImageDir is None:
         ImageDir = ""
@@ -225,6 +227,8 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
 #         
     if not Pool is None:
         Pool.wait_completion()
+#        Pool.shutdown()
+#        Pool = None
 
     # If check_call succeeded then we know the file is good and we can return
     if IsSingleImage:
@@ -274,7 +278,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
                                         # doubling the number of procs should keep the CPU busy
 
-    ProcPool = Pools.GetGlobalClusterPool()
+    ProcPool = nornir_pools.GetGlobalClusterPool()
 
     if not MinMax is None:
         if(MinMax[0] > MinMax[1]):
