@@ -144,10 +144,10 @@ def GetImageSize(image_param):
             im = numpy.load(image_param,'c')
             return im.shape
         else:
-            im = Image.open(image_param)
-            shape = (im.size[1], im.size[0])
-            im.close()
-            return shape
+            with Image.open(image_param) as im:
+                shape = (im.size[1], im.size[0])
+                im.close()
+                return shape
     except IOError:
         raise IOError("Unable to read size from %s" % (image_param))
     finally:

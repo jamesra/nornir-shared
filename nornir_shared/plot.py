@@ -172,7 +172,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
 
     if(ImageFilename is not None):
         # plt.show() 
-        plt.savefig(ImageFilename,  bbox_inches='tight')
+        plt.savefig(ImageFilename,  bbox_inches='tight', dpi=150)
         plt.close()
     else:
         plt.show() 
@@ -302,7 +302,6 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
         plt.plot(line[:, 1], line[:, 0], color='blue')
          
     if(OutputFilename is not None):
-        plt.ioff()
         plt.savefig(OutputFilename, dpi=300)
     else:
         plt.show()
