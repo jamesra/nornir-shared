@@ -15,6 +15,7 @@ import six
 import numpy
 
 from PIL import Image
+import PIL.ImageOps
 import nornir_pools 
 
 from . import prettyoutput
@@ -255,6 +256,13 @@ def __Fix_sRGB_String(path):
         return " -colorspace Gray "  # " -set colorspace RGB -colorspace Gray " 
 
     return " -colorspace Gray "
+
+
+def InvertImage(input_image_fullpath, output_image_fullpath):
+    with Image.open(input_image_fullpath) as img:
+        inverted_img = PIL.ImageOps.invert(img)
+        inverted_img.save(output_image_fullpath)
+        
 
 def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
