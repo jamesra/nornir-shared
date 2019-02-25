@@ -153,9 +153,10 @@ def GetImageSize(image_param):
         raise IOError("Unable to read size from %s" % (image_param))
     finally:
         del im
+ 
 
-
-def _IsSingleImageValid(filename):
+def IsValidImage(filename):
+    ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
     try:
         im = Image.open(filename)
         im.verify()
@@ -166,19 +167,18 @@ def _IsSingleImageValid(filename):
     
     return True
 
-def IsValidImage(filename, ImageDir=None, Pool=None):
+
+def AreValidImages(filenames, ImageDir=None, Pool=None):
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
-    filenamelist = filename
-    if not isinstance(filename, list):
-        filenamelist = [filename]
+    filenamelist = filenames
+    if not isinstance(filenames, list):
+        filenamelist = [filenames]
      
     if len(filenamelist) == 0:
         return []
         
-    IsSingleImage = len(filenamelist) == 1
-
-    if Pool is None and not IsSingleImage:
+    if Pool is None:
         #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
         Pool = nornir_pools.GetGlobalLocalMachinePool()
 
@@ -203,12 +203,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
         #cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
          
         try:
-            if IsSingleImage:
-                if not _IsSingleImageValid(ImageFullPath):
-                    InvalidImageList.append(filename)
-                #SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
-            else:
-                TaskList.append(Pool.add_task(filename, _IsSingleImageValid, ImageFullPath))
+            TaskList.append(Pool.add_task(filename, IsValidImage, ImageFullPath))
         except subprocess.CalledProcessError as CPE:
             # Identify returned an error, so the file is bad
             InvalidImageList.append(filename) 
@@ -231,10 +226,7 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
 #        Pool.shutdown()
 #        Pool = None
 
-    # If check_call succeeded then we know the file is good and we can return
-    if IsSingleImage:
-        return len(InvalidImageList) == 0
-
+    # If check_call succeeded then we know the file is good and we can return 
     for Task in TaskList:
         #if Task.returncode == False:
         if Task.wait_return() == False:
