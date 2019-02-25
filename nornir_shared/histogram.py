@@ -418,11 +418,13 @@ class Histogram(object):
         If the last bucket is zero then it is also removed  
         '''
         
-        HasOutlier = (hObj.Bins[-1] > 0 and hObj.Bins[-2] == 0) and not TrimOnly
+        outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
+        HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
         Trimmable = hObj.Bins[-1] == 0
         
         if not HasOutlier and not Trimmable:
             return None
+        
         
         while HasOutlier or Trimmable:
         
@@ -438,7 +440,7 @@ class Histogram(object):
             newBins = hObj.Bins[0:i+1]
             
             hObj = Histogram.FromArray(newBins, hObj.MinValue, hObj.BinWidth)
-            HasOutlier = (hObj.Bins[-1] > 0 and hObj.Bins[-2] == 0) and not TrimOnly
+            HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
             Trimmable = hObj.Bins[-1] == 0
             
     
@@ -453,7 +455,8 @@ class Histogram(object):
         If the first bucket is zero then it is also removed
         '''
         
-        HasOutlier = (hObj.Bins[0] > 0 and hObj.Bins[1] == 0) and not TrimOnly
+        outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
+        HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
         Trimmable = hObj.Bins[0] == 0
         
         if not HasOutlier and not Trimmable:
@@ -475,7 +478,7 @@ class Histogram(object):
             newBins = hObj.Bins[i:]
             
             hObj = Histogram.FromArray(newBins, hObj.BinValue(i), hObj.BinWidth)
-            HasOutlier = (hObj.Bins[0] > 0 and hObj.Bins[1] == 0) and not TrimOnly
+            HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
             Trimmable = hObj.Bins[0] == 0
     
         return hObj
