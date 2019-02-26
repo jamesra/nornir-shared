@@ -220,14 +220,15 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
 #             # Identify returned an error, so the file is bad
 #             InvalidImageList.append(filename) 
 #             continue
-#         
-    if not Pool is None:
-        Pool.wait_completion()
+# #         
+#     if not Pool is None:
+#         Pool.wait_completion()
 #        Pool.shutdown()
 #        Pool = None
 
     # If check_call succeeded then we know the file is good and we can return 
-    for Task in TaskList:
+    while len(TaskList) > 0:
+        Task = TaskList.pop(0)
         #if Task.returncode == False:
         if Task.wait_return() == False:
             InvalidImageList.append(Task.name)
