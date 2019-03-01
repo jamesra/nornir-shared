@@ -419,6 +419,8 @@ class Histogram(object):
         '''
         
         outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
+        if outlier_cutoff < 2:
+            outlier_cutoff = 2
         HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
         Trimmable = hObj.Bins[-1] == 0
         
@@ -455,7 +457,9 @@ class Histogram(object):
         If the first bucket is zero then it is also removed
         '''
         
-        outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
+        outlier_cutoff = math.ceil(hObj.NumSamples / 100000.0)
+        if outlier_cutoff < 2:
+            outlier_cutoff = 2
         HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
         Trimmable = hObj.Bins[0] == 0
         
