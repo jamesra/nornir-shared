@@ -20,22 +20,29 @@ class ArgParseHelpersTest(unittest.TestCase):
         
         pass
     
-    def testNumberPair(self):
+    def testIntegerPair(self):
         
-        self.assertTrue(nornir_shared.argparse_helpers.NumberPair('256') == (256, 256))
-        self.assertTrue(nornir_shared.argparse_helpers.NumberPair('256,512') == (256, 512))
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('256') == (256, 256))
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('256,512') == (256, 512))
+        
+        pass
+    
+    def testFloatPair(self):
+        
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('256.5') == (256.5, 256.5))
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('-0.1,23.3') == (-0.1, 23.3))
         
         pass
     
     
     def testNumberList(self):
-        a = nornir_shared.argparse_helpers.NumberList('3')
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('3') == [3])
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('3-5') == [3, 4, 5])
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('1,3-5') == [1, 3, 4, 5])
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('3-5,7') == [3, 4, 5, 7])
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('1,3-5,7') == [1, 3, 4, 5, 7])
-        self.assertTrue(nornir_shared.argparse_helpers.NumberList('1,7') == [1, 7])
+        a = nornir_shared.argparse_helpers.IntegerList('3')
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('3') == [3])
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('3-5') == [3, 4, 5])
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('1,3-5') == [1, 3, 4, 5])
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('3-5,7') == [3, 4, 5, 7])
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('1,3-5,7') == [1, 3, 4, 5, 7])
+        self.assertTrue(nornir_shared.argparse_helpers.IntegerList('1,7') == [1, 7])
         
         pass
 
