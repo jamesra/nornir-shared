@@ -161,8 +161,11 @@ def IsValidImage(filename):
         im = Image.open(filename)
         im.verify()
         im.close()
+    except OSError as os_e:
+        prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
+        return False
     except Exception as e:
-        print(str(e))
+        prettyoutput.Log("{0} -> {1}".format(filename, str(e)))
         return False
     
     return True
