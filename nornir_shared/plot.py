@@ -294,9 +294,9 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
     assert(Points.shape[0] == Offsets.shape[0])
     for iRow in range(0, Points.shape[0]):
         Origin = Points[iRow, :]
-        Offset = Offsets[iRow, :]
+        scaled_offset = Offsets[iRow, :]
          
-        Destination = Origin + Offset
+        Destination = Origin + scaled_offset
          
         line = numpy.vstack((Origin, Destination))
         plt.plot(line[:, 1], line[:, 0], color='blue')
