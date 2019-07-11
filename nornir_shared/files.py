@@ -8,6 +8,7 @@ import os
 import time
 
 from . import prettyoutput
+import nornir_shared
 
 
 DownsampleFormat = '%03d'
@@ -79,6 +80,20 @@ def RemoveOutdatedFile(ReferenceFilename, TestFilename):
         except:
             prettyoutput.Log('Exception removing outdated file: ' + TestFilename)
             pass
+
+ #   [name, ext] = os.path.splitext(TestFilename)
+    return False
+
+def RemoveInvalidImageFile(TestFilename):
+    '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
+    if nornir_shared.images.IsValidImage(TestFilename) == False:
+        try:
+            prettyoutput.Log('Removing invalid image file: ' + TestFilename)
+            os.remove(TestFilename)
+            return True
+        except:
+            prettyoutput.Log('Exception removing invalid image file: ' + TestFilename)
+            return True
 
  #   [name, ext] = os.path.splitext(TestFilename)
     return False
