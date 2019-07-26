@@ -20,8 +20,6 @@ import nornir_pools
 
 from . import prettyoutput
 from . import processoutputinterceptor
-from importlib.resources import path
-
 
 def GetImageBpp(path):
     '''Returns how many bits per pixel the image at the provided path uses'''
@@ -158,9 +156,9 @@ def GetImageSize(image_param):
 def IsValidImage(filename):
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
     try:
-        im = Image.open(filename)
-        im.verify()
-        im.close()
+        with Image.open(filename) as im:
+            im.verify()
+            im.close()
     except OSError as os_e:
         prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
         return False
@@ -183,7 +181,8 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
         
     if Pool is None:
         #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
-        Pool = nornir_pools.GetGlobalLocalMachinePool()
+        #Pool = nornir_pools.GetGlobalLocalMachinePool()
+        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=multiprocessing.cpu_count() * 2)
 
     if ImageDir is None:
         ImageDir = ""
@@ -195,9 +194,6 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
        
     for filename in filenamelist:
         ImageFullPath = os.path.join(ImageDir, filename)
-        if not os.path.exists(ImageFullPath):
-            InvalidImageList.append(filename)
-            continue
         
         (root, ext) = os.path.splitext(filename)
         if ext == '.npy':
