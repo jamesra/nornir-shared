@@ -425,7 +425,7 @@ class Histogram(object):
         Trimmable = hObj.Bins[-1] == 0
         
         if not HasOutlier and not Trimmable:
-            return None
+            return hObj
         
         
         while HasOutlier or Trimmable:
@@ -437,7 +437,7 @@ class Histogram(object):
             
             #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
             if i is None:
-                return None
+                return hObj
             
             newBins = hObj.Bins[0:i+1]
             
@@ -464,7 +464,7 @@ class Histogram(object):
         Trimmable = hObj.Bins[0] == 0
         
         if not HasOutlier and not Trimmable:
-            return None
+            return hObj
         
         while HasOutlier or Trimmable:
             
@@ -477,7 +477,7 @@ class Histogram(object):
             
             #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
             if i is None:
-                return None
+                return hObj
             
             newBins = hObj.Bins[i:]
             
