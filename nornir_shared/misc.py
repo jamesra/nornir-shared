@@ -9,6 +9,7 @@ import atexit
 import logging
 import os
 import sys
+import os
 import time
 
 
@@ -25,8 +26,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     ProfilePath = os.path.join(outputpath, 'BuildProfile.pr')
 
     ProfileDir = os.path.dirname(ProfilePath)
-    if not os.path.exists(ProfileDir):
-        os.makedirs(ProfileDir)
+    os.makedirs(ProfileDir, exist_ok=True)
 
     logger = logging.getLogger(__name__ + '.RunWithProfiler')
 
@@ -48,8 +48,12 @@ def RunWithProfiler(functionStr, outputpath=None):
 
     pr.print_callers(.1)
 
-def SetupLogging(OutputPath=None, Level=None):
-    
+def SetupLogging(LogToFile=False, OutputPath=None, Level=None):
+    '''
+    :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
+    :param str OutputPath: Path to directory to use to save log files.
+    :param str Level: Level of messages to write to log
+    '''
     global logging_setup
     if(logging_setup):
         return 
@@ -60,36 +64,54 @@ def SetupLogging(OutputPath=None, Level=None):
         Level = logging.INFO
 
     formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
-
-    if not OutputPath is None:
-        OutputPath = "C:\\Temp"
-
-        LogPath = os.path.join(OutputPath, 'Logs')
-
-        if not os.path.exists(LogPath):
-            os.makedirs(LogPath)
-
-        logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
-        logFileName = os.path.join(LogPath, logFileName)
-        errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
-        errlogFileName = os.path.join(LogPath, errlogFileName)
-
-        logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
-
-        eh = logging.FileHandler(errlogFileName)
-        eh.setLevel(logging.ERROR)
-        eh.setFormatter(formatter)
-        logger = logging.getLogger()
-        logger.addHandler(eh)
+    
+    if OutputPath is not None:
+        LogToFile = True
+     
+    if LogToFile:
+        LogPath = None
+        
+        #Figure out the loggging directory if it is not specified
+        if not OutputPath is None and os.path.isabs(OutputPath):
+            LogPath = OutputPath
+        else:
+            BaseLoggingDir = None
+            if 'TESTOUTPUTPATH' in os.environ:
+                BaseLoggingDir = os.environ['TESTOUTPUTPATH']
+            else:
+                BaseLoggingDir = os.getcwd()
+        
+            LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+             
+        if not LogPath is None: 
+            try:
+                os.makedirs(LogPath, exist_ok=True)
+            except:
+                print("Could not create logging output directory: " + LogPath)
+                pass
+    
+            logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
+            logFileName = os.path.join(LogPath, logFileName)
+            errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
+            errlogFileName = os.path.join(LogPath, errlogFileName)
+    
+            logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
+    
+            eh = logging.FileHandler(errlogFileName)
+            eh.setLevel(logging.ERROR)
+            eh.setFormatter(formatter)
+            logger = logging.getLogger()
+            logger.addHandler(eh)
     else:
         logging.basicConfig(level=Level, format='%(levelname)s - %(name)s - %(message)s')
 
-    ch = logging.StreamHandler()
-    ch.setLevel(Level)
-    ch.setFormatter(formatter)
-
-    logger = logging.getLogger()
-    logger.addHandler(ch)
+    if not 'ECLIPSE' in os.environ:
+        ch = logging.StreamHandler()
+        ch.setLevel(Level)
+        ch.setFormatter(formatter)
+    
+        logger = logging.getLogger()
+        logger.addHandler(ch)
 
     # Automatically shutdown logging when our process ends
     atexit.register(logging.shutdown)
@@ -140,9 +162,10 @@ def ArgumentsFromDict(dictObj):
 
     outstr = " "
 
-    for entry in dictObj.iteritems():
+    for entry in dictObj.items():
         assert(isinstance(entry[0], str))
-        outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
+        outstr = "{0} -{1} {2} ".format(outstr, entry[0], str(entry[1]))
+        #outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
 
     return outstr
 
@@ -170,7 +193,7 @@ def GenNameFromDict(dictObj):
         else:
             ValueStr = str(value)
 
-        outstr = outstr + "_" + nameMangle + ValueStr
+        outstr = "{0}_{1}{2}".format(outstr, nameMangle, ValueStr)
 
     return outstr
 

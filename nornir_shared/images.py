@@ -8,37 +8,44 @@ import math
 import os
 import shutil
 import subprocess
+import multiprocessing
 
 import six
 
-import nornir_pools as Pools 
+import numpy
+
+from PIL import Image
+import PIL.ImageOps
+import nornir_pools 
 
 from . import prettyoutput
 from . import processoutputinterceptor
-
 
 def GetImageBpp(path):
     '''Returns how many bits per pixel the image at the provided path uses'''
 
     if not os.path.exists(path):
         raise ValueError('GetImageBpp File not found ' + path)
-
-    cmd = 'magick identify -format "%z" ' + path
+# 
+#     im = Image.open(path)
+#     return im.bits
+#     
+    cmd = 'magick identify -format "%z" -verbose ' + path
     proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
     proc.wait()
-
+ 
     [stdoutdata, stderrdata] = proc.communicate()
-
+ 
     bppStr = stdoutdata.strip()
     if len(bppStr) <= 0:
         return None
-
+ 
     bpp = int(stdoutdata.strip())
-
+ 
     return bpp
 
 def GetImageColorspace(path):
-    cmd = 'magick identify -format "colorspace:%[colorspace]\\n" ' + path
+    cmd = 'magick identify -verbose -format "colorspace:%[colorspace]\\n" ' + path
     colorspace = None
     try:
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
@@ -60,7 +67,7 @@ def GetImageColorspace(path):
 def GetImageStats(path):
     '''Returns [Min, Mean, Max, StdDev] of an image via ImageMagick'''
 
-    cmd = 'magick identify -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
+    cmd = 'magick identify -verbose -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
 
     StdDev = None
     Mean = None
@@ -114,50 +121,68 @@ def IsImageNumpyFormat(path):
     (root, ext) = os.path.splitext(path)
     return '.npy' == ext
 
-def GetImageSize(path):
-    '''
-    :param str path: An image path or ndarray
-    Returns size of image, [Width,Height]'''
-    
-    if isinstance(path, str):
-        if not os.path.exists(path):
-            return None        
-               
-        cmd = 'magick identify -format %G "' + path + '" '
-        proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
-        proc.wait()
-    
-        [stdoutdata, stderrdata] = proc.communicate()
-    
-        Output = stdoutdata.strip()
-    
-        if six.PY3:
-            Output = Output.decode()
-    
-        Parts = Output.split('x')
-        if len(Parts) < 2:
-            raise ValueError("Invalid image file passed to GetImageSize: " + path)
-    
-        Width = int(Parts[0])
-        Height = int(Parts[1])
-    
-        return (Width, Height)      
-        
 
-def IsValidImage(filename, ImageDir=None, Pool=None):
+def GetImageSize(image_param):
+    '''
+    :param image_param str: Either a path to an image file or an ndarray
+    :returns: Image (height, width)
+    :rtype: tuple
+    '''
+
+    # if not os.path.exists(ImageFullPath):
+        # raise ValueError("%s does not exist" % (ImageFullPath))
+        
+    if isinstance(image_param, numpy.ndarray):
+        return image_param.shape
+        
+    (root, ext) = os.path.splitext(image_param)
+    
+    im = None
+    try:
+        if ext == '.npy':
+            im = numpy.load(image_param,'c')
+            return im.shape
+        else:
+            with Image.open(image_param) as im:
+                shape = (im.size[1], im.size[0])
+                im.close()
+                return shape
+    except IOError:
+        raise IOError("Unable to read size from %s" % (image_param))
+    finally:
+        del im
+ 
+
+def IsValidImage(filename):
+    ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
+    try:
+        with Image.open(filename) as im:
+            im.verify()
+            im.close()
+    except OSError as os_e:
+        prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
+        return False
+    except Exception as e:
+        prettyoutput.Log("{0} -> {1}".format(filename, str(e)))
+        return False
+    
+    return True
+
+
+def AreValidImages(filenames, ImageDir=None, Pool=None):
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
-    filenamelist = filename
-    if not isinstance(filename, list):
-        filenamelist = [filename]
+    filenamelist = filenames
+    if not isinstance(filenames, list):
+        filenamelist = [filenames]
      
     if len(filenamelist) == 0:
         return []
         
-    IsSingleImage = len(filenamelist) == 1
-
-    if Pool is None and not IsSingleImage:
-        Pool = Pools.GetGlobalClusterPool()
+    if Pool is None:
+        #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
+        #Pool = nornir_pools.GetGlobalLocalMachinePool()
+        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=multiprocessing.cpu_count() * 2)
 
     if ImageDir is None:
         ImageDir = ""
@@ -166,57 +191,49 @@ def IsValidImage(filename, ImageDir=None, Pool=None):
     SingleParameterProc = None
 
     InvalidImageList = []
-
+       
     for filename in filenamelist:
         ImageFullPath = os.path.join(ImageDir, filename)
-        if not os.path.exists(ImageFullPath):
-            InvalidImageList.append(filename)
-            continue
         
         (root, ext) = os.path.splitext(filename)
         if ext == '.npy':
             continue
-
-        cmd = 'magick identify -format "  %f %G %b" ' + ImageFullPath
-
+        
+        #cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
+         
         try:
-            if IsSingleImage:
-                SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
-            else:
-                TaskList.append(Pool.add_process(filename, cmd + " && exit", shell=True))
+            TaskList.append(Pool.add_task(filename, IsValidImage, ImageFullPath))
         except subprocess.CalledProcessError as CPE:
             # Identify returned an error, so the file is bad
             InvalidImageList.append(filename) 
             continue
-        
+
+#         cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
+# 
+#         try:
+#             if IsSingleImage:
+#                 SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
+#             else:
+#                 TaskList.append(Pool.add_process(filename, cmd + " && exit", shell=True))
+#         except subprocess.CalledProcessError as CPE:
+#             # Identify returned an error, so the file is bad
+#             InvalidImageList.append(filename) 
+#             continue
+# #         
     if not Pool is None:
         Pool.wait_completion()
+        Pool.shutdown()
+        Pool = None
 
-    # If check_call succeeded then we know the file is good and we can return
-    if IsSingleImage:
-        return len(InvalidImageList) == 0
-
-    for Task in TaskList:
-        if Task.returncode > 0:
+    # If check_call succeeded then we know the file is good and we can return 
+    while len(TaskList) > 0:
+        Task = TaskList.pop(0)
+        #if Task.returncode == False:
+        if Task.wait_return() == False:
             InvalidImageList.append(Task.name)
 
     return InvalidImageList
 
-
-def Shrink(InFile, OutFile, ShrinkFactor):
-    '''Shrinks the passed image file, return procedure handle of invoked command
-       Quality follows image magick documentation for -quality flag.  Here are some
-       test results from 774 1024x1024 images.  We had issues with ir-tools reading
-       images compressed with 106.  Going to 0 resolved the issue.
-       0: 614,393KB
-       75: 614,393KB
-       106: 475,508KB
-       '''
-    Percentage = (1 / float(ShrinkFactor)) * 100.0
-    cmd = "magick convert " + InFile + " -scale \"" + str(Percentage) + "%\" -quality 75  -colorspace gray " + OutFile
-    prettyoutput.CurseString('Cmd', cmd)
-    NewP = subprocess.Popen(cmd + " && exit", shell=True)
-    return NewP
 
 
 def __Fix_sRGB_String(path):
@@ -231,6 +248,13 @@ def __Fix_sRGB_String(path):
         return " -colorspace Gray "  # " -set colorspace RGB -colorspace Gray " 
 
     return " -colorspace Gray "
+
+
+def InvertImage(input_image_fullpath, output_image_fullpath):
+    with Image.open(input_image_fullpath) as img:
+        inverted_img = PIL.ImageOps.invert(img)
+        inverted_img.save(output_image_fullpath)
+        
 
 def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False, RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
     '''
@@ -254,7 +278,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
                                         # doubling the number of procs should keep the CPU busy
 
-    ProcPool = Pools.GetGlobalClusterPool()
+    ProcPool = nornir_pools.GetGlobalClusterPool()
 
     if not MinMax is None:
         if(MinMax[0] > MinMax[1]):
@@ -313,7 +337,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
 
     SampleCmdPrinted = False
 
-    colorspaceString = __Fix_sRGB_String(ImagesToConvertDict.keys()[0])
+    colorspaceString = __Fix_sRGB_String(list(ImagesToConvertDict.keys())[0])
 
     tasks = []
 
@@ -392,14 +416,11 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     Downsample = DownsampleList[0]
     DownSampleDirectory = os.path.join(OutputPath, '%03d' % Downsample)
     Logger.info("Assembling largest image using downsample " + str(Downsample) + " in directory " + str(DownSampleDirectory))
-
-    try:
-        os.makedirs(DownSampleDirectory)
-    except:
-        pass
-
+ 
+    os.makedirs(DownSampleDirectory, exist_ok=True)
+    
     # path is an image name-
-    [XDim, YDim] = GetImageSize(ImageFullPath)
+    [YDim, XDim] = GetImageSize(ImageFullPath)
 
     if(XDim % TileSize[0] > 0):
         XDim = XDim + (TileSize[0] - (XDim % TileSize[0]))

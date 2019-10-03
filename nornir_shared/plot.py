@@ -1,14 +1,12 @@
 import argparse
 from collections import Iterable
-
+import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
 import numpy
-
-import histogram
-import matplotlib.pyplot as plt
-
+from . import histogram
 from . import prettyoutput
 
+plt.ioff()
 
 def ProcessArgs():
     parser = argparse.ArgumentParser('AutoLevelHistogram')
@@ -57,15 +55,30 @@ def ProcessArgs():
     return args
 
 
-def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None):
-    Hist = histogram.Histogram.Load(HistogramFilename)
+def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None, xlabel=None, ylabel=None):
+    Hist = None
+    
+    if(ImageFilename is not None):
+        # plt.show()
+        plt.ioff()
+    
+    if isinstance(HistogramOrFilename, histogram.Histogram):
+        Hist = HistogramOrFilename
+    else:
+        Hist = histogram.Histogram.Load(HistogramOrFilename)
 
-    if(Hist is None):
-        prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramFilename)
-        return
+        if(Hist is None):
+            prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
+            return
 
     if(Title is None):
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
+        
+    if xlabel is None:
+        xlabel = 'Intensity'
+        
+    if ylabel is None:
+        ylabel = 'Counts'
 
     # prettyoutput.Log("Graphing histogram:")
     # prettyoutput.Log(str(Hist))
@@ -86,7 +99,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
 
     if(ShowCutoffs):
         # If the either number is greater than 1 assume it is an absolute value
-        if(MinCutoffPercent >= 1 or MaxCutoffPercent >= 1):
+        if(MinCutoffPercent >= 1 or MaxCutoffPercent > 1):
             MinCutoff = MinCutoffPercent
             MinCutoffPercent = MinCutoff / Hist.MaxValue
             MaxCutoff = MaxCutoffPercent
@@ -107,7 +120,7 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     # prettyoutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
     # prettyoutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
     if(ShowCutoffs):
-        print [MinCutoff, MaxCutoff]
+        print( [MinCutoff, MaxCutoff])
 
     yMax = max(Hist.Bins)
  #  print 'Bins: ' + str(Hist.Bins)
@@ -117,8 +130,8 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.clf()
     plt.bar(BinValues, Hist.Bins, color='blue', edgecolor=None, linewidth=0, width=Hist.BinWidth)
     plt.title(Title)
-    plt.ylabel('Counts')
-    plt.xlabel('Intensity')
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
     # plt.xticks([])
     plt.yticks([])
     
@@ -158,12 +171,11 @@ def Histogram(HistogramFilename, ImageFilename, MinCutoffPercent=None, MaxCutoff
     plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if(ImageFilename is not None):
-        # plt.show()
-        plt.savefig(ImageFilename)
+        # plt.show() 
+        plt.savefig(ImageFilename,  bbox_inches='tight', dpi=150)
+        plt.close()
     else:
-        plt.show()
-        
-    plt.close()
+        plt.show() 
 
 
 def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
@@ -185,7 +197,8 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
     plt.ylim(0, max(y) + 1)
 
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename)
+        plt.ioff()
+        plt.savefig(OutputFilename) 
     else:
         plt.show()
         
@@ -214,25 +227,76 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.xlabel(XAxisLabel)
 
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename)
+        plt.ioff()
+        plt.savefig(OutputFilename) 
     else:
         plt.show()
         
     plt.close()
     
-
-def VectorField(Points, Offsets, OutputFilename=None):
-     
     
-    plt.cla()
-    plt.scatter(Points[:, 1], Points[:, 0], color='red', marker='s', alpha=0.5)
+def __PlotVectorOriginShape(render_mask, shape, Points, weights=None, color=None, colormap=None):
+    '''Plot a subset of the points that are True in the mask with the specified shape
+    color is only used if weights is none.
+    '''
+     
+    if weights is None:
+        if color is None:
+            color = 'red' 
+        
+        plt.scatter(Points[:, 1], Points[:, 0], color=color, marker=shape, alpha=0.5)
+    else:
+        if colormap is None:
+            colormap = plt.get_cmap('RdYlBu')
+        
+        plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0, vmax=max(weights), alpha=0.5, cmap=colormap)
+    
+
+def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None, ylim=None, xlim=None):
+     
+    plt.clf() 
+    
+    if shapes is None:
+        shapes = 's'
+         
+    if isinstance(shapes, str):
+        shapes = shapes
+        mask = numpy.ones(Points.shape[0], dtype=numpy.bool)
+        __PlotVectorOriginShape(mask, shapes, Points, weights)
+    else:
+        try:
+            _ = iter(shapes)
+        except TypeError:
+            raise ValueError("shapes must be None, string, or iterable type")
+    
+        #Iterable
+        if len(shapes) != Points.shape[0]:
+            raise ValueError("Length of shapes must match number of points")
+        
+        #Plot each batch of points with different shape
+        all_shapes = set(shapes)
+        
+        for shape in all_shapes:
+            mask = [s == shape for s in shapes]
+            mask = numpy.asarray(mask, dtype=numpy.bool)
+            
+            __PlotVectorOriginShape(mask, shape, Points, weights)
+            
+    if ylim is not None:
+        plt.ylim(ylim)
+        
+    if xlim is not None:
+        plt.xlim(xlim)
+             
+    if weights is not None:
+        plt.colorbar()
     
     assert(Points.shape[0] == Offsets.shape[0])
     for iRow in range(0, Points.shape[0]):
         Origin = Points[iRow, :]
-        Offset = Offsets[iRow, :]
+        scaled_offset = Offsets[iRow, :]
          
-        Destination = Origin + Offset
+        Destination = Origin + scaled_offset
          
         line = numpy.vstack((Origin, Destination))
         plt.plot(line[:, 1], line[:, 0], color='blue')
@@ -244,8 +308,8 @@ def VectorField(Points, Offsets, OutputFilename=None):
 
 
 if(__name__ == '__main__'):
-    # Executed as a script, call the plothistogram function
+    # Executed as a script, call the histogram function
     args = ProcessArgs()
-    PlotHistogram(args.HistogramFilename, args.ImageFilename, args.MinCutoffPercent, args.MaxCutoffPercent, args.LinePosition)
+    Histogram(HistogramOrFilename=args.HistogramFilename, ImageFilename=args.ImageFilename, MinCutoffPercent=args.MinCutoffPercent, MaxCutoffPercent=args.MaxCutoffPercent, LinePosList=args.LinePosition)
 
     prettyoutput.Log(args)

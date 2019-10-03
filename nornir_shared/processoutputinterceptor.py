@@ -34,11 +34,13 @@ class ProcessOutputInterceptor(object):
         raise Exception("No method defined for abstract class ProcessOutputInterceptor")
 
     @classmethod
-    def Intercept(self, lineparseobj):
+    def Intercept(self, lineparseobj, return_lines=True):
         '''Examines the output of the process in real time and calls lineparsefunc passing each line of output.
         lineparsefunc is called at least once with None input when the process terminates'''
 
         proc = lineparseobj.Proc
+        
+        lines = []
 
         if proc is None:
             return
@@ -47,13 +49,14 @@ class ProcessOutputInterceptor(object):
             prettyoutput.Log("No stdout on process")
             return
 
-
         while True:
 
             line = proc.stdout.readline()
             if not line:
                 break
             else:
+                line = line.decode('utf-8')
+                lines.append(line)
                 lineparseobj.Parse(line)
 
             # Break the loop if the process already terminated
@@ -61,6 +64,11 @@ class ProcessOutputInterceptor(object):
 
         # This makes sure we call the lineparsefunc at least once
         lineparseobj.Parse(None)
+        
+        if return_lines:
+            return lines
+        
+        return None
 
 class ProgressOutputInterceptor(ProcessOutputInterceptor):
 

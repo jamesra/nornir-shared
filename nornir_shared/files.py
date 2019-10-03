@@ -5,8 +5,10 @@ Created on Jul 11, 2012
 '''
 import glob
 import os
+import time
 
 from . import prettyoutput
+import nornir_shared
 
 
 DownsampleFormat = '%03d'
@@ -43,6 +45,27 @@ def IsOutdated(ReferenceFilename, TestFilename):
     newestFile = NewestFile(ReferenceFilename, TestFilename)
     return newestFile == ReferenceFilename
 
+def IsOlderThan(TestPath, DateTime, DateTimeFormat = None):
+    '''Return true if the file is older than the specified date string
+    :param str TestPath: Path we are using to retrieve the last modified time from
+    :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
+    :param str DateTimeFormat: Optional, if a string is passed this parameter indicates the string format.  Defaults to "%d %b %Y %H:%M:%S"
+    '''
+    if isinstance(DateTime, float):
+        DateTime = DateTime
+    elif isinstance(DateTime, int):
+        DateTime = float(DateTime)
+    elif isinstance(DateTime, str):
+        if DateTimeFormat is None:
+            DateTimeFormat = "%d %b %Y %H:%M:%S"
+            
+        DateTime = time.mktime(time.strptime(DateTime, DateTimeFormat))
+    else:
+        raise TypeError("IsOlderThan expects a string or floating parameter to compare against, got %s" % str(DateTime))
+    
+    return os.path.getmtime(TestPath) <  DateTime
+        
+
 def OutdatedFile(ReferenceFilename, TestFilename):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
@@ -57,6 +80,20 @@ def RemoveOutdatedFile(ReferenceFilename, TestFilename):
         except:
             prettyoutput.Log('Exception removing outdated file: ' + TestFilename)
             pass
+
+ #   [name, ext] = os.path.splitext(TestFilename)
+    return False
+
+def RemoveInvalidImageFile(TestFilename):
+    '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
+    if nornir_shared.images.IsValidImage(TestFilename) == False:
+        try:
+            prettyoutput.Log('Removing invalid image file: ' + TestFilename)
+            os.remove(TestFilename)
+            return True
+        except:
+            prettyoutput.Log('Exception removing invalid image file: ' + TestFilename)
+            return True
 
  #   [name, ext] = os.path.splitext(TestFilename)
     return False
@@ -273,6 +310,29 @@ def RemoveFilenameSpaces(Path, ext):
         filenameNoSpaces = filename.replace(' ', '_')
         filePathNoSpaces = os.path.join(dirname, filenameNoSpaces)
         shutil.move(f, filePathNoSpaces)
+        
+def try_locate_file(self, ImageFullPath, listAltDirs):
+        '''
+        Identify the path a file exists at.  If the path is absolute that will be
+        returned.  If the path is relative it will be combined with the list of 
+        alternative paths to see if it can be found
+        '''
+        if os.path.exists(ImageFullPath):
+            return ImageFullPath
+        else:
+            
+            filename = ImageFullPath
+             
+            #Do not use the base filename if the ImagePath is relative
+            if os.path.isabs(ImageFullPath):
+                filename = os.path.basename(ImageFullPath)
+                        
+            for dirname in listAltDirs:
+                nextPath = os.path.join(dirname, filename)
+                if os.path.exists(nextPath):
+                    return nextPath
+            
+        return None
 
 if __name__ == '__main__':
     pass

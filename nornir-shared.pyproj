@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{3431fa39-f48d-41e7-8d56-e1947108a32f}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile />
+    <SearchPath>nornir_shared\</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <InterpreterId>{9a7a9026-48c1-4688-9d5d-e5699d47d074}</InterpreterId>
+    <InterpreterVersion>3.4</InterpreterVersion>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <IsWindowsApplication>False</IsWindowsApplication>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <ItemGroup>
+    <Compile Include="ez_setup.py" />
+    <Compile Include="setup.py" />
+    <Compile Include="test_prettyoutput.py" />
+    <Compile Include="nornir_shared\checksum.py" />
+    <Compile Include="nornir_shared\deprecated.py" />
+    <Compile Include="nornir_shared\emaillib.py" />
+    <Compile Include="nornir_shared\files.py" />
+    <Compile Include="nornir_shared\histogram.py" />
+    <Compile Include="nornir_shared\images.py" />
+    <Compile Include="nornir_shared\mathhelper.py" />
+    <Compile Include="nornir_shared\misc.py" />
+    <Compile Include="nornir_shared\parallel.py" />
+    <Compile Include="nornir_shared\plot.py" />
+    <Compile Include="nornir_shared\prettyoutput.py" />
+    <Compile Include="nornir_shared\processoutputinterceptor.py" />
+    <Compile Include="nornir_shared\reflection.py" />
+    <Compile Include="nornir_shared\tasktimer.py" />
+    <Compile Include="nornir_shared\__init__.py" />
+    <Content Include="nornir_shared.egg-info\dependency_links.txt" />
+    <Content Include="nornir_shared.egg-info\SOURCES.txt" />
+    <Content Include="nornir_shared.egg-info\top_level.txt" />
+    <Compile Include="test\test_Checksum.py" />
+    <Compile Include="test\test_files.py" />
+    <Compile Include="test\test_Histogram.py" />
+    <Compile Include="test\test_prettyoutput.py" />
+    <Compile Include="test\__init__.py" />
+    <Compile Include="build\lib\nornir_shared\checksum.py" />
+    <Compile Include="build\lib\nornir_shared\deprecated.py" />
+    <Compile Include="build\lib\nornir_shared\emaillib.py" />
+    <Compile Include="build\lib\nornir_shared\files.py" />
+    <Compile Include="build\lib\nornir_shared\histogram.py" />
+    <Compile Include="build\lib\nornir_shared\images.py" />
+    <Compile Include="build\lib\nornir_shared\mathhelper.py" />
+    <Compile Include="build\lib\nornir_shared\misc.py" />
+    <Compile Include="build\lib\nornir_shared\parallel.py" />
+    <Compile Include="build\lib\nornir_shared\plot.py" />
+    <Compile Include="build\lib\nornir_shared\prettyoutput.py" />
+    <Compile Include="build\lib\nornir_shared\processoutputinterceptor.py" />
+    <Compile Include="build\lib\nornir_shared\reflection.py" />
+    <Compile Include="build\lib\nornir_shared\tasktimer.py" />
+    <Compile Include="build\lib\nornir_shared\__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="build\" />
+    <Folder Include="build\lib\" />
+    <Folder Include="build\lib\nornir_shared" />
+    <Folder Include="nornir_shared" />
+    <Folder Include="nornir_shared.egg-info" />
+    <Folder Include="test" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\2.7" />
+    <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
+</Project>

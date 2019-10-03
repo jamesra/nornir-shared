@@ -7,7 +7,7 @@ import xml.dom.minidom
 
 import six
 
-import prettyoutput
+from nornir_shared import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
@@ -36,7 +36,7 @@ def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
 
         return ActualValue
 
-class Histogram:
+class Histogram(object):
 
     def __init__(self):
         self.MinValue = float('NaN')
@@ -57,13 +57,13 @@ class Histogram:
         return s
 
     def __getstate__(self):
-        dict = {}
-        dict['MinValue'] = self.MinValue
-        dict['MaxValue'] = self.MaxValue
-        dict['NumBins'] = self.NumBins
-        dict['NumSamples'] = self.NumSamples
-        dict['Bins'] = self.Bins
-        return dict
+        save = {}
+        save['MinValue'] = self.MinValue
+        save['MaxValue'] = self.MaxValue
+        save['NumBins'] = self.NumBins
+        save['NumSamples'] = self.NumSamples
+        save['Bins'] = self.Bins
+        return save
 
     def __setstate__(self, state):
         self.__dict__.update(state)
@@ -72,10 +72,14 @@ class Histogram:
     def Init(cls, minVal, maxVal, numBins=None, binVals=None):
         obj = Histogram()
 
+        
+
         if numBins is None:
             # Add one for being zero based
             obj.NumBins = (maxVal + 1) - minVal
+            obj.NumBins = int(obj.NumBins)
         else:
+            numBins = int(math.ceil(numBins))
             if not binVals is None:
                 assert(len(binVals) == numBins)
 
@@ -101,7 +105,8 @@ class Histogram:
         obj.NumBins = len(hist_array)
         obj.Bins = list(hist_array)
         obj.MinValue = minValue 
-        obj.MaxValue = minValue + (binSize * obj.NumBins)
+        obj.MaxValue = (minValue + (binSize * obj.NumBins))-1
+        obj.NumSamples = sum(hist_array)
         return obj
 
     @classmethod
@@ -205,6 +210,28 @@ class Histogram:
         assert(fraction >= 0.0)
         assert(fraction <= 1.0)
         return (iBin * self.BinWidth) + (fraction * self.BinWidth) + self.MinValue
+    
+    def MinNonEmptyBin(self):
+        '''
+        :returns: The index of the lowest valued bin that contains a non-zero value, or None if all bins are empty
+        '''
+        #Remove empty buckets from the high-end of the histogram
+        for i, count in enumerate(self.Bins):
+            if count > 0:
+                return i
+        
+        return None
+        
+    def MaxNonEmptyBin(self):
+        '''
+        :returns: The index of the highest valued bin that contains a non-zero value, or None if all bins are empty
+        '''
+        #Remove empty buckets from the high-end of the histogram
+        for i in range(len(self.Bins)-2, -1, -1):
+            if self.Bins[i] > 0:
+                return i
+        
+        return None
 
     def Mean(self, minVal=None, maxVal=None):
 
@@ -317,7 +344,17 @@ class Histogram:
         self.Bins[iTargetBin] = self.Bins[iTargetBin] + count
         self.NumSamples = self.NumSamples + count
 
-    def AddHistogram(self, bins):
+    def AddHistogram(self, h):
+        bins = None
+        if isinstance(h, Histogram):
+            assert(h.MinValue == self.MinValue)
+            assert(h.BinWidth == self.BinWidth)
+            assert(len(h.Bins) == len(self.Bins))
+            bins = h.Bins
+        else: #Otherwise assume an iterator
+            assert(len(self.Bins) == len(h))
+            bins = h
+            
         for i, count in enumerate(bins):
             self.Bins[i] = self.Bins[i] + count
             self.NumSamples = self.NumSamples + count
@@ -357,6 +394,99 @@ class Histogram:
             binsString = binsString + '\t' + str(int(binVal))
 
         return binsString
+    
+    @classmethod
+    def Trim(cls, hObj):
+        '''Remove leading and trailing empty buckets from the histogram'''
+        
+        hNew = cls.TryRemoveMaxValueOutlier(hObj, TrimOnly=True)
+        if hNew is not None:
+            hObj = hNew
+            
+        hNew = cls.TryRemoveMinValueOutlier(hObj, TrimOnly=True)
+        if hNew is not None:
+            hObj = hNew
+        
+        return hObj
+    
+    @staticmethod
+    def TryRemoveMaxValueOutlier(hObj, TrimOnly=False):
+        '''
+        This functions checks the maximum value bucket of the histogram and the second to last histogram bucket.  If the 2nd to last is zero and the last is non-zero
+        the last bucket is removed, all zeros from the last data value are removed, and a new histogram is returned.
+        
+        If the last bucket is zero then it is also removed  
+        '''
+        
+        outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
+        if outlier_cutoff < 2:
+            outlier_cutoff = 2
+        HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
+        Trimmable = hObj.Bins[-1] == 0
+        
+        if not HasOutlier and not Trimmable:
+            return hObj
+        
+        
+        while HasOutlier or Trimmable:
+        
+            #Remove empty buckets from the high-end of the histogram
+            for i in range(len(hObj.Bins)-2, -1, -1):
+                if hObj.Bins[i] > 0:
+                    break
+            
+            #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
+            if i is None:
+                return hObj
+            
+            newBins = hObj.Bins[0:i+1]
+            
+            hObj = Histogram.FromArray(newBins, hObj.MinValue, hObj.BinWidth)
+            HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
+            Trimmable = hObj.Bins[-1] == 0
+            
+    
+        return hObj
+    
+    @staticmethod
+    def TryRemoveMinValueOutlier(hObj, TrimOnly=False):
+        '''
+        This functions checks the minimum value bucket of the histogram and the second bucket.  If the 2nd is zero and the first is non-zero
+        the first bucket is removed, all zero buckets beyond the first bucket are removed, and a new histogram is returned.
+          
+        If the first bucket is zero then it is also removed
+        '''
+        
+        outlier_cutoff = math.ceil(hObj.NumSamples / 100000.0)
+        if outlier_cutoff < 2:
+            outlier_cutoff = 2
+        HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
+        Trimmable = hObj.Bins[0] == 0
+        
+        if not HasOutlier and not Trimmable:
+            return hObj
+        
+        while HasOutlier or Trimmable:
+            
+            #Remove empty buckets from the low-end of the histogram
+            for i, count in enumerate(hObj.Bins):
+                if i == 0:
+                    continue #Skip the first bucket since we know we need to trim
+                if count > 0:
+                    break
+            
+            #This means no values were above zero, lets just leave the histogram alone.  Probably never happens
+            if i is None:
+                return hObj
+            
+            newBins = hObj.Bins[i:]
+            
+            hObj = Histogram.FromArray(newBins, hObj.BinValue(i), hObj.BinWidth)
+            HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
+            Trimmable = hObj.Bins[0] == 0
+    
+        return hObj
+        
 
     def ToXML(self):
         impl = xml.dom.minidom.getDOMImplementation()

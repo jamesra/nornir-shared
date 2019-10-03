@@ -39,7 +39,6 @@ if os.path.exists('Logs') == False:
 
 if CURSES:
 	import curses
-	import curses.wrapper
 	import atexit
 
 	global stdscr
@@ -174,7 +173,7 @@ def CurseProgress(text, Progress, Total=None):
 					progText = text + " %0.3g%%" % ((float(Progress) / float(Total)) * 100)
 					progText = progText + ' ' + ETAString
 					# progText = progText + ' ' * (80 - len(progText))
-					# print(progText)
+					print(progText)
 	else:
 		if (Total is not None):
 			if(Progress is not None):
