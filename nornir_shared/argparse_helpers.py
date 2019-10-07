@@ -1,6 +1,8 @@
 import argparse
 import re
 
+from nornir_shared.misc import ListFromDelimited
+
 
 def _IsNumberRange(argstr):
     '''Return true if the string has a hypen with two numbers between'''
@@ -25,6 +27,10 @@ def _IntegerRangeToList(argstr):
         raise argparse.ArgumentTypeError()
 
     return numbers
+
+def StringList(argstr):
+    list_strs = ListFromDelimited(argstr)
+    return list_strs
 
 def IntegerList(argstr):
     '''Return a list of integers based on a range defined by a string 
