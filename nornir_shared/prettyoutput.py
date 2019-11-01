@@ -102,7 +102,7 @@ def CurseString(topic, text):
 		statusWindow.move(yMax - 1, 0)
 		statusWindow.refresh()
 	else:
-		# print(topic + ": " + text)
+		print(topic + ": " + text)
 		return
 
 def CurseProgress(text, Progress, Total=None):
