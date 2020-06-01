@@ -178,11 +178,15 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
      
     if len(filenamelist) == 0:
         return []
+    
+    num_threads = multiprocessing.cpu_count() * 2
+    #if num_threads > len(filenames):
+    #    num_threads = len(filenames) + 1
         
     if Pool is None:
         #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
         #Pool = nornir_pools.GetGlobalLocalMachinePool()
-        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=multiprocessing.cpu_count() * 2)
+        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=num_threads)
 
     if ImageDir is None:
         ImageDir = ""
