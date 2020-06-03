@@ -195,45 +195,44 @@ def RecurseSubdirectoriesGenerator(Path,
     # If we made it this far we did not match either Required or Excluded Files
 
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
-    dirs = []
-    try:    
-        for d in os.listdir(Path):
-            if os.path.isfile(d):
-                continue
-    
-            # Skip if it contains a .
-            if d.find('.') > -1:
-                continue
-    
-            fullpath = os.path.join(Path, d)
-    
-            # Skip if it contains words from the exclude list
-            name = os.path.basename(d)
-            name = name.lower()
-    
-            if MatchNames is not None:
-                if name in MatchNames:
+    try:
+        with os.scandir(Path) as Path_iter:
+            for d in Path_iter:
+                if d.is_file():
+                    continue
+        
+                # Skip if it contains a .
+                if d.path.find('.') > -1:
+                    continue
+        
+                fullpath = os.path.join(Path, d.path)
+        
+                # Skip if it contains words from the exclude list 
+                name = d.name.lower()
+        
+                if MatchNames is not None:
+                    if name in MatchNames:
+                        yield fullpath
+                        # Dirlist.append(os.path.join(Path, d))
+                        # continue
+        
+                if (name in ExcludeNames):
+                    continue
+        
+                if MatchNames is None and RequiredFiles is None:
                     yield fullpath
-                    # Dirlist.append(os.path.join(Path, d))
-                    # continue
-    
-            if (name in ExcludeNames):
-                continue
-    
-            if MatchNames is None and RequiredFiles is None:
-                yield fullpath
-    
-            # Add directory tree to list and keep looking
-    
-            if os.path.isdir(os.path.join(Path, d)):
-                for subd in RecurseSubdirectories(fullpath,
-                                      RequiredFiles=RequiredFiles,
-                                      ExcludedFiles=ExcludedFiles,
-                                      MatchNames=MatchNames,
-                                      ExcludeNames=ExcludeNames,
-                                      ExcludedDownsampleLevels=ExcludedDownsampleLevels):
-                    yield subd
-    except IOError:
+        
+                # Add directory tree to list and keep looking
+        
+                if d.is_dir():
+                    for subd in RecurseSubdirectories(fullpath,
+                                          RequiredFiles=RequiredFiles,
+                                          ExcludedFiles=ExcludedFiles,
+                                          MatchNames=MatchNames,
+                                          ExcludeNames=ExcludeNames,
+                                          ExcludedDownsampleLevels=ExcludedDownsampleLevels):
+                        yield subd  
+    except (IOError, FileNotFoundError):
         prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
         pass
     
