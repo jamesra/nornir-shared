@@ -182,9 +182,12 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
 
     if s is None:
         s = 7
-    # print Hist.Bins
+    
+    if not 'marker' in kwargs:
+        kwargs['marker'] = 'o'
+    
     plt.cla()
-    plt.scatter(x, y, s=s, c=c, marker='o', edgecolor=None, **kwargs)
+    plt.scatter(x, y, s=s, c=c, edgecolor=None, **kwargs)
 
     if not Title is None:
         plt.title(Title)
@@ -198,7 +201,10 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
 
     if(OutputFilename is not None):
         plt.ioff()
-        plt.savefig(OutputFilename) 
+        if isinstance(OutputFilename, str):
+            plt.savefig(OutputFilename)
+        for filename in OutputFilename:
+            plt.savefig(filename)
     else:
         plt.show()
         
@@ -228,7 +234,10 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
 
     if(OutputFilename is not None):
         plt.ioff()
-        plt.savefig(OutputFilename) 
+        if isinstance(OutputFilename, str):
+            plt.savefig(OutputFilename)
+        for filename in OutputFilename:
+            plt.savefig(filename)
     else:
         plt.show()
         
@@ -302,7 +311,10 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
         plt.plot(line[:, 1], line[:, 0], color='blue')
          
     if(OutputFilename is not None):
-        plt.savefig(OutputFilename, dpi=300)
+        if isinstance(OutputFilename, str):
+            plt.savefig(OutputFilename, dpi=300)
+        for filename in OutputFilename:
+            plt.savefig(filename, dpi=300)
     else:
         plt.show()
 
