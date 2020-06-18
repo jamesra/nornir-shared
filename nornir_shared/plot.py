@@ -211,7 +211,7 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
     plt.close()
 
 
-def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None):
+def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
     '''Poly line list is a list of lists of x,y points'''
 
     colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
@@ -220,10 +220,26 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
     for line in PolyLineList:
         numPoints = len(line[0])
         colorVal = 'black'
+        
         if  numPoints < len(colors):
             colorVal = colors[numPoints]
-
-        plt.plot(line[0], line[1], color=colorVal, alpha=0.5, marker='+', markerfacecolor='r', markeredgecolor='r', markersize=5)
+            
+        if not 'marker' in kwargs:
+            kwargs['marker'] = '+'
+                        
+        if not 'markerfacecolor' in kwargs:
+            kwargs['markerfacecolor'] = 'r'
+        
+        if not 'markeredgecolor' in kwargs:
+            kwargs['markeredgecolor'] = 'r'
+            
+        if not 'markersize' in kwargs:
+            kwargs['markersize'] = 5
+            
+        if not 'alpha' in kwargs:
+            kwargs['alpha'] = 0.5
+            
+        plt.plot(line[0], line[1], color=colorVal, **kwargs)
 
     if not Title is None:
         plt.title(Title)
@@ -231,6 +247,12 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.ylabel(YAxisLabel)
     if not XAxisLabel is None:
         plt.xlabel(XAxisLabel)
+        
+    if xlim is not None:
+        plt.xlim(xlim)
+        
+    if ylim is not None:
+        plt.ylim(ylim)
 
     if(OutputFilename is not None):
         plt.ioff()
