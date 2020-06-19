@@ -203,8 +203,9 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
         plt.ioff()
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename)
-        for filename in OutputFilename:
-            plt.savefig(filename)
+        else:
+            for filename in OutputFilename:
+                plt.savefig(filename)
     else:
         plt.show()
         
@@ -258,8 +259,9 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         plt.ioff()
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename)
-        for filename in OutputFilename:
-            plt.savefig(filename)
+        else:
+            for filename in OutputFilename:
+                plt.savefig(filename)
     else:
         plt.show()
         
@@ -335,8 +337,9 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
     if(OutputFilename is not None):
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename, dpi=300)
-        for filename in OutputFilename:
-            plt.savefig(filename, dpi=300)
+        else:
+            for filename in OutputFilename:
+                plt.savefig(filename, dpi=300)
     else:
         plt.show()
 
