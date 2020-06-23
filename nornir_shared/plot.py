@@ -212,7 +212,7 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
     plt.close()
 
 
-def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
+def PolyLine(PolyLineList, Title=None, colors=[], XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
     '''PolyLineList is a nested list in this form:
     lines:
         line1:
@@ -224,24 +224,23 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         ...
     '''
 
-    colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
     # print Hist.Bins
     plt.cla()
+    num = 0
     for line in PolyLineList:
-        numPoints = len(line[0])
-        colorVal = 'black'
-        
-        if  numPoints < len(colors):
-            colorVal = colors[numPoints]
-            
+        color = 'red'
+        if len(colors) > num:
+            color = colors[num]
+            print(color)
+
+        num += 1
+
         if not 'marker' in kwargs:
-            kwargs['marker'] = '+'
+            kwargs['marker'] = '.'
                         
-        if not 'markerfacecolor' in kwargs:
-            kwargs['markerfacecolor'] = 'r'
+        kwargs['markerfacecolor'] = color
         
-        if not 'markeredgecolor' in kwargs:
-            kwargs['markeredgecolor'] = 'r'
+        kwargs['markeredgecolor'] = color
             
         if not 'markersize' in kwargs:
             kwargs['markersize'] = 5
@@ -249,7 +248,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         if not 'alpha' in kwargs:
             kwargs['alpha'] = 0.5
             
-        plt.plot(line[0], line[1], color=colorVal, **kwargs)
+        plt.plot(line[0], line[1], color=color, **kwargs)
 
     if not Title is None:
         plt.title(Title)
