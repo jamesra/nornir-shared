@@ -213,7 +213,16 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
 
 
 def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
-    '''Poly line list is a list of lists of x,y points'''
+    '''PolyLineList is a nested list in this form:
+    lines:
+        line1:
+            xAxis: x1, x2, x3, ...
+            yAxis: y1, y2, y3, ...
+        line2:
+            xAxis: ...
+            yAxis: ...
+        ...
+    '''
 
     colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
     # print Hist.Bins
