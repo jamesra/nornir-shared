@@ -81,7 +81,10 @@ def SetupLogging(LogToFile=False, OutputPath=None, Level=None):
             else:
                 BaseLoggingDir = os.getcwd()
         
-            LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+            if OutputPath is not None:
+                LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+            else:
+                LogPath = BaseLoggingDir 
              
         if not LogPath is None: 
             try:
