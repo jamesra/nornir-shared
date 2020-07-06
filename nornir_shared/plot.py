@@ -5,6 +5,7 @@ from matplotlib.lines import fillStyles
 import numpy
 from . import histogram
 from . import prettyoutput
+from enum import Enum
 
 plt.ioff()
 
@@ -211,8 +212,12 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
         
     plt.close()
 
+class ColorSelectionStyle(Enum):
+    ''' Methods of assigning color to separate lines in PolyLine() '''
+    BY_LINE_LENGTH = 0
+    PER_LINE = 1
 
-def PolyLine(PolyLineList, Title=None, colors=[], XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
+def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
     '''PolyLineList is a nested list in this form:
     lines:
         line1:
@@ -224,31 +229,47 @@ def PolyLine(PolyLineList, Title=None, colors=[], XAxisLabel=None, YAxisLabel=No
         ...
     '''
 
+    # Default line color scheme
+    if Colors is None:
+        Colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
+
+    # Use + as the default point marker. NOTE: We may wish to let matplotlib use its own default instead.
+    if not 'marker' in kwargs:
+        kwargs['marker'] = '+'
+
+    if not 'markersize' in kwargs:
+        kwargs['markersize'] = 5
+
+    if not 'alpha' in kwargs:
+        kwargs['alpha'] = 0.5
+
     # print Hist.Bins
     plt.cla()
     num = 0
     for line in PolyLineList:
-        color = 'red'
-        if len(colors) > num:
-            color = colors[num]
-            print(color)
+        colorVal = 'black'
+
+        if ColorStyle == ColorSelectionStyle.BY_LINE_LENGTH:
+            numPoints = len(line[0])
+            if numPoints < len(Colors):
+                colorVal = Colors[numPoints]
+        elif ColorStyle == ColorSelectionStyle.PER_LINE:
+            if len(Colors) > num:
+                colorVal = Colors[num]
 
         num += 1
 
-        if not 'marker' in kwargs:
-            kwargs['marker'] = '.'
-                        
-        kwargs['markerfacecolor'] = color
+        # Copy kwargs for each line so the following assignments don't cause the first color to be used for all lines
+        line_kwargs = kwargs.copy()
         
-        kwargs['markeredgecolor'] = color
-            
-        if not 'markersize' in kwargs:
-            kwargs['markersize'] = 5
-            
-        if not 'alpha' in kwargs:
-            kwargs['alpha'] = 0.5
-            
-        plt.plot(line[0], line[1], color=color, **kwargs)
+        # If markerfacecolor or markeredgecolor are specified, override PolyLine()'s colors argument.
+        if not 'markerfacecolor' in line_kwargs:
+            line_kwargs['markerfacecolor'] = colorVal
+
+        if not 'markeredgecolor' in line_kwargs:
+            line_kwargs['markeredgecolor'] = colorVal
+
+        plt.plot(line[0], line[1], color=colorVal, **kwargs)
 
     if not Title is None:
         plt.title(Title)
