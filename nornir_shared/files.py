@@ -225,7 +225,7 @@ def RecurseSubdirectoriesGenerator(Path,
                 # Add directory tree to list and keep looking
         
                 if d.is_dir():
-                    for subd in RecurseSubdirectories(fullpath,
+                    for subd in RecurseSubdirectoriesGenerator(fullpath,
                                           RequiredFiles=RequiredFiles,
                                           ExcludedFiles=ExcludedFiles,
                                           MatchNames=MatchNames,
