@@ -217,7 +217,7 @@ class ColorSelectionStyle(Enum):
     BY_LINE_LENGTH = 0
     PER_LINE = 1
 
-def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
+def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, XTicks=None, XTickLabels=None, XTickRotation=None, YTicks=None, YTickLabels=None, YTickRotation=None, Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
     '''PolyLineList is a nested list in this form:
     lines:
         line1:
@@ -283,6 +283,16 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         
     if ylim is not None:
         plt.ylim(ylim)
+
+    # Note: Matplotlib doesn't allow labels to be specified without locations,
+    # so XTickLabels will be ignored unless XTicks is present
+    # (The same is true for YTicks)
+
+    if XTicks is not None:
+        plt.xticks(ticks=XTicks, labels=XTickLabels, rotation=XTickRotation)
+
+    if YTicks is not None:
+        plt.yticks(ticks=YTicks, labels=YTickLabels, rotation=YTickRotation)
 
     if(OutputFilename is not None):
         plt.ioff()
