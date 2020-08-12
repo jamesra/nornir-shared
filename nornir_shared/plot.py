@@ -5,6 +5,7 @@ from matplotlib.lines import fillStyles
 import numpy
 from . import histogram
 from . import prettyoutput
+from enum import Enum
 
 plt.ioff()
 
@@ -211,35 +212,63 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
         
     plt.close()
 
+class ColorSelectionStyle(Enum):
+    ''' Methods of assigning color to separate lines in PolyLine() '''
+    BY_LINE_LENGTH = 0
+    PER_LINE = 1
 
-def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, **kwargs):
-    '''Poly line list is a list of lists of x,y points'''
+def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, XTicks=None, XTickLabels=None, XTickRotation=None, YTicks=None, YTickLabels=None, YTickRotation=None, Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
+    '''PolyLineList is a nested list in this form:
+    lines:
+        line1:
+            xAxis: x1, x2, x3, ...
+            yAxis: y1, y2, y3, ...
+        line2:
+            xAxis: ...
+            yAxis: ...
+        ...
+    '''
 
-    colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
+    # Default line color scheme
+    if Colors is None:
+        Colors = ['black', 'blue', 'green', 'yellow', 'orange', 'red', 'purple']
+
+    # Use + as the default point marker. NOTE: We may wish to let matplotlib use its own default instead.
+    if not 'marker' in kwargs:
+        kwargs['marker'] = '+'
+
+    if not 'markersize' in kwargs:
+        kwargs['markersize'] = 5
+
+    if not 'alpha' in kwargs:
+        kwargs['alpha'] = 0.5
+
     # print Hist.Bins
     plt.cla()
+    num = 0
     for line in PolyLineList:
-        numPoints = len(line[0])
         colorVal = 'black'
+
+        if ColorStyle == ColorSelectionStyle.BY_LINE_LENGTH:
+            numPoints = len(line[0])
+            if numPoints < len(Colors):
+                colorVal = Colors[numPoints]
+        elif ColorStyle == ColorSelectionStyle.PER_LINE:
+            if len(Colors) > num:
+                colorVal = Colors[num]
+
+        num += 1
+
+        # Copy kwargs for each line so the following assignments don't cause the first color to be used for all lines
+        line_kwargs = kwargs.copy()
         
-        if  numPoints < len(colors):
-            colorVal = colors[numPoints]
-            
-        if not 'marker' in kwargs:
-            kwargs['marker'] = '+'
-                        
-        if not 'markerfacecolor' in kwargs:
-            kwargs['markerfacecolor'] = 'r'
-        
-        if not 'markeredgecolor' in kwargs:
-            kwargs['markeredgecolor'] = 'r'
-            
-        if not 'markersize' in kwargs:
-            kwargs['markersize'] = 5
-            
-        if not 'alpha' in kwargs:
-            kwargs['alpha'] = 0.5
-            
+        # If markerfacecolor or markeredgecolor are specified, override PolyLine()'s colors argument.
+        if not 'markerfacecolor' in line_kwargs:
+            line_kwargs['markerfacecolor'] = colorVal
+
+        if not 'markeredgecolor' in line_kwargs:
+            line_kwargs['markeredgecolor'] = colorVal
+
         plt.plot(line[0], line[1], color=colorVal, **kwargs)
 
     if not Title is None:
@@ -254,6 +283,16 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         
     if ylim is not None:
         plt.ylim(ylim)
+
+    # Note: Matplotlib doesn't allow labels to be specified without locations,
+    # so XTickLabels will be ignored unless XTicks is present
+    # (The same is true for YTicks)
+
+    if XTicks is not None:
+        plt.xticks(ticks=XTicks, labels=XTickLabels, rotation=XTickRotation)
+
+    if YTicks is not None:
+        plt.yticks(ticks=YTicks, labels=YTickLabels, rotation=YTickRotation)
 
     if(OutputFilename is not None):
         plt.ioff()
