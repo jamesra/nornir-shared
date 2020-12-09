@@ -69,6 +69,14 @@ def CreateParser():
                         help='Create text files for second console with recieved lines and exception information',
                         dest='debug')
     
+    parser.add_argument('-title',
+                        required=False,
+                        default='',
+                        action='store',
+                        type=str,
+                        help='Title of the window',
+                        dest='title')
+    
     return parser
     
 def ConsoleModulePath():
@@ -103,7 +111,7 @@ class Console(object):
         if not port is None:
             self.PORT = int(port)
             
-        self.title = title
+        self.title = title.strip()
         if self.title is None:
             self.title = ''
         
@@ -113,7 +121,11 @@ class Console(object):
          
     def pycmd(self, title, host, port):
         '''Command to use to launch python'''
-        pycmd = "python -m nornir_shared.console -host %s -port %d " % (host, int(port))
+        pycmd = "python -m nornir_shared.console -host %s -port %d" % (host, int(port))
+        
+        if len(self.title) > 0:
+            pycmd += " -title {0}".format(self.title())
+            
         debug = False
         cmd = 'start "%s" %s' % (title, pycmd)
         if debug:
@@ -214,7 +226,7 @@ def CreateDebugInfoFile(filename=None):
         
     return open(os.path.join(os.getcwd(), filename), mode='w')
              
-def ListenLoop(HOST, PORT, handler_func):
+def ListenLoop(HOST, PORT, title, handler_func):
     '''
     :param func handler_func: Function to pass data recieved on the socket to
     '''
@@ -227,8 +239,9 @@ def ListenLoop(HOST, PORT, handler_func):
     hFile = None
     try:
         if _DEBUG:
-            hFile = CreateDebugInfoFile()
+            hFile = CreateDebugInfoFile(title + '.log')
         
+            hFile.write('Title=%s\n' % title)
             hFile.write('HOST=%s\n' % HOST)
             hFile.write('PORT=%d\n' % PORT)
             hFile.write('Func=%s\n' % str(handler_func))
@@ -306,6 +319,7 @@ if __name__ == '__main__':
         
         _DEBUG = args.debug
         
+        print('Title=%s\n' % args.title)
         print('HOST=%s\n' % args.HOST)
         print('PORT=%d\n' % args.PORT) 
         print('Curses=%d\n' % args.curses)

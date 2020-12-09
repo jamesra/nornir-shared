@@ -262,7 +262,10 @@ def Log(text=None, logger_name=None):
 
 _error_console = None
 
-def LogErr(error_message=None):
+def error(error_message=None):
+	LogErr(error_message, calling_func_name=get_calling_func_name())
+
+def LogErr(error_message=None, calling_func_name=None):
 
 	if error_message is None  or len(error_message) == 0:
 		error_message = "\n"
@@ -272,6 +275,12 @@ def LogErr(error_message=None):
 	if(error_message[-1] != '\n'):
 		error_message = error_message + '\n'
 	
+	if calling_func_name is None:
+		calling_func_name = get_calling_func_name()
+		
+	logger = logging.getLogger(calling_func_name)
+	logger.error(error_message)
+	
 	if not ECLIPSE:
 		try:
 			global _error_console
@@ -279,16 +288,17 @@ def LogErr(error_message=None):
 			if _error_console is None:
 				_error_console = console.Console()
 			
-			
 			_error_console.WriteMessage(error_message)
+			logger = logging.getLogger(calling_func_name)
+			logger.error(error_message)
 		except:
 			_error_console = None
-			logger = logging.getLogger(get_calling_func_name())
-			logger.error(error_message)
+			#logger = logging.getLogger(calling_func_name)
+			#logger.error(error_message)
 			pass
-	else:
-		logger = logging.getLogger(get_calling_func_name())
-		logger.error(error_message)
+	#else:
+		#logger = logging.getLogger(calling_func_name)
+		#logger.error(error_message)
 
 
 def PrettyOutputModulePath():
