@@ -1,5 +1,6 @@
-import math
+import math 
 import time
+import datetime
 
 from . import prettyoutput
 
@@ -15,7 +16,9 @@ class TaskTimer:
         self._TaskDeltaTime = dict();
 
         # If a task isn't explicitely started we compare to when this class was created.
-        self.DefaultStartTime = time.time();
+        self.DefaultStartTime = time.time()
+        
+        self.CreationDateTime = datetime.datetime.now(datetime.timezone.utc)
 
     def Start(self, task):
         self._TaskStartTime[task] = time.time();
@@ -28,7 +31,7 @@ class TaskTimer:
         if task in self._TaskStartTime:
             tstart = self._TaskStartTime.pop(task, self.DefaultStartTime)
         else:
-            prettyoutput.Log('No timer started for task ' + task + ' using default value');
+            prettyoutput.Log(f'No timer started for task {task} using default value');
 
         tdelta = tend - tstart;
         if(task in self._TaskDeltaTime):
@@ -50,10 +53,12 @@ class TaskTimer:
         return '';
 
     def __str__(self):
-        s = '';
+        s = self.CreationDateTime.strftime("%Y-%m-%d %H:%M:%S")
+        localTime = self.CreationDateTime.astimezone()
+        s += localTime.strftime("\t(%a %x %I:%M%p %Z)")
 
         for task in self._TaskDeltaTime.keys():
             outstr = self.ElapsedString(task);
-            s = s + outstr + '\n';
+            s += f'\n\t{outstr}';
 
         return s;
