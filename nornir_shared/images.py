@@ -15,6 +15,9 @@ import six
 import numpy
 
 from PIL import Image
+#Disable decompression bomb protection since we are dealing with huge images on purpose
+Image.MAX_IMAGE_PIXELS = None
+
 import PIL.ImageOps
 import nornir_pools 
 
