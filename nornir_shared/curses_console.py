@@ -7,11 +7,24 @@ This facilitates the output console window to use the curses library
 '''
 
 import atexit
-import curses 
 
+curses_available = False
+try:
+    import curses
+    curses_available = True
+except ImportError:
+    pass
 
 _status_window = None
 _curses_screen = None
+
+_log_window = None
+
+num_rows = None #Number of rows in the curses window
+num_cols = None #Number of columns in the curses window
+
+cur_log_row = 0 #The next log row we should write to
+
 
 '''Maps a topic string to a row in the curses window'''
 topic_row_list = []
@@ -49,6 +62,12 @@ def CurseString(topic, text):
 def InitCurses():
     global _curses_screen
     global _status_window
+    global _log_window
+    global num_rows
+    global num_cols
+    
+    if not curses_available:
+        return False
 
     _curses_screen = curses.initscr()
  
@@ -61,17 +80,20 @@ def InitCurses():
 
         _status_window = curses.newwin(num_rows, num_cols, 0, 0)
 #===============================================================================
-#         logWindow = curses.newpad(9999, ScreenWidth)
-# 
+#        _log_window = curses.newpad(9999, num_cols)
+#        _log_window.idlok(True)
 #         _curses_screen.erase()
 #         _curses_screen.refresh()
 # 
 #         logWindow.move(0, 0)
 #         logWindow.standout()
 #===============================================================================
-        _status_window.standend()
+       # _status_window.standend()
+       # _status_window.idlok(True)
 
         atexit.register(__EndCurses__)
+        
+        return True
     except Exception as e:
         curses.endwin()
         raise e

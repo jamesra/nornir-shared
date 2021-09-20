@@ -13,24 +13,25 @@ import time
 import traceback 
 
 
-curses_available = None
+curses_available = False
 try:
-    import nornir_shared.curses_console
+    import curses
     curses_available = True
-except:
+except ImportError:
     pass
 
 
+if curses_available:
+    import nornir_shared.curses_console
+    
 _curses_topic_line_dict = {}
 pydevd_available = False
 
 try:
     import pydevd
     pydevd_available = True
-except: 
+except ImportError: 
     pass
-
-
     
 '''The string to send to a second console process to close it'''
 _console_exit_string = 'Console.Exit\n'
@@ -290,7 +291,16 @@ def ListenLoop(HOST, PORT, title, handler_func):
     finally:
         if not hFile is None:
             hFile.close()
-        
+            
+def NoCursesHandler(data_str):
+    '''
+    Sends output to the console window.  Input strings should contain "TOPIC:TEXT" using the semicolon as a delimiter
+    :param str data_str: Data received over the socket
+    ''' 
+    
+    (topic, colon, text) = data_str.partition(':')
+    sys.stdout.write(text)
+    
         
 def CursesHandler(data_str):
     '''
@@ -332,18 +342,23 @@ if __name__ == '__main__':
             else:  
                 pydevd.settrace(suspend=False)
         
-        if not args.curses:
-            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=sys.stdout.write)
-        else: 
+        if curses_available:
             try:
-                nornir_shared.curses_console.InitCurses()
+                success = nornir_shared.curses_console.TryInitCurses()
+                assert(success), "Could not InitCurses"
             except Exception as e:
                 sys.stdout.write(traceback.format_exc()) 
                 hFile = CreateDebugInfoFile('Console_Curses_Error.txt')
                 hFile.write(traceback.format_exc(e))
                 hFile.close()  
+            
+            if success: 
+                ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=CursesHandler)
+            else:
+                ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=NoCursesHandler)
+        else: 
+            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=NoCursesHandler)
                 
-            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=CursesHandler)
     except:
         sys.stdout.write(traceback.format_exc()) 
         pass

@@ -237,17 +237,17 @@ class Histogram(object):
 
         iBin = 0
         maxBin = 0
-        sum = Decimal()
+        _sum = Decimal()
         totalcount = Decimal()
 
         (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
         for ibin in range(iMin, iMax):
             bincount = self.Bins[ibin]
-            sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
+            _sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
             totalcount += bincount
 
-        return float(sum) / float(totalcount)
+        return float(_sum) / float(totalcount)
 
     def PeakValue(self, minVal=None, maxVal=None):
 

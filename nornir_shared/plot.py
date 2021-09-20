@@ -55,6 +55,13 @@ def ProcessArgs():
     args = parser.parse_args()
     return args
 
+def SetSquareAspectRatio(ax): 
+    #set aspect ratio to 1
+    ratio = 1.0
+    x_left, x_right = plt.xlim()
+    y_low, y_high = plt.ylim()
+    ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
+    return
 
 def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None, xlabel=None, ylabel=None):
     Hist = None
@@ -188,18 +195,22 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
         kwargs['marker'] = 'o'
     
     plt.cla()
-    plt.scatter(x, y, s=s, c=c, edgecolor=None, **kwargs)
+    fig, ax = plt.subplots()
+    
+    ax.scatter(x, y, s=s, c=c, edgecolor=None, **kwargs)
 
     if not Title is None:
-        plt.title(Title)
+        ax.set_title(Title)
     if not YAxisLabel is None:
-        plt.ylabel(YAxisLabel)
+        ax.set_ylabel(YAxisLabel)
     if not XAxisLabel is None:
-        plt.xlabel(XAxisLabel)
+        ax.set_xlabel(XAxisLabel)
 
-    plt.xlim(0, max(x) + 1)
-    plt.ylim(0, max(y) + 1)
-
+    ax.set_xlim(0, max(x) + 1)
+    ax.set_ylim(0, max(y) + 1)
+    
+    SetSquareAspectRatio(ax)
+    
     if(OutputFilename is not None):
         plt.ioff()
         if isinstance(OutputFilename, str):
@@ -245,6 +256,8 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
 
     # print Hist.Bins
     plt.cla()
+    fig, ax = plt.subplots()
+    
     num = 0
     for line in PolyLineList:
         colorVal = 'black'
@@ -269,30 +282,32 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         if not 'markeredgecolor' in line_kwargs:
             line_kwargs['markeredgecolor'] = colorVal
 
-        plt.plot(line[0], line[1], color=colorVal, **kwargs)
+        ax.plot(line[0], line[1], color=colorVal, **kwargs)
 
     if not Title is None:
-        plt.title(Title)
+        ax.set_title(Title)
     if not YAxisLabel is None:
-        plt.ylabel(YAxisLabel)
+        ax.set_ylabel(YAxisLabel)
     if not XAxisLabel is None:
-        plt.xlabel(XAxisLabel)
+        ax.set_xlabel(XAxisLabel)
         
     if xlim is not None:
-        plt.xlim(xlim)
+        ax.set_xlim(xlim)
         
     if ylim is not None:
-        plt.ylim(ylim)
+        ax.set_ylim(ylim)
 
     # Note: Matplotlib doesn't allow labels to be specified without locations,
     # so XTickLabels will be ignored unless XTicks is present
     # (The same is true for YTicks)
 
     if XTicks is not None:
-        plt.xticks(ticks=XTicks, labels=XTickLabels, rotation=XTickRotation)
+        ax.set_xticks(ticks=XTicks, labels=XTickLabels, rotation=XTickRotation)
 
     if YTicks is not None:
-        plt.yticks(ticks=YTicks, labels=YTickLabels, rotation=YTickRotation)
+        ax.set_yticks(ticks=YTicks, labels=YTickLabels, rotation=YTickRotation)
+        
+    SetSquareAspectRatio(ax)
 
     if(OutputFilename is not None):
         plt.ioff()

@@ -9,25 +9,35 @@ import traceback
 
 import nornir_shared.console as console
 
-
 ECLIPSE = 'ECLIPSE' in os.environ
-CURSES = 'CURSES' in os.environ
+CURSES = False
+
+if ECLIPSE == False:
+	try:
+		import curses
+		CURSES = True
+	except ImportError:
+		pass
 
 LastReportedProgress = 100
 
 __IndentLevel = 0
 
+
 def IncreaseIndent():
 	global __IndentLevel
 	__IndentLevel = __IndentLevel + 1
+
 
 def DecreaseIndent():
 	global __IndentLevel
 	__IndentLevel = __IndentLevel - 1
 
+
 def ResetIndent():
 	global __IndentLevel
 	__IndentLevel = 0
+
 
 if os.path.exists('Logs') == False:
 	try:
@@ -38,7 +48,6 @@ if os.path.exists('Logs') == False:
 			pass
 
 if CURSES:
-	import curses
 	import atexit
 
 	global stdscr
@@ -50,7 +59,6 @@ if CURSES:
 
 	statusWindow = []
 	logWindow = []
-
 
 	cursesCoords = {"Cores" : 1,
 					"Section" : 2,
@@ -85,6 +93,7 @@ if CURSES:
 		curses.endwin()
 		raise e
 
+
 def CurseString(topic, text):
 	if CURSES:
 		y = 0
@@ -104,6 +113,7 @@ def CurseString(topic, text):
 	else:
 		print(topic + ": " + text)
 		return
+
 
 def CurseProgress(text, Progress, Total=None):
 	'''If Total is specified we display a percentage, otherwise
@@ -147,7 +157,6 @@ def CurseProgress(text, Progress, Total=None):
 		if(cursesCoords.has_key("Progress")):
 			ProgressY = cursesCoords["Progress"]
 
-
 		if text is not None:
 			# TaskStr = "Task: " + text
 			# Log(TaskStr)
@@ -157,7 +166,6 @@ def CurseProgress(text, Progress, Total=None):
 		ProgressStr = "Progress : %4.2f%%" % ((Progress / float(Total)) * 100)
 		if not tstruct is None:
 			ProgressStr = ProgressStr + "        " + ETAString
-
 
 		# Log(ProgressStr)
 
@@ -183,7 +191,6 @@ def CurseProgress(text, Progress, Total=None):
 					progText = progText + ' ' + ETAString
 					progText = progText + ' ' * (80 - len(progText))
 					print(progText)
-
 
 
 def get_calling_func_name():
@@ -243,7 +250,9 @@ def Log(text=None, logger_name=None):
 
 		(yMax, xMax) = stdscr.getmaxyx()
 
-		numLines = (numChars / xMax) + 1
+		numLines = int(numChars / xMax)
+		if numChars % xMax != 0:
+			numLines = numLines + 1
 
 		logWindow.move(0, 0)
 
@@ -296,9 +305,9 @@ def LogErr(error_message=None, calling_func_name=None):
 			#logger = logging.getLogger(calling_func_name)
 			#logger.error(error_message)
 			pass
-	#else:
-		#logger = logging.getLogger(calling_func_name)
-		#logger.error(error_message)
+	else:
+		logger = logging.getLogger(get_calling_func_name())
+		logger.error(error_message)
 
 
 def PrettyOutputModulePath():
@@ -309,5 +318,4 @@ def PrettyOutputModulePath():
 	    path = os.getcwd()
 	
 	return os.path.join(path, 'prettyoutput.py')
-
 

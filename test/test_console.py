@@ -41,6 +41,16 @@ class TestConsole(unittest.TestCase):
         console.WriteMessage("Owner:WriteCursesMessageAgain\n") 
         
         console.Close()
+        
+     def test_LocalCursesMessage(self):
+        console = nornir_shared.console.CursesConsole(title="WriteCursesMessage", port=random.randint(50000, 51000))
+        
+        console.WriteMessage("Owner:WriteCursesMessage\n") 
+        console.WriteMessage("Data:This is a test\n")
+        console.WriteMessage("Data:Second line of data.Exit\n")
+        console.WriteMessage("Owner:WriteCursesMessageAgain\n") 
+        
+        console.Close()
     #===========================================================================
     #     
     # def test_WriteCurses(self): 
