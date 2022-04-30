@@ -1,11 +1,12 @@
 
 import hashlib
 import os
+import typing
 
 from . import prettyoutput
 
 
-def FilesizeChecksum(filename):
+def FilesizeChecksum(filename) -> str:
     '''
        Returns the size of a file in bytes for use as a simple checksum
        
@@ -21,7 +22,7 @@ def FilesizeChecksum(filename):
 
     return "";
 
-def DataChecksum(data):
+def DataChecksum(data) -> str:
     '''
      Removes whitespace from strings before calculating md5 checksum
     :param obj data: string, list or object convertible to string
@@ -48,7 +49,7 @@ def DataChecksum(data):
 
     return m.hexdigest()
 
-def FileChecksum(filename):
+def FileChecksum(filename) -> str:
     '''
     Return the md5 hash of a file read in txt mode
     
