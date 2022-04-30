@@ -1,5 +1,5 @@
 import argparse
-from collections import Iterable
+from collections.abc import Iterable
 import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
 import numpy
@@ -63,7 +63,9 @@ def SetSquareAspectRatio(ax):
     ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
     return
 
-def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, MaxCutoffPercent=None, LinePosList=None, LineColorList=None, Title=None, xlabel=None, ylabel=None):
+def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
+              MaxCutoffPercent=None, LinePosList=None, LineColorList=None,
+              Title=None, xlabel=None, ylabel=None):
     Hist = None
     
     if(ImageFilename is not None):
@@ -128,7 +130,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None, Ma
     # prettyoutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
     # prettyoutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
     if(ShowCutoffs):
-        print( [MinCutoff, MaxCutoff])
+        prettyoutput.Log(f'Histogram cutoffs: {MinCutoff},{MaxCutoff}')
 
     yMax = max(Hist.Bins)
  #  print 'Bins: ' + str(Hist.Bins)
@@ -339,7 +341,7 @@ def __PlotVectorOriginShape(render_mask, shape, Points, weights=None, color=None
         plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0, vmax=max(weights), alpha=0.5, cmap=colormap)
     
 
-def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None, ylim=None, xlim=None):
+def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None, ylim=None, xlim=None, colors=None):
      
     plt.clf() 
     
@@ -367,7 +369,7 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
             mask = [s == shape for s in shapes]
             mask = numpy.asarray(mask, dtype=numpy.bool)
             
-            __PlotVectorOriginShape(mask, shape, Points, weights)
+            __PlotVectorOriginShape(mask, shape, Points, weights, color=colors)
             
     if ylim is not None:
         plt.ylim(ylim)
