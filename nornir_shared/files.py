@@ -9,11 +9,31 @@ import time
 
 from . import prettyoutput
 import nornir_shared
+import concurrent.futures
 
 
 DownsampleFormat = '%03d'
 DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
+def rmtree(directory):  
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for root, dirs, files in os.walk(directory, topdown=False):
+            try: 
+                files_futures = executor.map(os.remove, [os.path.join(root, f) for f in files])
+                t = list(files_futures) #Force the map operation to complete
+            except Exception as e:
+                prettyoutput.error(f'{e}')
+                
+            try:
+                dir_futures = executor.map(os.rmdir, [os.path.join(root, d) for d in dirs])
+                d = list(dir_futures) #Force the map operation to complete
+            except Exception as e:
+                prettyoutput.error(f'{e}')
+            
+    os.rmdir(directory)
+            
+    return
+        #os.rmdir(directory)
 
 def NewestFile(fileA, fileB):
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
@@ -86,7 +106,7 @@ def RemoveOutdatedFile(ReferenceFilename, TestFilename):
 
 def RemoveInvalidImageFile(TestFilename):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
-    if nornir_shared.images.IsValidImage(TestFilename) == False:
+    if not nornir_shared.images.IsValidImage(TestFilename):
         try:
             prettyoutput.Log('Removing invalid image file: ' + TestFilename)
             os.remove(TestFilename)
