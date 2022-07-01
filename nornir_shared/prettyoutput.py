@@ -60,15 +60,15 @@ if CURSES:
 	statusWindow = []
 	logWindow = []
 
-	cursesCoords = {"Cores" : 1,
-					"Section" : 2,
+	cursesCoords = {"Cores": 1,
+					"Section": 2,
 					"Stage": 3,
 					"Task": 4,
 					"Progress": 5,
-					"PIDs" : 6,
+					"PIDs": 6,
 					"Lock": 7,
 					"Path": 8,
-					"Cmd" : 9
+					"Cmd": 9
 					}
 
 	# sys.stdout = logFile
@@ -115,7 +115,7 @@ def CurseString(topic, text):
 		return
 
 
-def CurseProgress(text, Progress, Total=None):
+def CurseProgress(text:str, Progress:float, Total=None):
 	'''If Total is specified we display a percentage, otherwise
        a number'''
 
@@ -124,12 +124,14 @@ def CurseProgress(text, Progress, Total=None):
 	global ProgressStartTime
 	if(Progress < LastReportedProgress):
 		ProgressStartTime = float(time.time())
+		
+	console_width = 80
 
 	LastReportedProgress = Progress
-	if Total is None:
-		Total = Progress
-		if(Total == 0):
-			Total = 1
+ # if Total is None:
+ # 	Total = Progress
+ # 	if(Total == 0):
+ # 		Total = 1
 
 	ProgressY = 0
 	ProgressX = 0
@@ -141,12 +143,15 @@ def CurseProgress(text, Progress, Total=None):
 	ETASec = 0
 	tstruct = None
 	ETAString = ""
-	fraction = float(Progress / float(Total))
-	if fraction > 0:
-		elapsedSec = float(time.time() - ProgressStartTime)
-		ETASec = (elapsedSec / fraction) * (1.0 - fraction)
-		tstruct = time.gmtime(ETASec)
-		ETAString = "ETA: " + time.strftime("%H:%M:%S", tstruct)
+	fraction = None
+	
+	if Total is not None:
+		fraction = float(Progress / float(Total))
+		if fraction > 0:
+			elapsedSec = float(time.time() - ProgressStartTime)
+			ETASec = (elapsedSec / fraction) * (1.0 - fraction)
+			tstruct = time.gmtime(ETASec)
+			ETAString = "ETA: " + time.strftime("%H:%M:%S", tstruct)
 
 	if CURSES:
 		(yMax, xMax) = statusWindow.getmaxyx()
@@ -160,37 +165,41 @@ def CurseProgress(text, Progress, Total=None):
 		if text is not None:
 			# TaskStr = "Task: " + text
 			# Log(TaskStr)
-			statusWindow.addnstr(TaskY, TaskX, "Task: " + text, 80)
+			statusWindow.addnstr(TaskY, TaskX, "Task: " + text, console_width)
 			statusWindow.clrtoeol()
 
-		ProgressStr = "Progress : %4.2f%%" % ((Progress / float(Total)) * 100)
-		if not tstruct is None:
-			ProgressStr = ProgressStr + "        " + ETAString
+		if Total is not None:
+			ProgressStr = "Progress : %4.2f%%" % (fraction * 100.0)
+			if not tstruct is None:
+				ProgressStr = ProgressStr + "        " + ETAString
 
 		# Log(ProgressStr)
 
-		statusWindow.addnstr(ProgressY, ProgressX, ProgressStr, 80)
-		statusWindow.clrtoeol()
-		statusWindow.move(yMax - 1, 0)
-		statusWindow.refresh()
-	elif ECLIPSE:
-		if (Total is not None):
-			if(Progress is not None):
-				if(text is not None):
-					# print('\b' * 80)
-					progText = text + " %0.3g%%" % ((float(Progress) / float(Total)) * 100)
-					progText = progText + ' ' + ETAString
-					# progText = progText + ' ' * (80 - len(progText))
-					print(progText)
+			statusWindow.addnstr(ProgressY, ProgressX, ProgressStr, console_width)
+			statusWindow.clrtoeol()
+			statusWindow.move(yMax - 1, 0)
+			statusWindow.refresh()
 	else:
-		if (Total is not None):
-			if(Progress is not None):
-				if(text is not None):
-					text = ('\b' * 80) + text
-					progText = text + " %0.3g%%" % ((float(Progress) / float(Total)) * 100)
-					progText = progText + ' ' + ETAString
-					progText = progText + ' ' * (80 - len(progText))
-					print(progText)
+		output_str = text
+		if output_str is None:
+			output_str = ""
+		
+		if fraction is not None:
+			output_str = f'{output_str} {fraction:0.3g}'
+			if ETAString is not None:
+				output_str = output_str + ETAString
+			
+		
+		if ECLIPSE:
+			print(output_str)
+		else:
+			#Erase previous output
+			padding_needed = console_width - len(output_str)
+			if padding_needed < 0:
+				padding_needed = 0
+
+			text = ('\b' * console_width) + output_str + (' ' * padding_needed) 
+			print(text)
 
 
 def get_calling_func_name():
@@ -271,8 +280,10 @@ def Log(text=None, logger_name=None):
 
 _error_console = None
 
+
 def error(error_message=None):
 	LogErr(error_message, calling_func_name=get_calling_func_name())
+
 
 def LogErr(error_message=None, calling_func_name=None):
 
@@ -302,8 +313,8 @@ def LogErr(error_message=None, calling_func_name=None):
 			logger.error(error_message)
 		except:
 			_error_console = None
-			#logger = logging.getLogger(calling_func_name)
-			#logger.error(error_message)
+			# logger = logging.getLogger(calling_func_name)
+			# logger.error(error_message)
 			pass
 	else:
 		logger = logging.getLogger(get_calling_func_name())
