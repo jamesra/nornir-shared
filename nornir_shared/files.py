@@ -32,8 +32,7 @@ def rmtree(directory):
             
     os.rmdir(directory)
             
-    return
-        #os.rmdir(directory)
+    return 
 
 def NewestFile(fileA, fileB):
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
