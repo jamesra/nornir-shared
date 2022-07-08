@@ -15,20 +15,26 @@ import concurrent.futures
 DownsampleFormat = '%03d'
 DefaultLevels = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
-def rmtree(directory):  
+def rmtree(directory, ignore_errors = False):  
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for root, dirs, files in os.walk(directory, topdown=False):
             try: 
                 files_futures = executor.map(os.remove, [os.path.join(root, f) for f in files])
                 t = list(files_futures) #Force the map operation to complete
             except Exception as e:
-                prettyoutput.error(f'{e}')
+                if ignore_errors:
+                    prettyoutput.error(f'{e}')
+                else:
+                    raise e
                 
             try:
                 dir_futures = executor.map(os.rmdir, [os.path.join(root, d) for d in dirs])
                 d = list(dir_futures) #Force the map operation to complete
             except Exception as e:
-                prettyoutput.error(f'{e}')
+                if ignore_errors:
+                    prettyoutput.error(f'{e}')
+                else:
+                    raise e
             
     os.rmdir(directory)
             
@@ -42,13 +48,19 @@ def NewestFile(fileA, fileB):
     if(fileB is None):
         return None
 
-    if not os.path.exists(fileA):
+    AStats = None
+    try:
+        AStats = os.stat(fileA)
+    except FileNotFoundError:
+        prettyoutput.Log(f"NewestFile: File not found {fileA}")
         return None
-    if not os.path.exists(fileB):
+    
+    BStats = None
+    try:
+        BStats = os.stat(fileB)
+    except FileNotFoundError:
+        prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
-
-    AStats = os.stat(fileA)
-    BStats = os.stat(fileB)
 
     if(AStats.st_mtime > BStats.st_mtime):
         return fileA
