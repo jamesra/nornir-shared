@@ -353,11 +353,11 @@ if __name__ == '__main__':
                 hFile.close()  
             
             if success: 
-                ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=CursesHandler)
+                ListenLoop(HOST=args.HOST, PORT=args.PORT, title='Main', handler_func=CursesHandler)
             else:
-                ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=NoCursesHandler)
+                ListenLoop(HOST=args.HOST, PORT=args.PORT, title='Main', handler_func=NoCursesHandler)
         else: 
-            ListenLoop(HOST=args.HOST, PORT=args.PORT, handler_func=NoCursesHandler)
+            ListenLoop(HOST=args.HOST, PORT=args.PORT, title='Main', handler_func=NoCursesHandler)
                 
     except:
         sys.stdout.write(traceback.format_exc()) 
