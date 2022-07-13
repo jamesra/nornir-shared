@@ -14,15 +14,22 @@ def CreateDirTree(path, dictSubTrees):
     print(str(dictSubTrees))
     for key in dictSubTrees.keys():
         subtreepath = os.path.join(path, key)
-        os.makedirs(subtreepath)
-
-        CreateDirTree(subtreepath, dictSubTrees[key])
+        
+        if '.' in key: #Check if it is a file
+            with open(key, 'w+') as f:
+                f.write("test file")
+                
+        else:
+            os.makedirs(subtreepath)
+            CreateDirTree(subtreepath, dictSubTrees[key])
 
 
 def RecurseDictValues(dictSubTrees, path):
     vals = list(dictSubTrees.keys())
 
-    for key in dictSubTrees.keys():
+    for (key,value) in dictSubTrees.items():
+        if value is None: #Skip file entries
+            continue
         subpath = os.path.join(path, key)
         vals.append(subpath)
         vals.extend(RecurseDictValues(dictSubTrees[key], subpath))
@@ -33,8 +40,8 @@ def RecurseDictValues(dictSubTrees, path):
 class TestFiles(unittest.TestCase):
 
     DirTree = {'aaa' : {},
-               'bbb' : {'baaa' : {}},
-               'ccc' : {'ca':{}, 'cb':{'cba':{}}, 'cc':{'cca':{}, 'ccb':{}}}}
+               'bbb' : {'baaa' : {}, '1.idoc':None, '1.png':None, '2.png':None},
+               'ccc' : {'ca':{}, 'cb':{'cba':{}}, 'cc':{'cca':{}, 'ccb':{}, '2.idoc':None}}}
 
 
     @property
@@ -72,8 +79,7 @@ class TestFiles(unittest.TestCase):
         self.assertEqual(len(ListA), 1, "Result list should have one entry")
         self.assertEqual(ListA[0], result, "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
 
-    def testName(self):
-
+    def test_recursesubdirectories(self): 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=None, ExcludeNames=[], ExcludedDownsampleLevels=[])
         expectedDirs = RecurseDictValues(TestFiles.DirTree, self.TestOutputPath)
         self.IsSubset(dirs, expectedDirs)
@@ -90,6 +96,15 @@ class TestFiles(unittest.TestCase):
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]
+        self.IsSubset(dirs, expectedVals)
+        
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles='*.idoc', ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
+        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']]
+        self.IsSubset(dirs, expectedVals)
+        
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=None, ExcludedFiles='*.idoc', MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
+        expectedDirs = set(RecurseDictValues(TestFiles.DirTree, self.TestOutputPath))
+        expectedVals = expectedDirs - set([os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']])
         self.IsSubset(dirs, expectedVals)
 
 if __name__ == "__main__":
