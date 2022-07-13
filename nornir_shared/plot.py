@@ -133,8 +133,8 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
         prettyoutput.Log(f'Histogram cutoffs: {MinCutoff},{MaxCutoff}')
 
     yMax = max(Hist.Bins)
- #  print 'Bins: ' + str(Hist.Bins)
- #  print 'Bin Sum: ' + str(sum(Hist.Bins))
+#  print 'Bins: ' + str(Hist.Bins)
+#  print 'Bin Sum: ' + str(sum(Hist.Bins))
 
     # print Hist.Bins
     plt.clf()
