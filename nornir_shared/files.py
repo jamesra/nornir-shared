@@ -163,6 +163,7 @@ def _ensure_regex_or_set(param, defaultValue, caseInsensitive=False):
         if param[0] == '*':
             param = param.replace('.', '\.')
             param = param.replace('*', '.*')
+            param = param + '$'
         return re.compile(param, re.IGNORECASE if caseInsensitive else 0)
     else:
         return _ensure_string_set(param, defaultValue, caseInsensitive)
