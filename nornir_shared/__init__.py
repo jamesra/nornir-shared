@@ -39,3 +39,9 @@ __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'math
 # .. automodule:: nornir_shared.reflection
 # .. automodule:: nornir_shared.tasktimer
 # .. automodule:: nornir_shared.argparse_helpers
+
+import nornir_shared.prettyoutput as prettyoutput
+import nornir_shared.files as files
+import nornir_shared.histogram as histogram
+import nornir_shared.checksum as checksum
+import nornir_shared.plot as plot

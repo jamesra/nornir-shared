@@ -3,8 +3,8 @@ from collections.abc import Iterable
 import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
 import numpy
-from . import histogram
-from . import prettyoutput
+from nornir_shared import histogram
+from nornir_shared import prettyoutput
 from enum import Enum
 
 plt.ioff()

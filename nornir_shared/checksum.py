@@ -3,7 +3,7 @@ import hashlib
 import os
 import typing
 
-from . import prettyoutput
+from nornir_shared import prettyoutput
 
 
 def FilesizeChecksum(filename) -> str:
