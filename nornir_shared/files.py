@@ -218,7 +218,7 @@ def RecurseSubdirectoriesGenerator(Path,
             dirs = filter(lambda e: e.is_dir, entries)
             
             excluded = False
-            has_required_files = True
+            required_files = []
             
             #First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
             if RequiredFiles is None and ExcludedFiles is None:
@@ -235,16 +235,17 @@ def RecurseSubdirectoriesGenerator(Path,
                         if excluded:
                             break
                     
-                    if not has_required_files and RequiredFiles is not None:
-                        has_required_files = has_required_files or _check_if_file_matches(file.name, RequiredFiles)
+                    if RequiredFiles is not None and _check_if_file_matches(file.name, RequiredFiles):
+                        required_files.append(file.name)
+                        #has_required_files = has_required_files or 
             
             #Do not yield the directory since it contains an excluded file
             if excluded:
                 return
             
             #Yield the directory if it has a required file
-            if has_required_files:
-                yield Path 
+            if len(required_files) > 0:
+                yield (Path, required_files) 
                         
             for d in dirs:
                 # Skip if it contains a .
@@ -259,7 +260,7 @@ def RecurseSubdirectoriesGenerator(Path,
                  
                 fullpath = os.path.join(Path, d.path)
                 if MatchNames is not None and name in MatchNames: 
-                    yield fullpath
+                    yield (fullpath,[])
                     continue #We do not iterate the subdirectories of MatchNames
                         
                 #If we are not matching names or requiring files then return the path
