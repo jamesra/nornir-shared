@@ -223,11 +223,9 @@ def RecurseSubdirectoriesGenerator(Path,
             #First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
             if RequiredFiles is None and ExcludedFiles is None:
                 #Automatically pass the test of whether the directory contains or does not have certain files
-                excluded = False
-                has_required_files = True
+                excluded = False 
             else:
-                excluded = False
-                has_required_files = False
+                excluded = False 
                 for file in files:
                     #Check if the directory is excluded
                     if not excluded and ExcludedFiles is not None:
