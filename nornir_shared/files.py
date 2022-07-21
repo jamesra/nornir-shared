@@ -12,6 +12,7 @@ import collections.abc
 from nornir_shared import prettyoutput
 import nornir_shared
 import concurrent.futures
+from datetime import datetime
 
 DownsampleFormat = '%03d'
 DefaultLevels = frozenset([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
@@ -109,18 +110,36 @@ def OutdatedFile(ReferenceFilename, TestFilename):
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
-def RemoveOutdatedFile(ReferenceFilename, TestFilename):
+def RemoveOutdatedFile(ReferenceFilename, comparedTo):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
-    if(OutdatedFile(ReferenceFilename, TestFilename)):
+    needsRemoving = False
+    
+    if comparedTo is None:
+        raise ValueError("Cannot compare to None")
+    
+    if isinstance(comparedTo, str):
+        TestFilename = comparedTo
+        needsRemoving = OutdatedFile(ReferenceFilename, TestFilename)
+    elif isinstance(TestFilename, datetime):
+        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
+    elif isinstance(TestFilename, float):
+        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
+    elif isinstance(TestFilename, int):
+        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
+    else:
+        raise ValueError(f"Unexpected type to compare against {comparedTo.__class__}")
+
+ #   [name, ext] = os.path.splitext(TestFilename)
+ 
+    if needsRemoving:
         try:
-            prettyoutput.Log('Removing outdated file: ' + TestFilename)
+            prettyoutput.Log(f'Removing outdated file: {TestFilename}, outdated compared to {comparedTo}')
             os.remove(TestFilename)
             return True
         except:
             prettyoutput.Log('Exception removing outdated file: ' + TestFilename)
             pass
-
- #   [name, ext] = os.path.splitext(TestFilename)
+        
     return False
 
 
