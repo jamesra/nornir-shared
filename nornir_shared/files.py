@@ -110,37 +110,38 @@ def OutdatedFile(ReferenceFilename, TestFilename):
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
-def RemoveOutdatedFile(ReferenceFilename, comparedTo):
+def RemoveOutdatedFile(ReferenceFilename, input):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
     needsRemoving = False
     
-    if comparedTo is None:
+    if ReferenceFilename is None:
         raise ValueError("Cannot compare to None")
-    
-    if isinstance(comparedTo, str):
-        TestFilename = comparedTo
-        needsRemoving = OutdatedFile(ReferenceFilename, TestFilename)
-    elif isinstance(TestFilename, datetime):
-        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
-    elif isinstance(TestFilename, float):
-        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
-    elif isinstance(TestFilename, int):
-        needsRemoving = IsOlderThan(ReferenceFilename, comparedTo)
+     
+    if isinstance(input, str): 
+        needsRemoving = OutdatedFile(ReferenceFilename, input)
+    elif isinstance(input, datetime):
+        needsRemoving = IsOlderThan(ReferenceFilename, input)
+    elif isinstance(input, float):
+        needsRemoving = IsOlderThan(ReferenceFilename, input)
+    elif isinstance(input, int):
+        needsRemoving = IsOlderThan(ReferenceFilename, input)
     else:
-        raise ValueError(f"Unexpected type to compare against {comparedTo.__class__}")
+        raise ValueError(f"Unexpected type to compare against {input.__class__}")
 
  #   [name, ext] = os.path.splitext(TestFilename)
  
     if needsRemoving:
-        try:
-            prettyoutput.Log(f'Removing outdated file: {TestFilename}, outdated compared to {comparedTo}')
-            os.remove(TestFilename)
-            return True
-        except:
-            prettyoutput.Log('Exception removing outdated file: ' + TestFilename)
-            pass
         
-    return False
+        if isinstance(input, str):
+            try:
+                prettyoutput.Log(f'Removing outdated file: {input}, outdated compared to {ReferenceFilename}')
+                os.remove(input)
+                return True
+            except Exception as e:
+                prettyoutput.Log(f'Exception removing outdated file: {input}\n{e}')
+                pass 
+        
+    return needsRemoving
 
 
 def RemoveInvalidImageFile(TestFilename):
@@ -150,8 +151,8 @@ def RemoveInvalidImageFile(TestFilename):
             prettyoutput.Log('Removing invalid image file: ' + TestFilename)
             os.remove(TestFilename)
             return True
-        except:
-            prettyoutput.Log('Exception removing invalid image file: ' + TestFilename)
+        except Exception as e:
+            prettyoutput.Log(f'Exception removing invalid image file: {TestFilename}\n{e}')
             return True
 
  #   [name, ext] = os.path.splitext(TestFilename)
