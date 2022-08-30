@@ -223,6 +223,9 @@ def RecurseSubdirectoriesGenerator(Path,
                           ExcludeNames=None,
                           ExcludedDownsampleLevels=None,
                           caseInsensitive=True):
+    '''Same as RecurseSubdirectories, but returns a generator
+    :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
+    '''
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
         yield from _RecurseSubdirectoriesGeneratorTask(executor,
@@ -244,8 +247,9 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
                           ExcludedDownsampleLevels=None,
                           caseInsensitive=True,
                           ):
-    
-    '''Same as RecurseSubdirectories, but returns a generator'''
+    '''Same as RecurseSubdirectories, but returns a generator
+    :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
+    '''
     RequiredFiles = _ensure_regex_or_set(RequiredFiles, None, caseInsensitive=caseInsensitive)
     ExcludedFiles = _ensure_regex_or_set(ExcludedFiles, None, caseInsensitive=caseInsensitive)
     MatchNames = _ensure_string_set(MatchNames, None, caseInsensitive=caseInsensitive)    
