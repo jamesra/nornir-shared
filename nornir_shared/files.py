@@ -81,7 +81,8 @@ def IsOutdated(ReferenceFilename, TestFilename):
     :return: True if TestFilename is older than ReferenceFilename
     '''
     newestFile = NewestFile(ReferenceFilename, TestFilename)
-    return newestFile == ReferenceFilename
+    
+    return newestFile is None or newestFile == ReferenceFilename
 
 
 def IsOlderThan(TestPath, DateTime, DateTimeFormat=None):
