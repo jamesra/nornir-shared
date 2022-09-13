@@ -147,9 +147,9 @@ def lowpriority():
     except:
         logger = logging.getLogger(__name__ + '.lowpriority')
         if not logger is None:
-            logger.warn("Could not lower process priority")
+            logger.warning("Could not lower process priority")
             if isWindows:
-                logger.warn("Are you missing Win32 extensions for python? http://sourceforge.net/projects/pywin32/")
+                logger.warning("Are you missing Win32 extensions for python? http://sourceforge.net/projects/pywin32/")
         pass
 
 

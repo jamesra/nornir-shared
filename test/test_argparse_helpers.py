@@ -29,8 +29,8 @@ class ArgParseHelpersTest(unittest.TestCase):
     
     def testFloatPair(self):
         
-        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('256.5') == (256.5, 256.5))
-        self.assertTrue(nornir_shared.argparse_helpers.IntegerPair('-0.1,23.3') == (-0.1, 23.3))
+        self.assertTrue(nornir_shared.argparse_helpers.FloatPair('256.5') == (256.5, 256.5))
+        self.assertTrue(nornir_shared.argparse_helpers.FloatPair('-0.1,23.3') == (-0.1, 23.3))
         
         pass
     

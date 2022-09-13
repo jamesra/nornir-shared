@@ -75,7 +75,7 @@ def IntegerPair(argstr):
         else:
             return (int(arg_values[0]), int(arg_values[1]))
     except ValueError:
-        raise argparse.ArgumentTypeError("IntegerPair function could not convert %s to integer value(s)" % argstr)
+        raise argparse.ArgumentTypeError(f"IntegerPair function could not convert {argstr} to integer value(s)")
 
 def Tuple(argstr):
     if len(argstr) == 0:

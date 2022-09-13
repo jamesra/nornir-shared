@@ -34,7 +34,7 @@ class ProcessOutputInterceptor(object):
         raise Exception("No method defined for abstract class ProcessOutputInterceptor")
 
     @classmethod
-    def Intercept(self, lineparseobj, return_lines=True):
+    def Intercept(cls, lineparseobj, return_lines=True):
         '''Examines the output of the process in real time and calls lineparsefunc passing each line of output.
         lineparsefunc is called at least once with None input when the process terminates'''
 

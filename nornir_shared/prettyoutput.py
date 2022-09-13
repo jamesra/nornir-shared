@@ -12,6 +12,8 @@ import nornir_shared.console as console
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = False
 
+ProgressStartTime = None
+
 if ECLIPSE == False:
 	try:
 		import curses

@@ -57,12 +57,8 @@ class Histogram(object):
         return s
 
     def __getstate__(self):
-        save = {}
-        save['MinValue'] = self.MinValue
-        save['MaxValue'] = self.MaxValue
-        save['NumBins'] = self.NumBins
-        save['NumSamples'] = self.NumSamples
-        save['Bins'] = self.Bins
+        save = {'MinValue': self.MinValue, 'MaxValue': self.MaxValue, 'NumBins': self.NumBins,
+                'NumSamples': self.NumSamples, 'Bins': self.Bins}
         return save
 
     def __setstate__(self, state):
@@ -110,7 +106,7 @@ class Histogram(object):
         return obj
 
     @classmethod
-    def FromXML(self, xml):
+    def FromXML(cls, xml):
         obj = Histogram()
 
         if isinstance(xml, str):

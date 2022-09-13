@@ -77,7 +77,7 @@ class TestFiles(unittest.TestCase):
 
     def IsSingleResult(self, ListA, result):
         self.assertEqual(len(ListA), 1, "Result list should have one entry")
-        self.assertEqual(ListA[0], result, "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
+        self.assertEqual(ListA[0][0], result, "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
 
     def test_recursesubdirectories(self): 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=None, ExcludeNames=[], ExcludedDownsampleLevels=[])

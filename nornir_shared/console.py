@@ -104,17 +104,9 @@ class Console(object):
         global DefaultPort
         
         super(Console, self).__init__(*args, **kwargs)
-        self.HOST = DefaultHost
-        if not host is None:
-            self.HOST = host
-        
-        self.PORT = DefaultPort
-        if not port is None:
-            self.PORT = int(port)
-            
-        self.title = title.strip()
-        if self.title is None:
-            self.title = ''
+        self.HOST = DefaultHost if host is None else host
+        self.PORT = DefaultPort if port is None else int(port)
+        self.title = '' if title is None else title.strip()
         
         self._socket = None
         self._consoleProc = None
@@ -125,7 +117,7 @@ class Console(object):
         pycmd = "python -m nornir_shared.console -host %s -port %d" % (host, int(port))
         
         if len(self.title) > 0:
-            pycmd += " -title {0}".format(self.title())
+            pycmd += " -title {0}".format(self.title)
             
         debug = False
         cmd = 'start "%s" %s' % (title, pycmd)
