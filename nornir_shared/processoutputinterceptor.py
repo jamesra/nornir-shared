@@ -186,6 +186,9 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
 
 
     def __init__(self, proc, processData=None):
+        self.TextureWidth = None
+        self.TextureHeight = None
+        self.layers = None
         self.Proc = proc
         self.ProcessData = processData
         self.Output = list()  # List of output lines

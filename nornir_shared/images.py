@@ -10,8 +10,6 @@ import shutil
 import subprocess
 import multiprocessing
 
-import six
-
 import numpy
 
 from PIL import Image

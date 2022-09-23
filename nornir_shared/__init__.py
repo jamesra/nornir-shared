@@ -22,7 +22,8 @@ emaillib
 '''
 
 
-__all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
+__all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot',
+           'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
 
 #
 #

@@ -2,10 +2,7 @@ import copy
 from decimal import *
 import math
 import os
-import sys
 import xml.dom.minidom
-
-import six
 
 from nornir_shared import prettyoutput
 
@@ -197,10 +194,10 @@ class Histogram(object):
         MedianValue = _FindValueAtPercentile(self.Bins[iMin:iMax], 0.5, self.BinWidth, AdjustedMin)
         return MedianValue
 
-    def BinValue(self, iBin, fraction=0.0):
+    def BinValue(self, iBin: int, fraction: float = 0.0):
         '''
         :param int iBin: Bin number
-        :param float: Fraction within bin to return value for, defaults to minimum possible value
+        :param float fraction: Fraction within bin to return value for, defaults to minimum possible value
         :return: The value of the bin
         '''
         assert(fraction >= 0.0)

@@ -109,7 +109,7 @@ class Console(object):
         self.title = '' if title is None else title.strip()
         
         self._socket = None
-        self._consoleProc = None
+        self._consoleProc = subprocess.Popen(self.pycmd(self.title, self.HOST, self.PORT), stdin=subprocess.PIPE, shell=True)
          
          
     def pycmd(self, title, host, port):
@@ -120,7 +120,7 @@ class Console(object):
             pycmd += " -title {0}".format(self.title)
             
         debug = False
-        cmd = 'start "%s" %s' % (title, pycmd)
+        cmd =  'start "%s" %s' % (title, pycmd)
         if debug:
             # Debug does not seem to be working for non-curses consoles for some reason
             cmd = 'start "%s" %s -debug' % (title, pycmd)
@@ -129,11 +129,8 @@ class Console(object):
 
     @property
     def socket(self):
-        if self._consoleProc is None: 
-            self._consoleProc = subprocess.Popen(self.pycmd(self.title, self.HOST, self.PORT), stdin=subprocess.PIPE, shell=True)
 
         if self._socket is None:
-            
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._socket.connect((self.HOST, self.PORT))
             atexit.register(self._socket.close)
