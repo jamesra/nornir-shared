@@ -1,4 +1,3 @@
-
 import hashlib
 import os
 import typing
@@ -23,7 +22,7 @@ def FilesizeChecksum(filename) -> str:
     return ""
 
 
-def DataChecksum(data:str | list | bytes) -> str:
+def DataChecksum(data: str | list | bytes | None) -> str:
     '''
      Removes whitespace from strings before calculating md5 checksum
     :param obj data: string, list or object convertible to string
@@ -50,7 +49,8 @@ def DataChecksum(data:str | list | bytes) -> str:
 
     return m.hexdigest()
 
-def FileChecksum(filename) -> str:
+
+def FileChecksum(filename: str) -> str | None:
     '''
     Return the md5 hash of a file read in txt mode
     
@@ -58,22 +58,21 @@ def FileChecksum(filename) -> str:
     :return: md5 checksum
     :rtype str: 
     '''
-    if not os.path.exists(filename):
-        prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
-        return None
-
     try:
-
         with open(filename) as f:
             data = f.read()
             f.close()
             dataStr = data.encode('utf-8')
             return DataChecksum(dataStr)
 
+    except FileNotFoundError as fnfe:
+        prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
+        return None
     except Exception as e:
         prettyoutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e))
 
     return None
+
 
 if __name__ == '__main__':
     pass

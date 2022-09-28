@@ -26,8 +26,8 @@ def rmtree(directory, ignore_errors=False):
             try: 
                 files_futures = executor.map(os.remove, [os.path.join(root, f) for f in files])
                 t = list(files_futures)  # Force the map operation to complete
-            except Exception as e:
-                if ignore_errors:
+            except OSError as e:
+                if ignore_errors is True:
                     prettyoutput.error(f'{e}')
                 else:
                     raise e
@@ -35,15 +35,21 @@ def rmtree(directory, ignore_errors=False):
             try:
                 dir_futures = executor.map(os.rmdir, [os.path.join(root, d) for d in dirs])
                 d = list(dir_futures)  # Force the map operation to complete
-            except Exception as e:
-                if ignore_errors:
+            except OSError as e:
+                if ignore_errors is True:
                     prettyoutput.error(f'{e}')
                 else:
                     raise e
+    
+    try:
+        os.rmdir(directory)
+    except OSError as e:
+        if ignore_errors is True:
+            prettyoutput.error(f'{e}')
+        else:
+            raise e
             
-    os.rmdir(directory)
-            
-    return 
+    return
 
 
 def NewestFile(fileA, fileB):

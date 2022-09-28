@@ -48,11 +48,11 @@ def RunWithProfiler(functionStr, outputpath=None):
 
     pr.print_callers(.1)
 
-def SetupLogging(LogToFile=False, OutputPath=None, Level=None):
+def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
     '''
     :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
     :param str OutputPath: Path to directory to use to save log files.
-    :param str Level: Level of messages to write to log
+    :param Level: Level of messages to write to log
     '''
     global logging_setup
     if(logging_setup):

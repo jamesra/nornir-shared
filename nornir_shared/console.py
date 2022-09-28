@@ -218,6 +218,9 @@ def CreateDebugInfoFile(filename=None):
              
 def ListenLoop(HOST, PORT, title, handler_func):
     '''
+    :param HOST:
+    :param PORT:
+    :param title:
     :param func handler_func: Function to pass data recieved on the socket to
     '''
     

@@ -14,21 +14,10 @@ from . import prettyoutput
 
 
 def SendMail(**kwargs):
-    '''Sends an email
+    """Sends an email"""
     
-    :param str host: Address of smpt server
-    :param str username: username for smtp account if required
-    :param str password: password for smtp account if required
-    :param str subject: subject for E-mail
-    :param str message: text content of message
-    :param str to: Recipient addresses as string or list of strings
-    :param str cc: Recipient addresses as string or list of strings
-    :param str from: Sender's E-mail address
-    :param str fromFriendlyAddress: Nice looking Sender's E-mail address
-    :param list files: comma delimited list of files to attach
-    :param int port: port to use on server, default is 25
-    
-    '''
+
+
     host = kwargs.get('host', None)
     username = kwargs.get('username', None)
     password = kwargs.get('password', None)
