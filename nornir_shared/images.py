@@ -124,7 +124,7 @@ def IsImageNumpyFormat(path: str):
     return '.npy' == ext
 
 
-def GetImageSize(image_param: str | NDArray):
+def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
     """
     :param image_param:
     """
@@ -146,7 +146,7 @@ def GetImageSize(image_param: str | NDArray):
             with Image.open(image_param) as im:
                 shape = (im.size[1], im.size[0])
                 im.close()
-                return shape
+                return numpy.array(shape, dtype=numpy.int32)
     except IOError:
         raise IOError("Unable to read size from %s" % (image_param))
     finally:
