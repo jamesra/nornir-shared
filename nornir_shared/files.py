@@ -117,8 +117,11 @@ def OutdatedFile(ReferenceFilename, TestFilename):
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
-def RemoveOutdatedFile(ReferenceFilename, input):
-    '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
+def RemoveOutdatedFile(ReferenceFilename, input) -> bool:
+    '''
+    Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
+    :return: True if the input parameter is outdated
+    '''
     needsRemoving = False
     
     if ReferenceFilename is None:
