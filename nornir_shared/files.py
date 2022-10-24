@@ -55,10 +55,11 @@ def rmtree(directory, ignore_errors=False):
 def NewestFile(fileA, fileB):
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
     
-    if(fileA is None):
-        return None
-    if(fileB is None):
-        return None
+    if fileA is None:
+        raise ValueError("fileA should not be None")
+
+    if fileB is None:
+        raise ValueError("fileB should not be None")
 
     AStats = None
     try:
@@ -74,9 +75,9 @@ def NewestFile(fileA, fileB):
         prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
 
-    if(AStats.st_mtime > BStats.st_mtime):
+    if AStats.st_mtime > BStats.st_mtime:
         return fileA
-    elif(AStats.st_mtime < BStats.st_mtime):
+    elif AStats.st_mtime < BStats.st_mtime:
         return fileB
     else:
         return fileB
@@ -117,7 +118,7 @@ def OutdatedFile(ReferenceFilename, TestFilename):
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
-def RemoveOutdatedFile(ReferenceFilename, input) -> bool:
+def RemoveOutdatedFile(ReferenceFilename, remove_if_outdated) -> bool:
     '''
     Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
     :return: True if the input parameter is outdated
@@ -127,28 +128,28 @@ def RemoveOutdatedFile(ReferenceFilename, input) -> bool:
     if ReferenceFilename is None:
         raise ValueError("Cannot compare to None")
      
-    if isinstance(input, str): 
-        needsRemoving = OutdatedFile(ReferenceFilename, input)
-    elif isinstance(input, datetime):
-        needsRemoving = IsOlderThan(ReferenceFilename, input)
-    elif isinstance(input, float):
-        needsRemoving = IsOlderThan(ReferenceFilename, input)
-    elif isinstance(input, int):
-        needsRemoving = IsOlderThan(ReferenceFilename, input)
+    if isinstance(remove_if_outdated, str):
+        needsRemoving = OutdatedFile(ReferenceFilename, remove_if_outdated)
+    elif isinstance(remove_if_outdated, datetime):
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+    elif isinstance(remove_if_outdated, float):
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+    elif isinstance(remove_if_outdated, int):
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
     else:
-        raise ValueError(f"Unexpected type to compare against {input.__class__}")
+        raise ValueError(f"Unexpected type to compare against {remove_if_outdated.__class__}")
 
  #   [name, ext] = os.path.splitext(TestFilename)
  
     if needsRemoving:
         
-        if isinstance(input, str):
+        if isinstance(remove_if_outdated, str):
             try:
-                prettyoutput.Log(f'Removing outdated file: {input}, outdated compared to {ReferenceFilename}')
-                os.remove(input)
+                prettyoutput.Log(f'Removing outdated file: {remove_if_outdated}, outdated compared to {ReferenceFilename}')
+                os.remove(remove_if_outdated)
                 return True
             except Exception as e:
-                prettyoutput.Log(f'Exception removing outdated file: {input}\n{e}')
+                prettyoutput.Log(f'Exception removing outdated file: {remove_if_outdated}\n{e}')
                 pass 
         
     return needsRemoving
@@ -306,7 +307,7 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
             
             # Yield the directory if it has a required file
             if len(required_files) > 0:
-                yield (Path, required_files)
+                yield Path, required_files
                 
             dir_search_tasks = []
             
@@ -323,7 +324,7 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
                  
                 fullpath = os.path.join(Path, d.path)
                 if MatchNames is not None and name in MatchNames: 
-                    yield (fullpath, [])
+                    yield fullpath, []
                     continue  # We do not iterate the subdirectories of MatchNames
                         
                 # If we are not matching names or requiring files then return the path
@@ -367,10 +368,10 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
                 ##if output is not None:
                  #   yield from output
                   
-    except (IOError):
+    except IOError:
         prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
         pass
-    except (FileNotFoundError):
+    except FileNotFoundError:
         prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
     
     return
@@ -427,7 +428,7 @@ def RemoveDirectorySpaces(Path):
         name = os.path.basename(d)
         parentDir = os.path.dirname(d)
         nameNoSpaces = name.replace(' ', '_')
-        if(name != nameNoSpaces):
+        if name != nameNoSpaces:
             fullnameNoSpace = os.path.join(parentDir, nameNoSpaces)
             shutil.move(d, fullnameNoSpace)
 
@@ -440,7 +441,7 @@ def RemoveFilenameSpaces(Path, ext):
         prettyoutput.Log("No valid path provided as first argument")
         return
 
-    if(ext[0] != '.'):
+    if ext[0] != '.':
         ext = '.' + ext
 
     globext = '*' + ext
