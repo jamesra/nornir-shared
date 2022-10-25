@@ -6,8 +6,10 @@ Created on Oct 21, 2013
 import os
 import shutil
 import unittest
+import time
+import datetime
 
-from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator
+from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator, IsOlderThan
 
 
 def CreateDirTree(path, dictSubTrees):
@@ -106,6 +108,40 @@ class TestFiles(unittest.TestCase):
         expectedDirs = set(RecurseDictValues(TestFiles.DirTree, self.TestOutputPath))
         expectedVals = expectedDirs - set([os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']])
         self.IsSubset(dirs, expectedVals)
+        
+    def test_IsOlderThan(self):
+        
+        older = datetime.datetime.now()
+        older_date = datetime.date.today()
+        #time.sleep(0.25)
+        testPath = os.path.join(self.TestOutputPath, "IsOlderThanTest.tmp")
+        
+        try:
+            with open(testPath, 'w') as f:
+                f.close()
+                
+            #time.sleep(0.25)
+            
+            newer = datetime.datetime.now()
+            newer_date = datetime.date.today() + datetime.timedelta(days=1)
+                
+            self.assertFalse(IsOlderThan(testPath, DateTime=older))
+            self.assertFalse(IsOlderThan(testPath, DateTime=older_date))
+            self.assertTrue(IsOlderThan(testPath, DateTime=newer))
+            self.assertTrue(IsOlderThan(testPath, DateTime=newer_date))
+            
+            self.assertFalse(IsOlderThan(testPath, DateTime=0))
+            self.assertTrue(IsOlderThan(testPath, DateTime=newer.timestamp()))
+            
+            self.assertFalse(IsOlderThan(testPath, DateTime=int(older.timestamp())))
+            self.assertTrue(IsOlderThan(testPath, DateTime=int((newer + datetime.timedelta(seconds=60)).timestamp())))
+            
+            DateTimeFormat='%Y-%m-%d %H:%M:%S.%f'
+            self.assertFalse(IsOlderThan(testPath, DateTime=older.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+            self.assertTrue(IsOlderThan(testPath, DateTime=newer.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+            
+        finally:
+            os.remove(testPath)
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

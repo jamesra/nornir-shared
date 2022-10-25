@@ -12,7 +12,8 @@ import collections.abc
 from nornir_shared import prettyoutput
 import nornir_shared
 import concurrent.futures
-from datetime import datetime
+import datetime
+
 
 DownsampleFormat = '%03d'
 DefaultLevels = frozenset([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
@@ -97,20 +98,30 @@ def IsOlderThan(TestPath, DateTime, DateTimeFormat=None):
     :param str TestPath: Path we are using to retrieve the last modified time from
     :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
     :param str DateTimeFormat: Optional, if a string is passed this parameter indicates the string format.  Defaults to "%d %b %Y %H:%M:%S"
+    :returns: True if the file is older than the reference date
     '''
+    
+    if DateTimeFormat is None:
+        DateTimeFormat = "%d %b %Y %H:%M:%S"
+            
     if isinstance(DateTime, float):
         DateTime = DateTime
     elif isinstance(DateTime, int):
         DateTime = float(DateTime)
-    elif isinstance(DateTime, str):
-        if DateTimeFormat is None:
-            DateTimeFormat = "%d %b %Y %H:%M:%S"
-            
-        DateTime = time.mktime(time.strptime(DateTime, DateTimeFormat))
+    elif isinstance(DateTime, str): 
+        DateTime = datetime.datetime.strptime(DateTime, DateTimeFormat).timestamp()
+    elif isinstance(DateTime, datetime.datetime):
+        DateTime = DateTime.timestamp()
+    elif isinstance(DateTime, datetime.date):
+        DateTime = datetime.datetime.fromordinal(DateTime.toordinal()).timestamp()
+    elif isinstance(DateTime, time.struct_time):
+        DateTime = DateTime
     else:
         raise TypeError("IsOlderThan expects a string or floating parameter to compare against, got %s" % str(DateTime))
     
-    return os.path.getmtime(TestPath) < DateTime
+    #modified_time = datetime.datetime.fromtimestamp()
+    modified_time = os.path.getmtime(TestPath)
+    return modified_time < DateTime
         
 
 def OutdatedFile(ReferenceFilename, TestFilename):
@@ -130,7 +141,11 @@ def RemoveOutdatedFile(ReferenceFilename, remove_if_outdated) -> bool:
      
     if isinstance(remove_if_outdated, str):
         needsRemoving = OutdatedFile(ReferenceFilename, remove_if_outdated)
-    elif isinstance(remove_if_outdated, datetime):
+    elif isinstance(remove_if_outdated, datetime.datetime):
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+    elif isinstance(remove_if_outdated, datetime.date):
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+    elif isinstance(remove_if_outdated, time.struct_time):
         needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
     elif isinstance(remove_if_outdated, float):
         needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
