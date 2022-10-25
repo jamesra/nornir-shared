@@ -7,7 +7,7 @@ import sys
 import time
 import traceback
 
-import nornir_shared.console as console
+import nornir_shared.consolewindow
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = False
@@ -308,7 +308,7 @@ def LogErr(error_message=None, calling_func_name=None):
             global _error_console
 
             if _error_console is None:
-                _error_console = console.Console()
+                _error_console = nornir_shared.consolewindow.ConsoleWindow()
 
             _error_console.WriteMessage(error_message)
             logger = logging.getLogger(calling_func_name)

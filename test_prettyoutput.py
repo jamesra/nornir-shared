@@ -6,13 +6,14 @@ Created on Oct 13, 2013
 import unittest
 
 import nornir_shared.console
+import nornir_shared.consolewindow
 
 
 class Test(unittest.TestCase):
 
 
     def testPipes(self):
-        p = nornir_shared.console.Console()
+        p = nornir_shared.consolewindow.ConsoleWindow()
         self.assertIsNotNone(p, "None process for prettyoutput")
         p.ConsoleProc.stdin.write("Hello world\n".encode())
         p.ConsoleProc.stdin.write("This is a test\n".encode())
