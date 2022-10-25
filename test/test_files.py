@@ -113,15 +113,13 @@ class TestFiles(unittest.TestCase):
         
         older = datetime.datetime.now()
         older_date = datetime.date.today()
-        #time.sleep(0.25)
         testPath = os.path.join(self.TestOutputPath, "IsOlderThanTest.tmp")
         
         try:
             with open(testPath, 'w') as f:
                 f.close()
                 
-            #time.sleep(0.25)
-            
+            time.sleep(0.01)
             newer = datetime.datetime.now()
             newer_date = datetime.date.today() + datetime.timedelta(days=1)
                 

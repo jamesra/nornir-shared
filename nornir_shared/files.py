@@ -93,7 +93,7 @@ def IsOutdated(ReferenceFilename, TestFilename):
     return newestFile is None or newestFile == ReferenceFilename
 
 
-def IsOlderThan(TestPath, DateTime, DateTimeFormat=None):
+def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime | datetime.date | time.struct_time, DateTimeFormat: str | None = None):
     '''Return true if the file is older than the specified date string
     :param str TestPath: Path we are using to retrieve the last modified time from
     :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
