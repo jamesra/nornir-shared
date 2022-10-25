@@ -6,6 +6,7 @@ import numpy
 from nornir_shared import histogram
 from nornir_shared import prettyoutput
 from enum import Enum
+import nornir_imageregistration
 
 plt.ioff()
 
@@ -65,7 +66,10 @@ def SetSquareAspectRatio(ax):
 
 def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
               MaxCutoffPercent=None, LinePosList=None, LineColorList=None,
-              Title: str | None =None, xlabel: str | None =None, ylabel: str | None = None, minX:float | None = None, maxX:float | None = None, dpi: int | None = None):
+              Title: str | None =None, 
+              xlabel: str | None =None, ylabel: str | None = None,
+              minX:float | None = None, maxX:float | None = None, dpi: int | None = None,
+              range_is_power_of_two: bool = False):
     Hist = None
 
     if dpi is None:
@@ -156,13 +160,13 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             plt.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
 
             if MinCutoffPercent:
-                plt.annotate(str(float(MinCutoffPercent) * 100) + '%', [MinCutoff, yMax * 0.5])
+                plt.annotate(f'{float(MinCutoffPercent) * 100:.3f}%', [MinCutoff, yMax * 0.5])
 
         if MaxCutoff:
             plt.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
 
             if MaxCutoffPercent:
-                plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
+                plt.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
 
 
     if ShowLine:
@@ -176,7 +180,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
                 color = LineColorList[i]
                     
             plt.plot([linePos, linePos], [0, yMax], color=color)
-            plt.annotate(str(linePos), [linePos, yMax * 0.9])
+            plt.annotate(f'{linePos:g}', [linePos, yMax * 0.9])
             
     plt.gcf().set_dpi(150)
 
@@ -197,7 +201,11 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     if maxX is None:
         options = LinePosList + [visible_max_x]
         maxX = max(options)
-
+    
+    #adjust range to a power of two 
+    if range_is_power_of_two:
+        minX, maxX = EnsureAxisLimitsArePowerOfTwo(minX, maxX)
+        
     plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if ImageFilename is not None:
@@ -210,7 +218,28 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
 def GetPlotSizeInPixels(fig, ax) -> tuple[float, float]:
     bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     return bbox.bounds[2] * fig.dpi, bbox.bounds[3] * fig.dpi
-         
+        
+def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float, float]:
+    """
+    Given a range, expands the range to be the nearest power of two, with a preference
+    towards making the minimum value of the range 0 if possible
+    """
+    range = max_val - min_val
+    power_of_two = nornir_imageregistration.NearestPowerOfTwo(range)
+    extra_range = power_of_two - range
+    #If we can set the min_val to 0, then do so and use remaining range to increase 
+    #the max value
+    if min_val - extra_range <= 0:
+        min_val = min_val - extra_range
+        extra_range = -min_val
+        min_val = 0
+        max_val = max_val + extra_range
+    else: #Apply extra range equally to both min/max values
+        extra_range_half = extra_range / 2.0
+        min_val -= extra_range_half
+        max_val += extra_range_half
+        
+    return min_val, max_val
     
 
 def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
