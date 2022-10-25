@@ -65,10 +65,13 @@ def SetSquareAspectRatio(ax):
 
 def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
               MaxCutoffPercent=None, LinePosList=None, LineColorList=None,
-              Title=None, xlabel=None, ylabel=None):
+              Title: str | None =None, xlabel: str | None =None, ylabel: str | None = None, minX:float | None = None, maxX:float | None = None, dpi: int | None = None):
     Hist = None
+
+    if dpi is None:
+        dpi = 150
     
-    if(ImageFilename is not None):
+    if ImageFilename is not None:
         # plt.show()
         plt.ioff()
     
@@ -77,11 +80,11 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     else:
         Hist = histogram.Histogram.Load(HistogramOrFilename)
 
-        if(Hist is None):
+        if Hist is None:
             prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
             return
 
-    if(Title is None):
+    if Title is None:
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
         
     if xlabel is None:
@@ -94,7 +97,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     # prettyoutput.Log(str(Hist))
 
     ShowLine = False
-    if(LinePosList is not None):
+    if LinePosList is not None:
         ShowLine = True
         if not isinstance(LinePosList, list):
             LinePosList = [LinePosList]
@@ -104,12 +107,12 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
         # prettyoutput.Log( "Line Positions: " + str(LinePosList))
 
     ShowCutoffs = False
-    if(MinCutoffPercent is not None or MaxCutoffPercent is not None):
+    if MinCutoffPercent is not None or MaxCutoffPercent is not None:
         ShowCutoffs = True
 
-    if(ShowCutoffs):
+    if ShowCutoffs:
         # If the either number is greater than 1 assume it is an absolute value
-        if(MinCutoffPercent >= 1 or MaxCutoffPercent > 1):
+        if MinCutoffPercent >= 1 or MaxCutoffPercent > 1:
             MinCutoff = MinCutoffPercent
             MinCutoffPercent = MinCutoff / Hist.MaxValue
             MaxCutoff = MaxCutoffPercent
@@ -119,17 +122,17 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
 
     BinValues = [(float(x) * float(Hist.BinWidth) + Hist.MinValue) for x in range(0, Hist.NumBins)]
 
-    if(len(Hist.Bins) != Hist.NumBins):
+    if len(Hist.Bins) != Hist.NumBins:
         return
 
-    if(ShowCutoffs):
+    if ShowCutoffs:
         # prettyoutput.Log( "MinCutoff: " + str(float(MinCutoffPercent)*100) + '%')
         # prettyoutput.Log( "MaxCutoff: " + str((1 - float(MaxCutoffPercent))*100) + '%')
         pass
 
     # prettyoutput.Log( "Calculated Num Bin Values: " + str(len(BinValues)))
     # prettyoutput.Log( "Num Bin Values: " + str(len(Hist.Bins)))
-    if(ShowCutoffs):
+    if ShowCutoffs:
         prettyoutput.Log(f'Histogram cutoffs: {MinCutoff},{MaxCutoff}')
 
     yMax = max(Hist.Bins)
@@ -148,7 +151,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     
     # For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
-    if(ShowCutoffs):
+    if ShowCutoffs:
         if MinCutoff:
             plt.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
 
@@ -162,7 +165,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
                 plt.annotate(str((1 - float(MaxCutoffPercent)) * 100) + '%', [MaxCutoff, yMax * 0.5])
 
 
-    if(ShowLine):
+    if ShowLine:
         color = 'green'
         if not LineColorList is None:
             if not isinstance(LineColorList, Iterable):
@@ -175,18 +178,40 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             plt.plot([linePos, linePos], [0, yMax], color=color)
             plt.annotate(str(linePos), [linePos, yMax * 0.9])
             
-    
-    minX = min(LinePosList + [Hist.MinValue])
-    maxX = max(LinePosList + [Hist.MaxValue])
+    plt.gcf().set_dpi(150)
+
+    visible_min_x, visible_max_x = None, None
+    if minX is None or maxX is None:
+        
+        width_pixels, height_pixels = GetPlotSizeInPixels(plt.gcf(), plt.gca())
+        #If we do not have enough horizontal space to display the entire histogram, attempt to trim it to the visible region
+        if width_pixels < (Hist.MaxValue - Hist.MinValue) / Hist.BinWidth:
+            visible_min_x, visible_max_x = Hist.XAxis_Extrema_Using_Threshold(height_pixels)
+        else:
+            visible_min_x, visible_max_x = Hist.MinValue, Hist.MaxValue
+
+    if minX is None:
+        options = LinePosList + [visible_min_x]
+        minX = min(options)
+
+    if maxX is None:
+        options = LinePosList + [visible_max_x]
+        maxX = max(options)
+
     plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
-    if(ImageFilename is not None):
+    if ImageFilename is not None:
         # plt.show() 
-        plt.savefig(ImageFilename,  bbox_inches='tight', dpi=150)
+        plt.savefig(ImageFilename,  bbox_inches='tight', dpi=dpi)
         plt.close()
     else:
-        plt.show() 
-
+        plt.show()
+        
+def GetPlotSizeInPixels(fig, ax) -> tuple[float, float]:
+    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    return bbox.bounds[2] * fig.dpi, bbox.bounds[3] * fig.dpi
+         
+    
 
 def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
 
@@ -213,7 +238,7 @@ def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, 
     
     SetSquareAspectRatio(ax)
     
-    if(OutputFilename is not None):
+    if OutputFilename is not None:
         plt.ioff()
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename)
@@ -311,7 +336,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         
     SetSquareAspectRatio(ax)
 
-    if(OutputFilename is not None):
+    if OutputFilename is not None:
         plt.ioff()
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename)
@@ -390,7 +415,7 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
         line = numpy.vstack((Origin, Destination))
         plt.plot(line[:, 1], line[:, 0], color='blue')
          
-    if(OutputFilename is not None):
+    if OutputFilename is not None:
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename, dpi=300)
         else:
@@ -400,7 +425,7 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
         plt.show()
 
 
-if(__name__ == '__main__'):
+if __name__ == '__main__':
     # Executed as a script, call the histogram function
     args = ProcessArgs()
     Histogram(HistogramOrFilename=args.HistogramFilename, ImageFilename=args.ImageFilename, MinCutoffPercent=args.MinCutoffPercent, MaxCutoffPercent=args.MaxCutoffPercent, LinePosList=args.LinePosition)
