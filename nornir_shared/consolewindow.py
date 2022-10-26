@@ -2,7 +2,7 @@ import atexit
 import socket
 import subprocess
 
-import console_constants
+import nornir_shared.console_constants
 
 class ConsoleWindow(object):
     '''
@@ -17,8 +17,8 @@ class ConsoleWindow(object):
         '''
 
         super(ConsoleWindow, self).__init__(*args, **kwargs)
-        self.HOST = console_constants.DefaultHost if host is None else host
-        self.PORT = console_constants.DefaultPort if port is None else int(port)
+        self.HOST = nornir_shared.console_constants.DefaultHost if host is None else host
+        self.PORT = nornir_shared.console_constants.DefaultPort if port is None else int(port)
         self.title = '' if title is None else title.strip()
 
         self._socket = None
@@ -59,7 +59,7 @@ class ConsoleWindow(object):
 
     def Close(self):
         if not self._socket is None:
-            self._socket.sendall(console_constants.console_exit_string.encode())
+            self._socket.sendall(nornir_shared.console_constants.console_exit_string.encode())
             self._socket.close()
             self._socket = None
 

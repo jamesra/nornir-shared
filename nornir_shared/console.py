@@ -10,7 +10,7 @@ import sys
 import time
 import traceback
 
-import console_constants
+import nornir_shared.console_constants
 
 curses_available = False
 try:
@@ -179,7 +179,7 @@ def ListenLoop(HOST: str, PORT: int, title: str, handler_func: callable(any)):
                         if _DEBUG:
                             debug_file.write(incoming_line)
 
-                        if console_constants.console_exit_string in incoming_line:
+                        if nornir_shared.console_constants.console_exit_string in incoming_line:
                             exit_signal_received = True
                             break
                         else:
