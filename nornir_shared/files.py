@@ -262,6 +262,17 @@ def RecurseSubdirectoriesGenerator(Path,
                           ExcludeNames=ExcludeNames,
                           ExcludedDownsampleLevels=ExcludedDownsampleLevels,
                           caseInsensitive=caseInsensitive)
+        
+def _SeparateFilesAndDirs(entries) -> tuple[list[os.DirEntry],list[os.DirEntry]]:
+    files = []
+    dirs = []
+    for e in entries:
+        if e.is_file():
+            files.append(e)
+        elif e.is_dir():
+            dirs.append(e)
+            
+    return files, dirs
 
     
 def _RecurseSubdirectoriesGeneratorTask(executor,
@@ -291,97 +302,98 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
 
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
     try:
-        with os.scandir(Path) as Path_iter:
-            entries = list(Path_iter)
-            files = filter(lambda e: e.is_file, entries)
-            dirs = filter(lambda e: e.is_dir, entries)
-            
-            excluded = False
-            required_files = []
-            
-            # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
-            if RequiredFiles is None and ExcludedFiles is None:
-                # Automatically pass the test of whether the directory contains or does not have certain files
-                excluded = False 
-            else:
-                excluded = False 
-                for file in files:
-                    # Check if the directory is excluded
-                    if not excluded and ExcludedFiles is not None:
-                        excluded = excluded or _check_if_file_matches(file.name, ExcludedFiles)
-                        if excluded:
-                            break
-                    
-                    if RequiredFiles is not None and _check_if_file_matches(file.name, RequiredFiles):
-                        required_files.append(file.name)
-                        # has_required_files = has_required_files or 
-            
-            # Do not yield the directory since it contains an excluded file
-            if excluded:
-                return
-            
-            # Yield the directory if it has a required file
-            if len(required_files) > 0:
-                yield Path, required_files
-                
-            dir_search_tasks = []
-            
-            for d in dirs:
-                # Skip if it contains a .
-                if d.path.find('.') > -1:
-                    continue
-                         
-                # Skip if it contains words from the exclude list
-                name = d.name.lower() if caseInsensitive else d.name
-                
-                if ExcludeNames is not None and name in ExcludeNames:
-                    continue
-                 
-                fullpath = os.path.join(Path, d.path)
-                if MatchNames is not None and name in MatchNames: 
-                    yield fullpath, []
-                    continue  # We do not iterate the subdirectories of MatchNames
-                        
-                # If we are not matching names or requiring files then return the path
-                # if MatchNames is None and RequiredFiles is None:
-                    # yield fullpath
+        with os.scandir(Path) as Path_iter: 
+            files, dirs = _SeparateFilesAndDirs(Path_iter)
+        #entries = list(Path_iter)
+        #files = filter(lambda e: e.is_file, entries)
+        #dirs = filter(lambda e: e.is_dir, entries)
         
-                # Add directory tree to list and keep looking
+        excluded = False
+        required_files = []
+        
+        # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
+        if RequiredFiles is None and ExcludedFiles is None:
+            # Automatically pass the test of whether the directory contains or does not have certain files
+            excluded = False 
+        else:
+            excluded = False 
+            for file in files:
+                # Check if the directory is excluded
+                if not excluded and ExcludedFiles is not None:
+                    excluded = excluded or _check_if_file_matches(file.name, ExcludedFiles)
+                    if excluded:
+                        break
                 
-                # yield from RecurseSubdirectoriesGenerator(fullpath,
-                #                        RequiredFiles=RequiredFiles,
-                #                        ExcludedFiles=ExcludedFiles,
-                #                        MatchNames=MatchNames,
-                #                        ExcludeNames=ExcludeNames,
-                #                        ExcludedDownsampleLevels=ExcludedDownsampleLevels)
-                
-                task = executor.submit(_RecurseSubdirectoriesGeneratorTask, 
-                                       executor=executor,
-                                       Path=fullpath,
-                                       RequiredFiles=RequiredFiles,
-                                       ExcludedFiles=ExcludedFiles,
-                                       MatchNames=MatchNames,
-                                       ExcludeNames=ExcludeNames,
-                                       ExcludedDownsampleLevels=ExcludedDownsampleLevels)
-                dir_search_tasks.append(task)
-                 
-                # for subd in RecurseSubdirectoriesGenerator(fullpath,
-                #                       RequiredFiles=RequiredFiles,
-                #                       ExcludedFiles=ExcludedFiles,
-                #                       MatchNames=MatchNames,
-                #                       ExcludeNames=ExcludeNames,
-                #                       ExcludedDownsampleLevels=ExcludedDownsampleLevels):
-                #     yield subd
+                if RequiredFiles is not None and _check_if_file_matches(file.name, RequiredFiles):
+                    required_files.append(file.name)
+                    # has_required_files = has_required_files or 
+        
+        # Do not yield the directory since it contains an excluded file
+        if excluded:
+            return
+        
+        # Yield the directory if it has a required file
+        if len(required_files) > 0:
+            yield Path, required_files
             
-            for t in concurrent.futures.as_completed(dir_search_tasks):
-                output = t.result()
-                if output is not None:
-                    yield from output
+        dir_search_tasks = []
+        
+        for d in dirs:
+            # Skip if it contains a .
+            if d.path.find('.') > -1:
+                continue
+                     
+            # Skip if it contains words from the exclude list
+            name = d.name.lower() if caseInsensitive else d.name
+            
+            if ExcludeNames is not None and name in ExcludeNames:
+                continue
+             
+            fullpath = os.path.join(Path, d.path)
+            if MatchNames is not None and name in MatchNames: 
+                yield fullpath, []
+                continue  # We do not iterate the subdirectories of MatchNames
                     
-            #for t in dir_search_tasks:
-                #output = t.result()
-                ##if output is not None:
-                 #   yield from output
+            # If we are not matching names or requiring files then return the path
+            # if MatchNames is None and RequiredFiles is None:
+                # yield fullpath
+    
+            # Add directory tree to list and keep looking
+            
+            # yield from RecurseSubdirectoriesGenerator(fullpath,
+            #                        RequiredFiles=RequiredFiles,
+            #                        ExcludedFiles=ExcludedFiles,
+            #                        MatchNames=MatchNames,
+            #                        ExcludeNames=ExcludeNames,
+            #                        ExcludedDownsampleLevels=ExcludedDownsampleLevels)
+            
+            task = executor.submit(_RecurseSubdirectoriesListTask, 
+                                   executor=executor,
+                                   Path=fullpath,
+                                   RequiredFiles=RequiredFiles,
+                                   ExcludedFiles=ExcludedFiles,
+                                   MatchNames=MatchNames,
+                                   ExcludeNames=ExcludeNames,
+                                   ExcludedDownsampleLevels=ExcludedDownsampleLevels)
+            dir_search_tasks.append(task)
+             
+            # for subd in RecurseSubdirectoriesGenerator(fullpath,
+            #                       RequiredFiles=RequiredFiles,
+            #                       ExcludedFiles=ExcludedFiles,
+            #                       MatchNames=MatchNames,
+            #                       ExcludeNames=ExcludeNames,
+            #                       ExcludedDownsampleLevels=ExcludedDownsampleLevels):
+            #     yield subd
+        
+        for t in concurrent.futures.as_completed(dir_search_tasks):
+            output = t.result()
+            if output is not None:
+                yield from output
+                
+        #for t in dir_search_tasks:
+            #output = t.result()
+            ##if output is not None:
+             #   yield from output
                   
     except IOError:
         prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
@@ -390,6 +402,30 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
         prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
     
     return
+
+
+def _RecurseSubdirectoriesListTask(executor,
+                          Path,
+                          RequiredFiles=None,
+                          ExcludedFiles=None,
+                          MatchNames=None,
+                          ExcludeNames=None,
+                          ExcludedDownsampleLevels=None,
+                          caseInsensitive=True,
+                          ):
+    """
+    This is called on another thread, we force the generator to return its items
+    as a list so we can yield results from the main thread
+    """
+    return list(_RecurseSubdirectoriesGeneratorTask(executor=executor,
+                          Path=Path,
+                          RequiredFiles=RequiredFiles,
+                          ExcludedFiles=ExcludedFiles,
+                          MatchNames=MatchNames,
+                          ExcludeNames=ExcludeNames,
+                          ExcludedDownsampleLevels=ExcludedDownsampleLevels,
+                          caseInsensitive=caseInsensitive,
+                          ))
 
 
 def _check_if_file_matches(file, matchCriteria, caseInsensitive=True):
