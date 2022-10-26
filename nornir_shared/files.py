@@ -3,6 +3,7 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
+import typing
 import glob
 import os
 import re
@@ -21,7 +22,7 @@ DefaultLevelStrings = frozenset([DownsampleFormat % l for l in DefaultLevels])
 DefaultExcludeList = frozenset(["clahe", "mbproj", "8-bit", "16-bit", "blob", "mosaic", "tem", "temp", "bruteresults", "gridresults", "results", "registered"])
 
 
-def rmtree(directory, ignore_errors=False): 
+def rmtree(directory: str, ignore_errors: bool = False):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for root, dirs, files in os.walk(directory, topdown=False):
             try: 
@@ -53,7 +54,7 @@ def rmtree(directory, ignore_errors=False):
     return
 
 
-def NewestFile(fileA, fileB):
+def NewestFile(fileA: str, fileB: str):
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
     
     if fileA is None:
@@ -129,7 +130,7 @@ def OutdatedFile(ReferenceFilename, TestFilename):
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
-def RemoveOutdatedFile(ReferenceFilename, remove_if_outdated) -> bool:
+def RemoveOutdatedFile(ReferenceFilename: str, remove_if_outdated: str | datetime.datetime | datetime.date | time.struct_time | float | int) -> bool:
     '''
     Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
     :return: True if the input parameter is outdated
@@ -170,7 +171,7 @@ def RemoveOutdatedFile(ReferenceFilename, remove_if_outdated) -> bool:
     return needsRemoving
 
 
-def RemoveInvalidImageFile(TestFilename):
+def RemoveInvalidImageFile(TestFilename: str):
     '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
     if not nornir_shared.images.IsValidImage(TestFilename):
         try:
@@ -185,7 +186,7 @@ def RemoveInvalidImageFile(TestFilename):
     return False
 
 
-def RecurseSubdirectories(Path,
+def RecurseSubdirectories(Path: str,
                           RequiredFiles=None,
                           ExcludedFiles=None,
                           MatchNames=None,
@@ -206,7 +207,7 @@ def RecurseSubdirectories(Path,
     return list(generator)
 
 
-def _ensure_regex_or_set(param, defaultValue, caseInsensitive=False):
+def ensure_regex_or_set(param, caseInsensitive: bool = False) -> re.Pattern[typing.AnyStr] | frozenset[str] | None:
     if isinstance(param, re.Pattern):
         return param
     elif isinstance(param, str):
@@ -217,29 +218,27 @@ def _ensure_regex_or_set(param, defaultValue, caseInsensitive=False):
             param = param + '$'
         return re.compile(param, re.IGNORECASE if caseInsensitive else 0)
     else:
-        return _ensure_string_set(param, defaultValue, caseInsensitive)
+        return ensure_string_set(param, caseInsensitive)
 
 
-def _ensure_string_set(param, defaultValue, caseInsensitive=False):
+def ensure_string_set(param, caseInsensitive: bool = False) -> frozenset[str] | None:
     '''Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided'''
     if param is None:
-        param = defaultValue
+        raise ValueError('param cannot be None')
         
     if param is None:
         return None
     
-    output = param
-    
-    if False == isinstance(param, frozenset) and False == isinstance(param, set):
+    if (isinstance(param, frozenset) or isinstance(param, set)) is False:
         if not isinstance(param, collections.abc.Iterable):
             param = [param]
 
         if caseInsensitive:
-            output = [n.lower() if isinstance(n, str) else n for n in param]
-        
-        output = frozenset(param)
+            param = [n.lower() if isinstance(n, str) else n for n in param]
+
+        param = frozenset(param)
     
-    return output
+    return param
 
 
 def RecurseSubdirectoriesGenerator(Path,
@@ -287,11 +286,11 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
     '''Same as RecurseSubdirectories, but returns a generator
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
     '''
-    RequiredFiles = _ensure_regex_or_set(RequiredFiles, None, caseInsensitive=caseInsensitive)
-    ExcludedFiles = _ensure_regex_or_set(ExcludedFiles, None, caseInsensitive=caseInsensitive)
-    MatchNames = _ensure_string_set(MatchNames, None, caseInsensitive=caseInsensitive)    
-    ExcludedDownsampleLevels = _ensure_string_set(ExcludedDownsampleLevels, DefaultLevels)
-    ExcludeNames = _ensure_string_set(ExcludeNames, DefaultExcludeList, caseInsensitive=caseInsensitive)
+    RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
+    ExcludedFiles = ensure_regex_or_set(ExcludedFiles, caseInsensitive=caseInsensitive)
+    MatchNames = ensure_string_set(MatchNames, None, caseInsensitive=caseInsensitive)
+    ExcludedDownsampleLevels = DefaultLevels if ExcludedDownsampleLevels is None else ensure_string_set(ExcludedDownsampleLevels, caseInsensitive=caseInsensitive)
+    ExcludeNames = DefaultExcludeList if ExcludeNames is None else ensure_string_set(ExcludeNames, caseInsensitive=caseInsensitive)
     
     if ExcludeNames is not None and ExcludedDownsampleLevels is not None:
         ExcludeNames = ExcludeNames.union([DownsampleFormat % level for level in ExcludedDownsampleLevels])
@@ -320,11 +319,11 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
             for file in files:
                 # Check if the directory is excluded
                 if not excluded and ExcludedFiles is not None:
-                    excluded = excluded or _check_if_file_matches(file.name, ExcludedFiles)
+                    excluded = excluded or check_if_file_matches(file.name, ExcludedFiles)
                     if excluded:
                         break
                 
-                if RequiredFiles is not None and _check_if_file_matches(file.name, RequiredFiles):
+                if RequiredFiles is not None and check_if_file_matches(file.name, RequiredFiles):
                     required_files.append(file.name)
                     # has_required_files = has_required_files or 
         
@@ -428,7 +427,7 @@ def _RecurseSubdirectoriesListTask(executor,
                           ))
 
 
-def _check_if_file_matches(file, matchCriteria, caseInsensitive=True):
+def check_if_file_matches(file: str, matchCriteria: re.Pattern | collections.abc.Iterable, caseInsensitive: bool = True):
     # Exclude takes priority over included files
     if caseInsensitive:
         file = file.lower()
