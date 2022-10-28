@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing
 import copy
 from decimal import *
 import math
@@ -92,7 +93,7 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def FromArray(hist_array, minValue, binSize) -> Histogram:
+    def FromArray(hist_array: typing.Sequence[float], minValue: float, binSize: float) -> Histogram:
         obj = Histogram()
 
         obj.NumBins = len(hist_array)
@@ -158,26 +159,21 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def Load(filename) -> Histogram | None:
-        if os.path.exists(filename) is False:
-            prettyoutput.Log("Mosaic file not found: " + filename)
-            return
-
-        xml_str = None
+    def Load(filename: str) -> Histogram | None: 
         try:
             xml_str = xml.dom.minidom.parse(filename)
-
+            return Histogram.FromXML(xml_str)
         except FileNotFoundError:
+            prettyoutput.Log(f"Mosaic file not found: {filename}")
             return None
-
-        return Histogram.FromXML(xml_str)
+        
 
     @property
     def BinWidth(self) -> float:
         # Add one to MaxValue because 0 is a valid value
         return float((self.MaxValue + 1) - self.MinValue) / float(self.NumBins)
 
-    def _MinMaxBinIndicies(self, minVal=None, maxVal=None) -> tuple[int, int, float]:
+    def _MinMaxBinIndicies(self, minVal: float | None = None, maxVal: float | None = None) -> tuple[int, int, float]:
         '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals'''
 
         AdjustedMin = self.MinValue
