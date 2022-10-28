@@ -207,8 +207,10 @@ def RecurseSubdirectories(Path: str,
     return list(generator)
 
 
-def ensure_regex_or_set(param, caseInsensitive: bool = False) -> re.Pattern[typing.AnyStr] | frozenset[str] | None:
-    if isinstance(param, re.Pattern):
+def ensure_regex_or_set(param: str | re.Pattern | None, caseInsensitive: bool = False) -> re.Pattern[typing.AnyStr] | frozenset[str] | None:
+    if param is None:
+        return None
+    elif isinstance(param, re.Pattern):
         return param
     elif isinstance(param, str):
         # helper change, if it starts with a *, then assume it is a file expression and convert it crudely
@@ -223,9 +225,6 @@ def ensure_regex_or_set(param, caseInsensitive: bool = False) -> re.Pattern[typi
 
 def ensure_string_set(param, caseInsensitive: bool = False) -> frozenset[str] | None:
     '''Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided'''
-    if param is None:
-        raise ValueError('param cannot be None')
-        
     if param is None:
         return None
     
@@ -288,7 +287,7 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
     '''
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
     ExcludedFiles = ensure_regex_or_set(ExcludedFiles, caseInsensitive=caseInsensitive)
-    MatchNames = ensure_string_set(MatchNames, None, caseInsensitive=caseInsensitive)
+    MatchNames = ensure_string_set(MatchNames, caseInsensitive=caseInsensitive)
     ExcludedDownsampleLevels = DefaultLevels if ExcludedDownsampleLevels is None else ensure_string_set(ExcludedDownsampleLevels, caseInsensitive=caseInsensitive)
     ExcludeNames = DefaultExcludeList if ExcludeNames is None else ensure_string_set(ExcludeNames, caseInsensitive=caseInsensitive)
     
