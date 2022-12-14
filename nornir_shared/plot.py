@@ -3,6 +3,7 @@ from collections.abc import Iterable
 import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
 import numpy
+from numpy.typing import NDArray
 from nornir_shared import histogram
 from nornir_shared import prettyoutput
 from enum import Enum
@@ -242,7 +243,9 @@ def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float
     return min_val, max_val
     
 
-def Scatter(x, y, s=None, c=None, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, **kwargs):
+def Scatter(x, y, s=None, c=None, Title: str | None = None,
+            XAxisLabel: str | None = None, YAxisLabel: str | None =None,
+            OutputFilename: str | None = None, **kwargs):
 
     if s is None:
         s = 7
@@ -395,7 +398,10 @@ def __PlotVectorOriginShape(render_mask, shape, Points, weights=None, color=None
         plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0, vmax=max(weights), alpha=0.5, cmap=colormap)
     
 
-def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None, ylim=None, xlim=None, colors=None):
+def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
+                OutputFilename: str | None = None,
+                ylim: tuple[float, float] | None = None,
+                xlim: tuple[float, float] | None = None, colors=None):
      
     plt.clf() 
     
@@ -421,7 +427,7 @@ def VectorField(Points, Offsets, shapes=None, weights=None, OutputFilename=None,
         
         for shape in all_shapes:
             mask = [s == shape for s in shapes]
-            mask = numpy.asarray(mask, dtype=numpy.bool)
+            mask = numpy.asarray(mask, dtype=bool)
             
             __PlotVectorOriginShape(mask, shape, Points, weights, color=colors)
             
