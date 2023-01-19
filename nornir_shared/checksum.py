@@ -15,12 +15,11 @@ def FilesizeChecksum(filename) -> str:
        
     '''
 
-    if os.path.exists(filename):
-        Stats = os.stat(filename)
-        return str(Stats.st_size)
-
-    return ""
-
+    try:
+        stats = os.stat(filename)
+        return str(stats.st_size)
+    except (OSError, ValueError):
+        return ""
 
 def DataChecksum(data: str | list | bytes | None) -> str:
     '''
