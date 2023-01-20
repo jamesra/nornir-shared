@@ -1,5 +1,6 @@
 import argparse
 from collections.abc import Iterable
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
 import numpy
@@ -177,6 +178,9 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
                 color = LineColorList
                 
         for i, linePos in enumerate(LinePosList):
+            if linePos is None:
+                continue 
+            
             if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
                 color = LineColorList[i]
                     
@@ -441,14 +445,18 @@ def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
         plt.colorbar()
     
     assert(Points.shape[0] == Offsets.shape[0])
-    for iRow in range(0, Points.shape[0]):
-        Origin = Points[iRow, :]
-        scaled_offset = Offsets[iRow, :]
-         
-        Destination = Origin + scaled_offset
-         
-        line = numpy.vstack((Origin, Destination))
-        plt.plot(line[:, 1], line[:, 0], color='blue')
+    
+    line_mask = Offsets != 0
+    line_mask = numpy.logical_or(line_mask[:,0], line_mask[:,1])
+    origins = Points[line_mask, :]
+    p_o = origins + Offsets[line_mask,:]
+    lines = [((origins[i,1], origins[i, 0]), (p_o[i,1], p_o[i,0])) for i in range(0, len(origins))]
+    line_collection = matplotlib.collections.LineCollection(lines, colors='blue' if colors is None else colors, linewidths=0.5)
+    
+    ax = plt.gca()
+    ax.add_collection(line_collection)
+    
+    #plt.plot(lines[:,1], lines[:,0], color='blue')
          
     if OutputFilename is not None:
         if isinstance(OutputFilename, str):
