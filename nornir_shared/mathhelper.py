@@ -25,6 +25,9 @@ def ListMedian(items):
         return tempList[int((length - 1) / 2)]
     else:
         return (tempList[int(length / 2 - 1)] + tempList[int(length / 2)]) / 2
+    
+def NearestPowerOfTwo(val: float | int):
+    return math.pow(2, math.ceil(math.log(val, 2)))
 
 
 if __name__ == '__main__':

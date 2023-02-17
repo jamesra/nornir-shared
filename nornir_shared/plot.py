@@ -1,5 +1,6 @@
 import argparse
 from collections.abc import Iterable
+import enum
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import fillStyles
@@ -7,8 +8,7 @@ import numpy
 from numpy.typing import NDArray
 from nornir_shared import histogram
 from nornir_shared import prettyoutput
-from enum import Enum
-import nornir_imageregistration
+from nornir_shared.mathhelper import NearestPowerOfTwo
 
 plt.ioff()
 
@@ -286,7 +286,7 @@ def Scatter(x, y, s=None, c=None, Title: str | None = None,
         
     plt.close()
 
-class ColorSelectionStyle(Enum):
+class ColorSelectionStyle(enum.Enum):
     ''' Methods of assigning color to separate lines in PolyLine() '''
     BY_LINE_LENGTH = 0
     PER_LINE = 1
