@@ -4,7 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray, DTypeLike
 
 def ListMedian(items):
     '''Return the center item from a sorted list'''
@@ -33,7 +33,7 @@ def NearestPowerOfTwo(val: float | int | NDArray[float] | NDArray[int]) -> NDArr
     return np.power(2, np.ceil(np.log2(val))).astype(int)
 
 
-def RoundingPrecision(dtype: numpy.typing.DTypeLike) -> int:
+def RoundingPrecision(dtype: DTypeLike) -> int:
     """Determine how many digits of precision we can get from a value at most"""
     if not dtype.kind == 'f':
         raise ValueError(f"Expected floating dtype, got {dtype}")
