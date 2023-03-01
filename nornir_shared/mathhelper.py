@@ -3,6 +3,8 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
+import numpy as np
+from numpy.typing import NDArray
 
 def ListMedian(items):
     '''Return the center item from a sorted list'''
@@ -25,10 +27,18 @@ def ListMedian(items):
         return tempList[int((length - 1) / 2)]
     else:
         return (tempList[int(length / 2 - 1)] + tempList[int(length / 2)]) / 2
-    
-def NearestPowerOfTwo(val: float | int):
-    return math.pow(2, math.ceil(math.log(val, 2)))
 
+
+def NearestPowerOfTwo(val: float | int | NDArray[float] | NDArray[int]) -> NDArray[int]:
+    return np.power(2, np.ceil(np.log2(val))).astype(int)
+
+
+def RoundingPrecision(dtype: numpy.typing.DTypeLike) -> int:
+    """Determine how many digits of precision we can get from a value at most"""
+    if not dtype.kind == 'f':
+        raise ValueError(f"Expected floating dtype, got {dtype}")
+
+    return int(np.abs(np.log10(np.finfo(dtype).eps)))
 
 if __name__ == '__main__':
     pass
