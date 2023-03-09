@@ -43,7 +43,7 @@ __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'math
 
 
 import nornir_shared.mathhelper as mathhelper
-from mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
+from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
 
 import nornir_shared.prettyoutput as prettyoutput
 import nornir_shared.files as files
