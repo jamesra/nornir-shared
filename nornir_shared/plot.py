@@ -230,7 +230,7 @@ def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float
     towards making the minimum value of the range 0 if possible
     """
     range = max_val - min_val
-    power_of_two = nornir_imageregistration.NearestPowerOfTwo(range)
+    power_of_two = NearestPowerOfTwo(range)
     extra_range = power_of_two - range
     #If we can set the min_val to 0, then do so and use remaining range to increase 
     #the max value
