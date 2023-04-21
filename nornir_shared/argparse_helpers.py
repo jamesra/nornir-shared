@@ -10,7 +10,7 @@ def _IsNumberRange(argstr):
     return match
  
 
-def _IntegerRangeToList(argstr):
+def _IntegerRangeToList(argstr: str) -> list[int]:
     '''
     :param argstr: Pair of integers separated by a hyphen defining a range, inclusive.  Example: 1-3 = [1,2,3]
     '''
@@ -32,7 +32,7 @@ def StringList(argstr):
     list_strs = ListFromDelimited(argstr)
     return list_strs
 
-def IntegerList(argstr):
+def IntegerList(argstr: str) -> list[int]:
     '''Return a list of integers based on a range defined by a string 
        :param argstr:  A string defining a list of numbers.  Commas separate values and hyphens define ranges.  Ex: 1, 3, 5-8, 11 = [1,3,5,6,7,8,11]
        :rtype: List of integers
@@ -56,7 +56,7 @@ def IntegerList(argstr):
 
     return listNums
 
-def IntegerPair(argstr):
+def IntegerPair(argstr: str) -> tuple[int, int]:
     '''Return a pair of integers based on a comma delimited string
     :param argstr:  A string defining one or two integers.  If only one integer is defined it is returned twice.  Commas separate values. Ex: 1,3
     :rtype: tuple of 2 integers
@@ -77,7 +77,7 @@ def IntegerPair(argstr):
     except ValueError:
         raise argparse.ArgumentTypeError(f"IntegerPair function could not convert {argstr} to integer value(s)")
 
-def Tuple(argstr):
+def Tuple(argstr: str) -> list[int]:
     if len(argstr) == 0:
         return None
      
@@ -89,7 +89,7 @@ def Tuple(argstr):
     
     return IntegerList(argstr)
 
-def Triple(argstr): 
+def Triple(argstr) -> list[int]: 
     if len(argstr) == 0:
         return None
     
@@ -101,7 +101,7 @@ def Triple(argstr):
     
     return IntegerList(argstr)
     
-def Quadruple(argstr): 
+def Quadruple(argstr) -> list[int]: 
     if len(argstr) == 0:
         return None
     
@@ -113,7 +113,7 @@ def Quadruple(argstr):
     
     return IntegerList(argstr)
     
-def FloatPair(argstr):
+def FloatPair(argstr) -> tuple[int]:
     '''Return a pair of floats based on a comma delimited string
     :param argstr:  A string defining one or two floats.  If only one float is defined it is returned twice.  Commas separate values. Ex: 1,3
     :rtype: tuple of 2 integers
@@ -135,7 +135,7 @@ def FloatPair(argstr):
         raise argparse.ArgumentTypeError("FloatPair function could not convert %s to float value(s)" % argstr)
         
     
-def FloatRange(argstr):
+def FloatRange(argstr) -> list[float]:
     '''Return a pair of numbers based on a comma delimited string
     :param argstr:  A string defining either: A single number or a pair of hyphen delimited numbers indicating a range.
                     A trailing comma indicates the step size for the floating point values. Ex: 0:0.5:2 -> [0, 0.5, 1, 1.5, 2] 
