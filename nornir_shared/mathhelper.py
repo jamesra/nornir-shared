@@ -30,7 +30,7 @@ def ListMedian(items):
 
 
 def NearestPowerOfTwo(val: float | int | NDArray[float] | NDArray[int]) -> NDArray[int]:
-    return np.power(2, np.ceil(np.log2(val))).astype(int)
+    return np.power(2, np.ceil(np.log2(val))).astype(int, copy=False)
 
 
 def RoundingPrecision(dtype: DTypeLike) -> int:
