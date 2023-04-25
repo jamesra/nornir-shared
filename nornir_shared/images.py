@@ -145,7 +145,6 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
         else:
             with Image.open(image_param) as im:
                 shape = (im.size[1], im.size[0])
-                im.close()
                 return numpy.array(shape, dtype=numpy.int32)
     except IOError:
         raise IOError("Unable to read size from %s" % (image_param))
