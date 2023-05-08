@@ -22,6 +22,12 @@ obj
 # Installer logs
 pip-log.txt
 
+#pycharm
+/.idea/
+
+#Notepad++
+*.bak
+
 # Unit test / coverage reports
 .coverage
 .tox

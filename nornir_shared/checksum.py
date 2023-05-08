@@ -1,11 +1,11 @@
-
 import hashlib
 import os
+import typing
 
-from . import prettyoutput
+from nornir_shared import prettyoutput
 
 
-def FilesizeChecksum(filename):
+def FilesizeChecksum(filename) -> str:
     '''
        Returns the size of a file in bytes for use as a simple checksum
        
@@ -15,13 +15,13 @@ def FilesizeChecksum(filename):
        
     '''
 
-    if os.path.exists(filename):
-        Stats = os.stat(filename);
-        return str(Stats.st_size);
+    try:
+        stats = os.stat(filename)
+        return str(stats.st_size)
+    except (OSError, ValueError):
+        return ""
 
-    return "";
-
-def DataChecksum(data):
+def DataChecksum(data: str | list | bytes | None) -> str:
     '''
      Removes whitespace from strings before calculating md5 checksum
     :param obj data: string, list or object convertible to string
@@ -30,17 +30,17 @@ def DataChecksum(data):
     '''
 
     if data is None:
-        return None;
+        return None
 
     m = hashlib.md5()
 
-    if(isinstance(data, str)):
-        data = "".join(data.split());
+    if isinstance(data, str):
+        data = "".join(data.split())
         m.update(data.encode())
-    elif(isinstance(data, list)):
+    elif isinstance(data, list):
         for item in data:
-            m.update(str(item).encode());
-    elif(isinstance(data, bytes)):
+            m.update(str(item).encode())
+    elif isinstance(data, bytes):
         m.update(data)
     else:
         data = str(data).encode()
@@ -48,7 +48,8 @@ def DataChecksum(data):
 
     return m.hexdigest()
 
-def FileChecksum(filename):
+
+def FileChecksum(filename: str) -> str | None:
     '''
     Return the md5 hash of a file read in txt mode
     
@@ -56,22 +57,21 @@ def FileChecksum(filename):
     :return: md5 checksum
     :rtype str: 
     '''
-    if not os.path.exists(filename):
-        prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n");
-        return None;
-
     try:
-
         with open(filename) as f:
-            data = f.read();
-            f.close();
-            dataStr = data.encode('utf-8');
-            return DataChecksum(dataStr);
+            data = f.read()
+            f.close()
+            dataStr = data.encode('utf-8')
+            return DataChecksum(dataStr)
 
+    except FileNotFoundError as fnfe:
+        prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
+        return None
     except Exception as e:
-        prettyoutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e));
+        prettyoutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e))
 
     return None
+
 
 if __name__ == '__main__':
     pass

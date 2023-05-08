@@ -10,18 +10,20 @@ import shutil
 import subprocess
 import multiprocessing
 
-import six
-
 import numpy
+from numpy.typing import NDArray
 
 from PIL import Image
+#Disable decompression bomb protection since we are dealing with huge images on purpose
+Image.MAX_IMAGE_PIXELS = None
+
 import PIL.ImageOps
-import nornir_pools 
+import nornir_pools
 
 from . import prettyoutput
 from . import processoutputinterceptor
 
-def GetImageBpp(path):
+def GetImageBpp(path: str):
     '''Returns how many bits per pixel the image at the provided path uses'''
 
     if not os.path.exists(path):
@@ -44,7 +46,7 @@ def GetImageBpp(path):
  
     return bpp
 
-def GetImageColorspace(path):
+def GetImageColorspace(path: str):
     cmd = 'magick identify -verbose -format "colorspace:%[colorspace]\\n" ' + path
     colorspace = None
     try:
@@ -64,7 +66,7 @@ def GetImageColorspace(path):
     return colorspace
 
 
-def GetImageStats(path):
+def GetImageStats(path: str) -> (float, float, float, float):
     '''Returns [Min, Mean, Max, StdDev] of an image via ImageMagick'''
 
     cmd = 'magick identify -verbose -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
@@ -76,7 +78,7 @@ def GetImageStats(path):
 
     try:
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
-        [stdoutdata, stderrdata] = proc.communicate()
+        (stdoutdata, stderrdata) = proc.communicate()
 
         lines = stdoutdata.splitlines()
 
@@ -99,11 +101,11 @@ def GetImageStats(path):
     except:
         pass
 
-    return [Min, Mean, Max, StdDev]
+    return (Min, Mean, Max, StdDev)
 
 
 
-def IdentifyImage(ImageFilePath):
+def IdentifyImage(ImageFilePath: str):
     '''Returns all output from identify as a dictionary'''
     cmd = 'magick identify -verbose ' + ImageFilePath
     try:
@@ -117,17 +119,15 @@ def IdentifyImage(ImageFilePath):
 
     return interceptor
 
-def IsImageNumpyFormat(path):
+def IsImageNumpyFormat(path: str):
     (root, ext) = os.path.splitext(path)
     return '.npy' == ext
 
 
-def GetImageSize(image_param):
-    '''
-    :param image_param str: Either a path to an image file or an ndarray
-    :returns: Image (height, width)
-    :rtype: tuple
-    '''
+def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
+    """
+    :param image_param:
+    """
 
     # if not os.path.exists(ImageFullPath):
         # raise ValueError("%s does not exist" % (ImageFullPath))
@@ -145,15 +145,14 @@ def GetImageSize(image_param):
         else:
             with Image.open(image_param) as im:
                 shape = (im.size[1], im.size[0])
-                im.close()
-                return shape
+                return numpy.array(shape, dtype=numpy.int32)
     except IOError:
         raise IOError("Unable to read size from %s" % (image_param))
     finally:
         del im
  
 
-def IsValidImage(filename):
+def IsValidImage(filename: str) -> bool:
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
     try:
         with Image.open(filename) as im:
@@ -169,7 +168,7 @@ def IsValidImage(filename):
     return True
 
 
-def AreValidImages(filenames, ImageDir=None, Pool=None):
+def AreValidImages(filenames: list[str], ImageDir: str = None, Pool=None):
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
     filenamelist = filenames
@@ -178,11 +177,15 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
      
     if len(filenamelist) == 0:
         return []
+    
+    num_threads = multiprocessing.cpu_count() * 2
+    #if num_threads > len(filenames):
+    #    num_threads = len(filenames) + 1
         
     if Pool is None:
         #Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
         #Pool = nornir_pools.GetGlobalLocalMachinePool()
-        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=multiprocessing.cpu_count() * 2)
+        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=num_threads)
 
     if ImageDir is None:
         ImageDir = ""
@@ -222,7 +225,7 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
 # #         
     if not Pool is None:
         Pool.wait_completion()
-        Pool.shutdown()
+        #Pool.shutdown()
         Pool = None
 
     # If check_call succeeded then we know the file is good and we can return 
@@ -236,7 +239,7 @@ def AreValidImages(filenames, ImageDir=None, Pool=None):
 
 
 
-def __Fix_sRGB_String(path):
+def __Fix_sRGB_String(path: str):
     '''Generate a string which will correctly convert an image from either linear or sRGB colorspaces to grayscale'''
 
     colorspace = GetImageColorspace(path)
@@ -250,7 +253,7 @@ def __Fix_sRGB_String(path):
     return " -colorspace Gray "
 
 
-def InvertImage(input_image_fullpath, output_image_fullpath):
+def InvertImage(input_image_fullpath: str, output_image_fullpath: str):
     with Image.open(input_image_fullpath) as img:
         inverted_img = PIL.ImageOps.invert(img)
         inverted_img.save(output_image_fullpath)

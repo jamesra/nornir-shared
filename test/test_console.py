@@ -8,6 +8,7 @@ import socket
 import unittest
 
 import nornir_shared.console
+import nornir_shared.consolewindow
 import nornir_shared.curses_console
 import nornir_shared.prettyoutput
 
@@ -15,7 +16,7 @@ import nornir_shared.prettyoutput
 class TestConsole(unittest.TestCase):
      
      def test_WriteMessage(self):
-         console = nornir_shared.console.Console()
+         console = nornir_shared.consolewindow.ConsoleWindow()
          
          console.WriteMessage("testWriteMessage\n") 
          console.WriteMessage("This is a test\n")
@@ -24,7 +25,7 @@ class TestConsole(unittest.TestCase):
          console.Close()
          
      def test_WriteMessage_alternate_host_and_port(self):
-         console = nornir_shared.console.Console(title="testWriteMessage_alternate_host_and_port", host='localhost', port=random.randint(50000, 51000))
+         console = nornir_shared.consolewindow.ConsoleWindow(title="testWriteMessage_alternate_host_and_port", host='localhost', port=random.randint(50000, 51000))
          
          console.WriteMessage("testWriteMessage_alternate_host_and_port\n") 
          console.WriteMessage("This is a test\n")
@@ -33,7 +34,17 @@ class TestConsole(unittest.TestCase):
          console.Close()
         
      def test_WriteCursesMessage(self):
-        console = nornir_shared.console.CursesConsole(title="WriteCursesMessage", port=random.randint(50000, 51000))
+        console = nornir_shared.consolewindow.CursesConsoleWindow(title="WriteCursesMessage", port=random.randint(50000, 51000))
+        
+        console.WriteMessage("Owner:WriteCursesMessage\n") 
+        console.WriteMessage("Data:This is a test\n")
+        console.WriteMessage("Data:Second line of data.Exit\n")
+        console.WriteMessage("Owner:WriteCursesMessageAgain\n") 
+        
+        console.Close()
+        
+     def test_LocalCursesMessage(self):
+        console = nornir_shared.consolewindow.CursesConsoleWindow(title="WriteCursesMessage", port=random.randint(50000, 51000))
         
         console.WriteMessage("Owner:WriteCursesMessage\n") 
         console.WriteMessage("Data:This is a test\n")

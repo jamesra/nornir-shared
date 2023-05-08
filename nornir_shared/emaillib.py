@@ -4,7 +4,6 @@
 
 '''
 
-
 from email import encoders
 from email.mime import multipart, text, image
 from email.utils import COMMASPACE, formatdate
@@ -15,29 +14,18 @@ from . import prettyoutput
 
 
 def SendMail(**kwargs):
-    '''Sends an email
+    """Sends an email"""
     
-    :param str host: Address of smpt server
-    :param str username: username for smtp account if required
-    :param str password: password for smtp account if required
-    :param str subject: subject for E-mail
-    :param str message: text content of message
-    :param str to: Recipient addresses as string or list of strings
-    :param str cc: Recipient addresses as string or list of strings
-    :param str from: Sender's E-mail address
-    :param str fromFriendlyAddress: Nice looking Sender's E-mail address
-    :param list files: comma delimited list of files to attach
-    :param int port: port to use on server, default is 25
-    
-    '''
+
+
     host = kwargs.get('host', None)
     username = kwargs.get('username', None)
     password = kwargs.get('password', None)
     subject = kwargs.get('subject', "Build progress")
     toAddresses = kwargs.get('to', "")
-    ccAddresses = kwargs.get('cc' , "")
+    ccAddresses = kwargs.get('cc', "")
     fromAddress = kwargs.get('from', None)
-    fromFriendlyAddress = kwargs.get('fromFriendlyAddress' , "Build Script Pipeline")
+    fromFriendlyAddress = kwargs.get('fromFriendlyAddress', "Build Script Pipeline")
     message = kwargs.get('message', "A build has completed.")
     files = (str(kwargs.get('files', []))).split(',')
     port = kwargs.get('port', 25)
@@ -48,14 +36,14 @@ def SendMail(**kwargs):
     if isinstance(toAddresses, list):
         toAddressString = ', '.join(toAddresses)
     else:
-        assert(isinstance(toAddresses, str))
+        assert (isinstance(toAddresses, str))
         toAddressString = toAddresses
         toAddressList = [toAddressList]
 
     if isinstance(ccAddresses, list):
         ccAddressString = ', '.join(ccAddresses)
     else:
-        assert(isinstance(ccAddresses, str))
+        assert (isinstance(ccAddresses, str))
         ccAddressString = ccAddresses
         ccAddressList = [ccAddressList]
 
@@ -67,22 +55,22 @@ def SendMail(**kwargs):
     try:
         smtpConn.set_debuglevel(False)
         try:
-        	smtpConn.starttls()
+            smtpConn.starttls()
         except:
-        	prettyoutput.Log("Could not start secure session")
+            prettyoutput.Log("Could not start secure session")
 
         try:
-        	if(username is not None):
-        		smtpConn.login(username, password)
+            if (username is not None):
+                smtpConn.login(username, password)
         except:
-        	prettyoutput.Log("Could not use provided credentials")
+            prettyoutput.Log("Could not use provided credentials")
 
-#        #Build the message
-#        ConcatenatedToAddress = ""
-#        if not toAddresses is None:
-#            ConcatenatedToAddress = ','.join(toAddresses)
-#
-#        ConcatenatedCCAddress = ','.join(ccAddresses)
+        #        #Build the message
+        #        ConcatenatedToAddress = ""
+        #        if not toAddresses is None:
+        #            ConcatenatedToAddress = ','.join(toAddresses)
+        #
+        #        ConcatenatedCCAddress = ','.join(ccAddresses)
 
         msg = multipart.MIMEMultipart()
         msg['Subject'] = subject
@@ -117,8 +105,8 @@ def SendMail(**kwargs):
         AllRecipientAddresses = toAddressList + ccAddressList
 
         smtpConn.sendmail(fromAddress,
-						   AllRecipientAddresses,
-						   msg.as_string())
+                          AllRecipientAddresses,
+                          msg.as_string())
     finally:
         smtpConn.quit()
 
@@ -126,6 +114,7 @@ def SendMail(**kwargs):
 if __name__ == '__main__':
     # Email the completion notice
     class EmailArgs(object): pass
+
 
     Email = EmailArgs()
     Email.subject = "Build progress"

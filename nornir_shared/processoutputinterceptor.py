@@ -6,6 +6,7 @@ Created on Dec 29, 2011
 
 import os
 import shutil
+import re
 
 from . import prettyoutput
 
@@ -34,7 +35,7 @@ class ProcessOutputInterceptor(object):
         raise Exception("No method defined for abstract class ProcessOutputInterceptor")
 
     @classmethod
-    def Intercept(self, lineparseobj, return_lines=True):
+    def Intercept(cls, lineparseobj, return_lines=True):
         '''Examines the output of the process in real time and calls lineparsefunc passing each line of output.
         lineparsefunc is called at least once with None input when the process terminates'''
 
@@ -84,23 +85,24 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
 
         '''Processes a single line of output from the provided process and updates status as needed'''
         line = line.lower()
-        if(line.find("percentage:") < 0):
+        if line.find("percentage:") < 0 and line.find("ETA:") < 0:
             prettyoutput.Log(line)
             return
-
+        
         try:
             parts = line.split(':')
             if(len(parts) < 2):
                 return
 
             ProgressString = parts[1].strip()
+            percent_str = re.sub('[ETA:|percentage:]', '', ProgressString)
 
-            parts = ProgressString.split()
+            parts = percent_str.split()
 
             Progress = float(parts[0].strip())
 
             prettyoutput.CurseProgress(None, Progress, 1)
-        except:
+        except ValueError:
             pass
 
         return
@@ -186,6 +188,9 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
 
 
     def __init__(self, proc, processData=None):
+        self.TextureWidth = None
+        self.TextureHeight = None
+        self.layers = None
         self.Proc = proc
         self.ProcessData = processData
         self.Output = list()  # List of output lines

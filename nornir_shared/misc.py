@@ -48,11 +48,11 @@ def RunWithProfiler(functionStr, outputpath=None):
 
     pr.print_callers(.1)
 
-def SetupLogging(LogToFile=False, OutputPath=None, Level=None):
+def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
     '''
     :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
     :param str OutputPath: Path to directory to use to save log files.
-    :param str Level: Level of messages to write to log
+    :param Level: Level of messages to write to log
     '''
     global logging_setup
     if(logging_setup):
@@ -81,7 +81,10 @@ def SetupLogging(LogToFile=False, OutputPath=None, Level=None):
             else:
                 BaseLoggingDir = os.getcwd()
         
-            LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+            if OutputPath is not None:
+                LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+            else:
+                LogPath = BaseLoggingDir 
              
         if not LogPath is None: 
             try:
@@ -144,9 +147,9 @@ def lowpriority():
     except:
         logger = logging.getLogger(__name__ + '.lowpriority')
         if not logger is None:
-            logger.warn("Could not lower process priority")
+            logger.warning("Could not lower process priority")
             if isWindows:
-                logger.warn("Are you missing Win32 extensions for python? http://sourceforge.net/projects/pywin32/")
+                logger.warning("Are you missing Win32 extensions for python? http://sourceforge.net/projects/pywin32/")
         pass
 
 

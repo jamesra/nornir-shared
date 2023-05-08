@@ -22,7 +22,8 @@ emaillib
 '''
 
 
-__all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot', 'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
+__all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot',
+           'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
 
 #
 #
@@ -39,3 +40,15 @@ __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'math
 # .. automodule:: nornir_shared.reflection
 # .. automodule:: nornir_shared.tasktimer
 # .. automodule:: nornir_shared.argparse_helpers
+
+
+import nornir_shared.mathhelper as mathhelper
+from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
+
+import nornir_shared.prettyoutput as prettyoutput
+import nornir_shared.files as files
+import nornir_shared.histogram as histogram
+import nornir_shared.checksum as checksum
+import nornir_shared.plot as plot
+import nornir_shared.tasktimer as tasktimer
+
