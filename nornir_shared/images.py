@@ -154,6 +154,9 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
     finally:
         del im
 
+def _is_numpy_extension(filename: str):
+    (root, ext) = os.path.splitext(filename)
+    return ext == '.npy'
 
 def IsValidImage(filename: str) -> bool:
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
@@ -164,6 +167,9 @@ def IsValidImage(filename: str) -> bool:
     except OSError as os_e:
         prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
         return False
+    except FileNotFoundError as fnf_e:
+        prettyoutput.Log("{0} -> {1}".format(filename, fnf_e.strerror))
+        return False
     except Exception as e:
         prettyoutput.Log("{0} -> {1}".format(filename, str(e)))
         return False
@@ -171,7 +177,7 @@ def IsValidImage(filename: str) -> bool:
     return True
 
 
-def AreValidImages(filenames: list[str], ImageDir: str = None, Pool=None):
+def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None):
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
     filenamelist = filenames
@@ -190,23 +196,20 @@ def AreValidImages(filenames: list[str], ImageDir: str = None, Pool=None):
         # Pool = nornir_pools.GetGlobalLocalMachinePool()
         Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=num_threads)
 
-    if ImageDir is None:
-        ImageDir = ""
+    ImageDir = "" if ImageDir is None else ImageDir
 
     TaskList = []
     SingleParameterProc = None
 
     InvalidImageList = []
 
-    for filename in filenamelist:
-        ImageFullPath = os.path.join(ImageDir, filename)
+    testable_image_extensions = list(filter(lambda filename: not _is_numpy_extension(filename) ,  filenamelist))
+    image_full_paths = [os.path.join(ImageDir, filename) for filename in testable_image_extensions]
 
-        (root, ext) = os.path.splitext(filename)
-        if ext == '.npy':
-            continue
+    for i, ImageFullPath in enumerate(image_full_paths):
 
         # cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
-
+        filename = testable_image_extensions[i]
         try:
             TaskList.append(Pool.add_task(filename, IsValidImage, ImageFullPath))
         except subprocess.CalledProcessError as CPE:
@@ -235,7 +238,7 @@ def AreValidImages(filenames: list[str], ImageDir: str = None, Pool=None):
     while len(TaskList) > 0:
         Task = TaskList.pop(0)
         # if Task.returncode == False:
-        if Task.wait_return() == False:
+        if Task.wait_return() is False:
             InvalidImageList.append(Task.name)
 
     return InvalidImageList
