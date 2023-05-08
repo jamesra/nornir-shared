@@ -16,11 +16,11 @@ def CreateDirTree(path, dictSubTrees):
     print(str(dictSubTrees))
     for key in dictSubTrees.keys():
         subtreepath = os.path.join(path, key)
-        
-        if '.' in key: #Check if it is a file
+
+        if '.' in key:  # Check if it is a file
             with open(key, 'w+') as f:
                 f.write("test file")
-                
+
         else:
             os.makedirs(subtreepath)
             CreateDirTree(subtreepath, dictSubTrees[key])
@@ -29,8 +29,8 @@ def CreateDirTree(path, dictSubTrees):
 def RecurseDictValues(dictSubTrees, path):
     vals = list(dictSubTrees.keys())
 
-    for (key,value) in dictSubTrees.items():
-        if value is None: #Skip file entries
+    for (key, value) in dictSubTrees.items():
+        if value is None:  # Skip file entries
             continue
         subpath = os.path.join(path, key)
         vals.append(subpath)
@@ -40,11 +40,9 @@ def RecurseDictValues(dictSubTrees, path):
 
 
 class TestFiles(unittest.TestCase):
-
-    DirTree = {'aaa' : {},
-               'bbb' : {'baaa' : {}, '1.idoc':None, '1.png':None, '2.png':None},
-               'ccc' : {'ca':{}, 'cb':{'cba':{}}, 'cc':{'cca':{}, 'ccb':{}, '2.idoc':None}}}
-
+    DirTree = {'aaa': {},
+               'bbb': {'baaa': {}, '1.idoc': None, '1.png': None, '2.png': None},
+               'ccc': {'ca': {}, 'cb': {'cba': {}}, 'cc': {'cca': {}, 'ccb': {}, '2.idoc': None}}}
 
     @property
     def classname(self):
@@ -67,7 +65,6 @@ class TestFiles(unittest.TestCase):
         shutil.rmtree(self.TestOutputPath)
         CreateDirTree(path=self.TestOutputPath, dictSubTrees=TestFiles.DirTree)
 
-
     def tearDown(self):
         outdir = self.TestOutputPath
         shutil.rmtree(outdir)
@@ -79,67 +76,78 @@ class TestFiles(unittest.TestCase):
 
     def IsSingleResult(self, ListA, result):
         self.assertEqual(len(ListA), 1, "Result list should have one entry")
-        self.assertEqual(ListA[0][0], result, "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
+        self.assertEqual(ListA[0][0], result,
+                         "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
 
-    def test_recursesubdirectories(self): 
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=None, ExcludeNames=[], ExcludedDownsampleLevels=[])
+    def test_recursesubdirectories(self):
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=None,
+                                     ExcludeNames=[], ExcludedDownsampleLevels=[])
         expectedDirs = RecurseDictValues(TestFiles.DirTree, self.TestOutputPath)
         self.IsSubset(dirs, expectedDirs)
 
         # One known match in root dir
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['aaa'], ExcludeNames=[], ExcludedDownsampleLevels=[])
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['aaa'],
+                                     ExcludeNames=[], ExcludedDownsampleLevels=[])
         self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'aaa'))
 
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['baaa'], ExcludeNames=[], ExcludedDownsampleLevels=[])
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['baaa'],
+                                     ExcludeNames=[], ExcludedDownsampleLevels=[])
         self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'bbb\\baaa'))
 
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['cca'], ExcludeNames=[], ExcludedDownsampleLevels=[])
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['cca'],
+                                     ExcludeNames=[], ExcludedDownsampleLevels=[])
         self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'ccc\\cc\\cca'))
 
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[],
+                                     ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]
         self.IsSubset(dirs, expectedVals)
-        
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles='*.idoc', ExcludedFiles=[], MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
+
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles='*.idoc', ExcludedFiles=[], MatchNames=[],
+                                     ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']]
         self.IsSubset(dirs, expectedVals)
-        
-        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=None, ExcludedFiles='*.idoc', MatchNames=[], ExcludeNames='ccc', ExcludedDownsampleLevels=[])
+
+        dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=None, ExcludedFiles='*.idoc', MatchNames=[],
+                                     ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedDirs = set(RecurseDictValues(TestFiles.DirTree, self.TestOutputPath))
         expectedVals = expectedDirs - set([os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']])
         self.IsSubset(dirs, expectedVals)
-        
+
     def test_IsOlderThan(self):
-        
+
         older = datetime.datetime.now()
         older_date = datetime.date.today()
         testPath = os.path.join(self.TestOutputPath, "IsOlderThanTest.tmp")
-        
+
         try:
             with open(testPath, 'w') as f:
                 f.close()
-                
+
             time.sleep(0.01)
             newer = datetime.datetime.now()
             newer_date = datetime.date.today() + datetime.timedelta(days=1)
-                
+
             self.assertFalse(IsOlderThan(testPath, DateTime=older))
             self.assertFalse(IsOlderThan(testPath, DateTime=older_date))
             self.assertTrue(IsOlderThan(testPath, DateTime=newer))
             self.assertTrue(IsOlderThan(testPath, DateTime=newer_date))
-            
+
             self.assertFalse(IsOlderThan(testPath, DateTime=0))
             self.assertTrue(IsOlderThan(testPath, DateTime=newer.timestamp()))
-            
+
             self.assertFalse(IsOlderThan(testPath, DateTime=int(older.timestamp())))
             self.assertTrue(IsOlderThan(testPath, DateTime=int((newer + datetime.timedelta(seconds=60)).timestamp())))
-            
-            DateTimeFormat='%Y-%m-%d %H:%M:%S.%f'
-            self.assertFalse(IsOlderThan(testPath, DateTime=older.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
-            self.assertTrue(IsOlderThan(testPath, DateTime=newer.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
-            
+
+            DateTimeFormat = '%Y-%m-%d %H:%M:%S.%f'
+            self.assertFalse(
+                IsOlderThan(testPath, DateTime=older.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+            self.assertTrue(
+                IsOlderThan(testPath, DateTime=newer.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+
         finally:
             os.remove(testPath)
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

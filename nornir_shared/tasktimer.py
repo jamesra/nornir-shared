@@ -16,16 +16,16 @@ class TaskTimer:
         self._TaskDeltaTime = dict()
 
         # If a task isn't explicitely started we compare to when this class was created.
-        self.DefaultStartTime = time.time()
+        self.DefaultStartTime = time.perf_counter()
         
         self.CreationDateTime = datetime.datetime.now(datetime.timezone.utc)
 
     def Start(self, task):
-        self._TaskStartTime[task] = time.time()
+        self._TaskStartTime[task] = time.perf_counter()
 
-    def End(self, task, PrintElapsed=True):
+    def End(self, task, print_elapsed=True):
         '''Stop a timer for a task, print output if PrintElapsed is not explicitely set to False'''
-        tend = time.time()
+        tend = time.perf_counter()
 
         tstart = self.DefaultStartTime
         if task in self._TaskStartTime:
@@ -39,7 +39,7 @@ class TaskTimer:
         else:
             self._TaskDeltaTime[task] = tdelta
 
-        if(PrintElapsed):
+        if(print_elapsed):
             prettyoutput.Log(self.ElapsedString(task))
 
     def ElapsedString(self, task):
