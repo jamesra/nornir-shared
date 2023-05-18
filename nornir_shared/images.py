@@ -5,10 +5,10 @@ Created on Jul 11, 2012
 '''
 import logging
 import math
+import multiprocessing
 import os
 import shutil
 import subprocess
-import multiprocessing
 
 import numpy
 from numpy.typing import NDArray
@@ -20,6 +20,7 @@ Image.MAX_IMAGE_PIXELS = None
 
 import PIL.ImageOps
 import nornir_pools
+import nornir_shared
 
 from . import prettyoutput
 from . import processoutputinterceptor
@@ -104,7 +105,7 @@ def GetImageStats(path: str) -> (float, float, float, float):
     except:
         pass
 
-    return (Min, Mean, Max, StdDev)
+    return Min, Mean, Max, StdDev
 
 
 def IdentifyImage(ImageFilePath: str):
@@ -114,7 +115,7 @@ def IdentifyImage(ImageFilePath: str):
         NewP = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
     except:
         prettyoutput.Log('Eror calling ' + cmd)
-        pass
+        return
 
     interceptor = processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
     processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
@@ -150,20 +151,21 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
                 shape = (im.size[1], im.size[0])
                 return numpy.array(shape, dtype=numpy.int32)
     except IOError:
-        raise IOError("Unable to read size from %s" % (image_param))
+        raise IOError("Unable to read size from %s" % image_param)
     finally:
         del im
+
 
 def _is_numpy_extension(filename: str):
     (root, ext) = os.path.splitext(filename)
     return ext == '.npy'
+
 
 def IsValidImage(filename: str) -> bool:
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
     try:
         with Image.open(filename) as im:
             im.verify()
-            im.close()
     except OSError as os_e:
         prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
         return False
@@ -203,7 +205,7 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
 
     InvalidImageList = []
 
-    testable_image_extensions = list(filter(lambda filename: not _is_numpy_extension(filename) ,  filenamelist))
+    testable_image_extensions = list(filter(lambda filename: not _is_numpy_extension(filename), filenamelist))
     image_full_paths = [os.path.join(ImageDir, filename) for filename in testable_image_extensions]
 
     for i, ImageFullPath in enumerate(image_full_paths):
@@ -290,7 +292,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
     ProcPool = nornir_pools.GetGlobalClusterPool()
 
     if not MinMax is None:
-        if (MinMax[0] > MinMax[1]):
+        if MinMax[0] > MinMax[1]:
             prettyoutput.Log("Invalid MinMax parameter passed to ConvertImagesInDict")
             MinMax = None
 
@@ -318,10 +320,10 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
 
         # Track the shift required to return to center
 
-        if (RightLeftShift[0] > 0):
+        if RightLeftShift[0] > 0:
             RightLeftShiftStr = " -evaluate rightshift " + str(RightLeftShift[0]) + ' '
 
-        if (RightLeftShift[1] > 0):
+        if RightLeftShift[1] > 0:
             RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0] + RightLeftShift[1])
         else:
             RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0])
@@ -359,7 +361,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
         temptargetFileName = '"' + ImagesToConvertDict[f] + '"'
         targetFileName = '"' + ImagesToConvertDict[f] + '"'
 
-        if (os.path.exists(targetFileName)):
+        if os.path.exists(targetFileName):
             prettyoutput.Log('Skipping existing file: ' + str(targetFileName))
             continue
 
@@ -391,7 +393,7 @@ def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, I
     if bDeleteOriginal and (originalFileName != targetFileName):
         for f in ImagesToConvertDict.keys():
             # Don't delete unless the target file was created
-            if (os.path.exists(ImagesToConvertDict[f])):
+            if os.path.exists(ImagesToConvertDict[f]):
                 prettyoutput.Log("Deleting: " + f)
                 os.remove(f)
 
@@ -402,12 +404,12 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
                    GridTileCoordFormat=None, Logger=None):
     '''Create tiles for a single image'''
 
-    if (GridTileCoordFormat is None):
+    if GridTileCoordFormat is None:
         GridTileCoordFormat = 'd'
 
     GridTileNameTemplate = '%(prefix)sX%(X)' + GridTileCoordFormat + '_Y%(Y)' + GridTileCoordFormat + '%(postfix)s.png'
 
-    if (Logger is None):
+    if Logger is None:
         Logger = logging.getLogger(__name__)
 
     prettyoutput.CurseString('Stage', "Tiles from Image")
@@ -433,10 +435,10 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     # path is an image name-
     [YDim, XDim] = GetImageSize(ImageFullPath)
 
-    if (XDim % TileSize[0] > 0):
+    if XDim % TileSize[0] > 0:
         XDim = XDim + (TileSize[0] - (XDim % TileSize[0]))
 
-    if (YDim % TileSize[1] > 0):
+    if YDim % TileSize[1] > 0:
         YDim = YDim + (TileSize[1] - (YDim % TileSize[1]))
 
     tilePrefix = 'tile_'
@@ -450,7 +452,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
 
     XMLFilePath = os.path.join(DownSampleDirectory, str(Downsample) + ".xml")
 
-    files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
+    nornir_shared.files.RemoveOutdatedFile(ImageFullPath, XMLFilePath)
 
     if not os.path.exists(XMLFilePath):
         # Convert is going to create a list of names.
@@ -494,7 +496,7 @@ def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, Down
     #        if(os.path.exists(OutputXmlFilePath) == False):
     #            BuildTilePyramids(Dir, InputImageDir, XmlFilePath, OutputImageDir, TargetDownsample)
 
-    return (XGridDim, YGridDim)
+    return XGridDim, YGridDim
 
 
 def WriteTilesetXML(XMLOutputPath, XDim, YDim, TileXDim, TileYDim, DownsampleTarget, FilePrefix, FilePostfix=".png"):

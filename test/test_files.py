@@ -3,13 +3,13 @@ Created on Oct 21, 2013
 
 @author: u0490822
 '''
+import datetime
 import os
 import shutil
-import unittest
 import time
-import datetime
+import unittest
 
-from nornir_shared.files import RecurseSubdirectories, RecurseSubdirectoriesGenerator, IsOlderThan
+from nornir_shared.files import RecurseSubdirectories, IsOlderThan
 
 
 def CreateDirTree(path, dictSubTrees):

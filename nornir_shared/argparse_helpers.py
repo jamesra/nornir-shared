@@ -8,7 +8,7 @@ def _IsNumberRange(argstr):
     '''Return true if the string has a hypen with two numbers between'''
     match = re.match(r'\d+\-\d+', argstr)
     return match
- 
+
 
 def _IntegerRangeToList(argstr: str) -> list[int]:
     '''
@@ -28,9 +28,11 @@ def _IntegerRangeToList(argstr: str) -> list[int]:
 
     return numbers
 
+
 def StringList(argstr):
     list_strs = ListFromDelimited(argstr)
     return list_strs
+
 
 def IntegerList(argstr: str) -> list[int]:
     '''Return a list of integers based on a range defined by a string 
@@ -44,7 +46,7 @@ def IntegerList(argstr: str) -> list[int]:
     for entry in argstr.strip().split(','):
         entry = entry.strip()
 
-        if(_IsNumberRange(entry)):
+        if _IsNumberRange(entry):
             addedIntRange = _IntegerRangeToList(entry)
             listNums.extend(addedIntRange)
         else:
@@ -56,106 +58,117 @@ def IntegerList(argstr: str) -> list[int]:
 
     return listNums
 
+
 def IntegerPair(argstr: str) -> tuple[int, int]:
     '''Return a pair of integers based on a comma delimited string
     :param argstr:  A string defining one or two integers.  If only one integer is defined it is returned twice.  Commas separate values. Ex: 1,3
     :rtype: tuple of 2 integers
     '''
-    
+
     argstr = argstr.replace(' ', '')
-    
+
     arg_values = argstr.strip().split(',')
     if len(arg_values) > 2 or len(arg_values) <= 0:
-        raise  argparse.ArgumentTypeError("Integer pair expects one number or two comma delimited numbers without spaces.  For example 1,3.  Passed value %s was invalid" % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Integer pair expects one number or two comma delimited numbers without spaces.  For example 1,3.  Passed value %s was invalid" % argstr)
+
     try:
         if len(arg_values) == 1:
             val = int(arg_values[0])
-            return (val, val)
+            return val, val
         else:
-            return (int(arg_values[0]), int(arg_values[1]))
+            return int(arg_values[0]), int(arg_values[1])
     except ValueError:
         raise argparse.ArgumentTypeError(f"IntegerPair function could not convert {argstr} to integer value(s)")
+
 
 def Tuple(argstr: str) -> list[int]:
     if len(argstr) == 0:
         return None
-     
+
     argstr = argstr.replace(' ', '')
-        
+
     arg_values = argstr.strip().split(',')
     if len(arg_values) != 2:
-        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+
     return IntegerList(argstr)
 
-def Triple(argstr) -> list[int]: 
+
+def Triple(argstr) -> list[int]:
     if len(argstr) == 0:
         return None
-    
+
     argstr = argstr.replace(' ', '')
-        
+
     arg_values = argstr.strip().split(',')
     if len(arg_values) != 3:
-        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+
     return IntegerList(argstr)
-    
-def Quadruple(argstr) -> list[int]: 
+
+
+def Quadruple(argstr) -> list[int]:
     if len(argstr) == 0:
         return None
-    
+
     argstr = argstr.replace(' ', '')
-        
+
     arg_values = argstr.strip().split(',')
     if len(arg_values) != 4:
-        raise argparse.ArgumentTypeError("Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Number of arguments to rectangle is incorrect.  Must be four numbers seperated by commas.  For example: MinX, MinY, MaxX, MaxY\nInput was: %s " % argstr)
+
     return IntegerList(argstr)
-    
+
+
 def FloatPair(argstr) -> tuple[int]:
     '''Return a pair of floats based on a comma delimited string
     :param argstr:  A string defining one or two floats.  If only one float is defined it is returned twice.  Commas separate values. Ex: 1,3
     :rtype: tuple of 2 integers
     '''
-    
+
     argstr = argstr.replace(' ', '')
-    
+
     arg_values = argstr.strip().split(',')
     if len(arg_values) > 2 or len(arg_values) <= 0:
-        raise  argparse.ArgumentTypeError("Integer pair expects one number or two comma delimited numbers without spaces.  For example 1,3.  Passed value %s was invalid" % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Integer pair expects one number or two comma delimited numbers without spaces.  For example 1,3.  Passed value %s was invalid" % argstr)
+
     try:
         if len(arg_values) == 1:
             val = float(arg_values[0])
-            return (val, val)
+            return val, val
         else:
-            return (float(arg_values[0]), float(arg_values[1]))
+            return float(arg_values[0]), float(arg_values[1])
     except ValueError:
         raise argparse.ArgumentTypeError("FloatPair function could not convert %s to float value(s)" % argstr)
-        
-    
+
+
 def FloatRange(argstr) -> list[float]:
     '''Return a pair of numbers based on a comma delimited string
     :param argstr:  A string defining either: A single number or a pair of hyphen delimited numbers indicating a range.
                     A trailing comma indicates the step size for the floating point values. Ex: 0:0.5:2 -> [0, 0.5, 1, 1.5, 2] 
     :rtype: list of floats
     '''
-    
+
     listNums = []
     argstr = argstr.replace(' ', '')
-    
-    if(argstr is None or len(argstr) == 0):
+
+    if argstr is None or len(argstr) == 0:
         return None
-    
+
     arg_values = argstr.strip().split(':')
     if len(arg_values) > 3 or len(arg_values) <= 0:
-        raise  argparse.ArgumentTypeError("Number pair expects at most one step size argument.  For example '0:0.5:2'. Passed value %s was invalid" % argstr)
-    
+        raise argparse.ArgumentTypeError(
+            "Number pair expects at most one step size argument.  For example '0:0.5:2'. Passed value %s was invalid" % argstr)
+
     step_size = 1.0
     start_val = None
     end_val = None
-    
+
     try:
         if len(arg_values) == 1:
             start_val = float(arg_values[0])
@@ -169,10 +182,10 @@ def FloatRange(argstr) -> list[float]:
             end_val = float(arg_values[2])
     except ValueError:
         raise argparse.ArgumentTypeError("FloatRange function could not convert %s to integer value(s)" % argstr)
-    
+
     NextVal = start_val
     while NextVal <= end_val:
         listNums.append(NextVal)
         NextVal += step_size
-        
+
     return listNums

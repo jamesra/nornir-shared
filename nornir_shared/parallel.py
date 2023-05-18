@@ -10,7 +10,8 @@ if __name__ == '__main__':
 import os
 import platform
 import time
- 
+
+
 # Attempt to create a file that tells other machines the directory is in use.
 def TryEnterLockPath(Path):
     LockFile = os.path.join(Path, 'Path')
@@ -28,7 +29,7 @@ def TryEnterLockFile(LockFile):
     print(outStr)
 
     # If the file exists we can't take the lock
-    if(os.path.exists(LockFile)):
+    if os.path.exists(LockFile):
         # CreationTime = os.path.getctime(LockFile);  #For some reason ctime is the creation date of the first lock file ever, misses deletes and recreations
 
         # Read the file and see if it is stale
@@ -45,7 +46,7 @@ def TryEnterLockFile(LockFile):
             Elapsed = now - CreationTimeSec
             print("Elapsed: " + str(Elapsed))
             print("Elapsed Hours: " + str(Elapsed / (60 * 60)))
-            if((Elapsed / (60 * 60)) > 48):
+            if (Elapsed / (60 * 60)) > 48:
                 print("Removing stale lock file: " + LockFile)
                 try:
                     os.remove(LockFile)
@@ -55,12 +56,12 @@ def TryEnterLockFile(LockFile):
             return False
 
     # Read the file and see if it is ours, just in case it was recreated
-    if(os.path.exists(LockFile)):
+    if os.path.exists(LockFile):
         try:
             hLockFile = open(LockFile, 'r')
             LockingParty = hLockFile.readline().rstrip('\n')
             print(LockFile + " locked by: " + LockingParty + " I am: " + MyID)
-            if(LockingParty == MyID):
+            if LockingParty == MyID:
                 return True
             else:
                 return False
@@ -85,7 +86,7 @@ def TryEnterLockFile(LockFile):
         LockingParty = hLockFile.readline().rstrip('\n')
         hLockFile.close()
 
-        if(LockingParty == MyID):
+        if LockingParty == MyID:
             print("Successful lock")
             return True
         else:
@@ -103,7 +104,6 @@ def ReleaseLockPath(Path):
 
 
 def ReleaseLockFile(LockFile):
-
     LockFile = LockFile + '.lock'
 
     try:
@@ -111,7 +111,7 @@ def ReleaseLockFile(LockFile):
         LockingParty = hLockFile.readline().rstrip('\n')
         hLockFile.close()
         MyID = platform.node()
-        if(LockingParty == MyID):
+        if LockingParty == MyID:
             print(MyID + " removed lock on " + LockFile)
             os.remove(LockFile)
         else:

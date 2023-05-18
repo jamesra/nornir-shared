@@ -10,7 +10,6 @@ from nornir_shared.checksum import DataChecksum
 
 class Test(unittest.TestCase):
 
-
     def testChecksum(self):
         checkHello = DataChecksum("Hello World")
         self.assertTrue(len(checkHello) > 0)

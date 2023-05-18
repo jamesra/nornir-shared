@@ -11,12 +11,12 @@ import nornir_shared.images as images
 
 class Test(unittest.TestCase):
 
-
     @property
     def TestInputPath(self):
         if 'TESTINPUTPATH' in os.environ:
             TestInputDir = os.environ["TESTINPUTPATH"]
-            self.assertTrue(os.path.exists(TestInputDir), "Test input directory specified by TESTINPUTPATH environment variable does not exist")
+            self.assertTrue(os.path.exists(TestInputDir),
+                            "Test input directory specified by TESTINPUTPATH environment variable does not exist")
             return TestInputDir
         else:
             self.fail("TESTINPUTPATH environment variable should specify input data directory")

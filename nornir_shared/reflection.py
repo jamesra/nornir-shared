@@ -4,8 +4,7 @@ Created on Jul 11, 2012
 @author: Jamesan
 '''
 
-from . import  prettyoutput
-
+from . import prettyoutput
 
 __ModuleClassCacheDict = dict()
 
@@ -28,13 +27,14 @@ def get_module_class(module, kls, LogErrIfNotFound=True):
             m = getattr(m, comp)
     except AttributeError as E:
         m = None
-        if(LogErrIfNotFound):
+        if LogErrIfNotFound:
             prettyoutput.LogErr(str(E) + " " + module + " , " + kls)
         pass
 
     __ModuleClassCacheDict[key] = m
 
     return m
+
 
 def get_class(kls):
     '''Load a class from a string'''
@@ -44,7 +44,7 @@ def get_class(kls):
         return m
 
     parts = kls.split('.')
-    if(len(parts) > 0):
+    if len(parts) > 0:
         module = ".".join(parts[:-1])
         m = __import__(module)
         for comp in parts[1:]:
@@ -53,6 +53,7 @@ def get_class(kls):
             return m
     else:
         getattr()
+
 
 if __name__ == '__main__':
     pass

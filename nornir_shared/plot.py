@@ -1,16 +1,18 @@
 import argparse
-from collections.abc import Iterable
 import enum
+from collections.abc import Iterable
+
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.lines import fillStyles
 import numpy
 from numpy.typing import NDArray
+
 from nornir_shared import histogram
 from nornir_shared import prettyoutput
 from nornir_shared.mathhelper import NearestPowerOfTwo
 
 plt.ioff()
+
 
 def ProcessArgs():
     parser = argparse.ArgumentParser('AutoLevelHistogram')
@@ -58,29 +60,31 @@ def ProcessArgs():
     args = parser.parse_args()
     return args
 
-def SetSquareAspectRatio(ax): 
-    #set aspect ratio to 1
+
+def SetSquareAspectRatio(ax):
+    # set aspect ratio to 1
     ratio = 1.0
     x_left, x_right = plt.xlim()
     y_low, y_high = plt.ylim()
-    ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
+    ax.set_aspect(abs((x_right - x_left) / (y_low - y_high)) * ratio)
     return
+
 
 def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
               MaxCutoffPercent=None, LinePosList=None, LineColorList=None,
-              Title: str | None =None, 
-              xlabel: str | None =None, ylabel: str | None = None,
-              minX:float | None = None, maxX:float | None = None, dpi: int | None = None,
+              Title: str | None = None,
+              xlabel: str | None = None, ylabel: str | None = None,
+              minX: float | None = None, maxX: float | None = None, dpi: int | None = None,
               range_is_power_of_two: bool = False):
     Hist = None
 
     if dpi is None:
         dpi = 150
-    
+
     if ImageFilename is not None:
         # plt.show()
         plt.ioff()
-    
+
     if isinstance(HistogramOrFilename, histogram.Histogram):
         Hist = HistogramOrFilename
     else:
@@ -92,10 +96,10 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
 
     if Title is None:
         Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
-        
+
     if xlabel is None:
         xlabel = 'Intensity'
-        
+
     if ylabel is None:
         ylabel = 'Counts'
 
@@ -142,8 +146,8 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
         prettyoutput.Log(f'Histogram cutoffs: {MinCutoff},{MaxCutoff}')
 
     yMax = max(Hist.Bins)
-#  print 'Bins: ' + str(Hist.Bins)
-#  print 'Bin Sum: ' + str(sum(Hist.Bins))
+    #  print 'Bins: ' + str(Hist.Bins)
+    #  print 'Bin Sum: ' + str(sum(Hist.Bins))
 
     # print Hist.Bins
     plt.clf()
@@ -153,8 +157,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     plt.xlabel(xlabel)
     # plt.xticks([])
     plt.yticks([])
-    
-    
+
     # For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
     if ShowCutoffs:
@@ -170,30 +173,29 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             if MaxCutoffPercent:
                 plt.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
 
-
     if ShowLine:
         color = 'green'
         if not LineColorList is None:
             if not isinstance(LineColorList, Iterable):
                 color = LineColorList
-                
+
         for i, linePos in enumerate(LinePosList):
             if linePos is None:
-                continue 
-            
+                continue
+
             if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
                 color = LineColorList[i]
-                    
+
             plt.plot([linePos, linePos], [0, yMax], color=color)
             plt.annotate(f'{linePos:g}', [linePos, yMax * 0.9])
-            
+
     plt.gcf().set_dpi(150)
 
     visible_min_x, visible_max_x = None, None
     if minX is None or maxX is None:
-        
+
         width_pixels, height_pixels = GetPlotSizeInPixels(plt.gcf(), plt.gca())
-        #If we do not have enough horizontal space to display the entire histogram, attempt to trim it to the visible region
+        # If we do not have enough horizontal space to display the entire histogram, attempt to trim it to the visible region
         if width_pixels < (Hist.MaxValue - Hist.MinValue) / Hist.BinWidth:
             visible_min_x, visible_max_x = Hist.XAxis_Extrema_Using_Threshold(height_pixels)
         else:
@@ -206,24 +208,26 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     if maxX is None:
         options = LinePosList + [visible_max_x]
         maxX = max(options)
-    
-    #adjust range to a power of two 
+
+    # adjust range to a power of two
     if range_is_power_of_two:
         minX, maxX = EnsureAxisLimitsArePowerOfTwo(minX, maxX)
-        
+
     plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if ImageFilename is not None:
         # plt.show() 
-        plt.savefig(ImageFilename,  bbox_inches='tight', dpi=dpi)
+        plt.savefig(ImageFilename, bbox_inches='tight', dpi=dpi)
         plt.close()
     else:
         plt.show()
-        
+
+
 def GetPlotSizeInPixels(fig, ax) -> tuple[float, float]:
     bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     return bbox.bounds[2] * fig.dpi, bbox.bounds[3] * fig.dpi
-        
+
+
 def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float, float]:
     """
     Given a range, expands the range to be the nearest power of two, with a preference
@@ -232,34 +236,33 @@ def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float
     range = max_val - min_val
     power_of_two = NearestPowerOfTwo(range)
     extra_range = power_of_two - range
-    #If we can set the min_val to 0, then do so and use remaining range to increase 
-    #the max value
+    # If we can set the min_val to 0, then do so and use remaining range to increase
+    # the max value
     if min_val - extra_range <= 0:
         min_val = min_val - extra_range
         extra_range = -min_val
         min_val = 0
         max_val = max_val + extra_range
-    else: #Apply extra range equally to both min/max values
+    else:  # Apply extra range equally to both min/max values
         extra_range_half = extra_range / 2.0
         min_val -= extra_range_half
         max_val += extra_range_half
-        
+
     return min_val, max_val
-    
+
 
 def Scatter(x, y, s=None, c=None, Title: str | None = None,
-            XAxisLabel: str | None = None, YAxisLabel: str | None =None,
+            XAxisLabel: str | None = None, YAxisLabel: str | None = None,
             OutputFilename: str | None = None, **kwargs):
-
     if s is None:
         s = 7
-    
+
     if not 'marker' in kwargs:
         kwargs['marker'] = 'o'
-    
+
     plt.cla()
     fig, ax = plt.subplots()
-    
+
     ax.scatter(x, y, s=s, c=c, edgecolor=None, **kwargs)
 
     if not Title is None:
@@ -271,9 +274,9 @@ def Scatter(x, y, s=None, c=None, Title: str | None = None,
 
     ax.set_xlim(0, max(x) + 1)
     ax.set_ylim(0, max(y) + 1)
-    
+
     SetSquareAspectRatio(ax)
-    
+
     if OutputFilename is not None:
         plt.ioff()
         if isinstance(OutputFilename, str):
@@ -283,15 +286,19 @@ def Scatter(x, y, s=None, c=None, Title: str | None = None,
                 plt.savefig(filename)
     else:
         plt.show()
-        
+
     plt.close()
+
 
 class ColorSelectionStyle(enum.Enum):
     ''' Methods of assigning color to separate lines in PolyLine() '''
     BY_LINE_LENGTH = 0
     PER_LINE = 1
 
-def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None, XTicks=None, XTickLabels=None, XTickRotation=None, YTicks=None, YTickLabels=None, YTickRotation=None, Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
+
+def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputFilename=None, xlim=None, ylim=None,
+             XTicks=None, XTickLabels=None, XTickRotation=None, YTicks=None, YTickLabels=None, YTickRotation=None,
+             Colors=None, ColorStyle=ColorSelectionStyle.BY_LINE_LENGTH, **kwargs):
     '''PolyLineList is a nested list in this form:
     lines:
         line1:
@@ -320,7 +327,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
     # print Hist.Bins
     plt.cla()
     fig, ax = plt.subplots()
-    
+
     num = 0
     for line in PolyLineList:
         colorVal = 'black'
@@ -337,7 +344,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
 
         # Copy kwargs for each line so the following assignments don't cause the first color to be used for all lines
         line_kwargs = kwargs.copy()
-        
+
         # If markerfacecolor or markeredgecolor are specified, override PolyLine()'s colors argument.
         if not 'markerfacecolor' in line_kwargs:
             line_kwargs['markerfacecolor'] = colorVal
@@ -353,10 +360,10 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
         ax.set_ylabel(YAxisLabel)
     if not XAxisLabel is None:
         ax.set_xlabel(XAxisLabel)
-        
+
     if xlim is not None:
         ax.set_xlim(xlim)
-        
+
     if ylim is not None:
         ax.set_ylim(ylim)
 
@@ -369,7 +376,7 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
 
     if YTicks is not None:
         ax.set_yticks(ticks=YTicks, labels=YTickLabels, rotation=YTickRotation)
-        
+
     SetSquareAspectRatio(ax)
 
     if OutputFilename is not None:
@@ -381,37 +388,37 @@ def PolyLine(PolyLineList, Title=None, XAxisLabel=None, YAxisLabel=None, OutputF
                 plt.savefig(filename)
     else:
         plt.show()
-        
+
     plt.close()
-    
-    
+
+
 def __PlotVectorOriginShape(render_mask, shape, Points, weights=None, color=None, colormap=None):
     '''Plot a subset of the points that are True in the mask with the specified shape
     color is only used if weights is none.
     '''
-     
+
     if weights is None:
         if color is None:
-            color = 'red' 
-        
+            color = 'red'
+
         plt.scatter(Points[:, 1], Points[:, 0], color=color, marker=shape, alpha=0.5)
     else:
         if colormap is None:
             colormap = plt.get_cmap('RdYlBu')
-        
-        plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0, vmax=max(weights), alpha=0.5, cmap=colormap)
-    
+
+        plt.scatter(Points[render_mask, 1], Points[render_mask, 0], c=weights[render_mask], marker=shape, vmin=0,
+                    vmax=max(weights), alpha=0.5, cmap=colormap)
+
 
 def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
                 OutputFilename: str | None = None,
                 ylim: tuple[float, float] | None = None,
                 xlim: tuple[float, float] | None = None, colors=None):
-     
-    plt.clf() 
-    
+    plt.clf()
+
     if shapes is None:
         shapes = 's'
-         
+
     if isinstance(shapes, str):
         shapes = shapes
         mask = numpy.ones(Points.shape[0], dtype=numpy.bool)
@@ -421,43 +428,44 @@ def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
             _ = iter(shapes)
         except TypeError:
             raise ValueError("shapes must be None, string, or iterable type")
-    
-        #Iterable
+
+        # Iterable
         if len(shapes) != Points.shape[0]:
             raise ValueError("Length of shapes must match number of points")
-        
-        #Plot each batch of points with different shape
+
+        # Plot each batch of points with different shape
         all_shapes = set(shapes)
-        
+
         for shape in all_shapes:
             mask = [s == shape for s in shapes]
             mask = numpy.asarray(mask, dtype=bool)
-            
+
             __PlotVectorOriginShape(mask, shape, Points, weights, color=colors)
-            
+
     if ylim is not None:
         plt.ylim(ylim)
-        
+
     if xlim is not None:
         plt.xlim(xlim)
-             
+
     if weights is not None:
         plt.colorbar()
-    
-    assert(Points.shape[0] == Offsets.shape[0])
-    
+
+    assert (Points.shape[0] == Offsets.shape[0])
+
     line_mask = Offsets != 0
-    line_mask = numpy.logical_or(line_mask[:,0], line_mask[:,1])
+    line_mask = numpy.logical_or(line_mask[:, 0], line_mask[:, 1])
     origins = Points[line_mask, :]
-    p_o = origins + Offsets[line_mask,:]
-    lines = [((origins[i,1], origins[i, 0]), (p_o[i,1], p_o[i,0])) for i in range(0, len(origins))]
-    line_collection = matplotlib.collections.LineCollection(lines, colors='blue' if colors is None else colors, linewidths=0.5)
-    
+    p_o = origins + Offsets[line_mask, :]
+    lines = [((origins[i, 1], origins[i, 0]), (p_o[i, 1], p_o[i, 0])) for i in range(0, len(origins))]
+    line_collection = matplotlib.collections.LineCollection(lines, colors='blue' if colors is None else colors,
+                                                            linewidths=0.5)
+
     ax = plt.gca()
     ax.add_collection(line_collection)
-    
-    #plt.plot(lines[:,1], lines[:,0], color='blue')
-         
+
+    # plt.plot(lines[:,1], lines[:,0], color='blue')
+
     if OutputFilename is not None:
         if isinstance(OutputFilename, str):
             plt.savefig(OutputFilename, dpi=300)
@@ -471,6 +479,8 @@ def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
 if __name__ == '__main__':
     # Executed as a script, call the histogram function
     args = ProcessArgs()
-    Histogram(HistogramOrFilename=args.HistogramFilename, ImageFilename=args.ImageFilename, MinCutoffPercent=args.MinCutoffPercent, MaxCutoffPercent=args.MaxCutoffPercent, LinePosList=args.LinePosition)
+    Histogram(HistogramOrFilename=args.HistogramFilename, ImageFilename=args.ImageFilename,
+              MinCutoffPercent=args.MinCutoffPercent, MaxCutoffPercent=args.MaxCutoffPercent,
+              LinePosList=args.LinePosition)
 
     prettyoutput.Log(args)
