@@ -52,7 +52,8 @@ def get_class(kls):
             __ModuleClassCacheDict[kls] = m
             return m
     else:
-        getattr()
+        raise NotImplementedError()
+        #getattr()
 
 
 if __name__ == '__main__':
