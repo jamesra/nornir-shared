@@ -9,11 +9,10 @@ import atexit
 import logging
 import os
 import sys
-import os
 import time
 
-
 logging_setup = False
+
 
 def RunWithProfiler(functionStr, outputpath=None):
     import cProfile
@@ -29,7 +28,6 @@ def RunWithProfiler(functionStr, outputpath=None):
     os.makedirs(ProfileDir, exist_ok=True)
 
     logger = logging.getLogger(__name__ + '.RunWithProfiler')
-
 
     logger.info("Profiling: " + functionStr)
 
@@ -48,6 +46,7 @@ def RunWithProfiler(functionStr, outputpath=None):
 
     pr.print_callers(.1)
 
+
 def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
     '''
     :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
@@ -55,23 +54,23 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
     :param Level: Level of messages to write to log
     '''
     global logging_setup
-    if(logging_setup):
-        return 
-    
+    if logging_setup:
+        return
+
     logging_setup = True
 
-    if(Level is None):
+    if Level is None:
         Level = logging.INFO
 
     formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
-    
+
     if OutputPath is not None:
         LogToFile = True
-     
+
     if LogToFile:
         LogPath = None
-        
-        #Figure out the loggging directory if it is not specified
+
+        # Figure out the loggging directory if it is not specified
         if not OutputPath is None and os.path.isabs(OutputPath):
             LogPath = OutputPath
         else:
@@ -80,26 +79,26 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
                 BaseLoggingDir = os.environ['TESTOUTPUTPATH']
             else:
                 BaseLoggingDir = os.getcwd()
-        
+
             if OutputPath is not None:
-                LogPath = os.path.join(BaseLoggingDir, OutputPath)    
+                LogPath = os.path.join(BaseLoggingDir, OutputPath)
             else:
-                LogPath = BaseLoggingDir 
-             
-        if not LogPath is None: 
+                LogPath = BaseLoggingDir
+
+        if not LogPath is None:
             try:
                 os.makedirs(LogPath, exist_ok=True)
             except:
                 print("Could not create logging output directory: " + LogPath)
                 pass
-    
+
             logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
             logFileName = os.path.join(LogPath, logFileName)
             errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
             errlogFileName = os.path.join(LogPath, errlogFileName)
-    
+
             logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
-    
+
             eh = logging.FileHandler(errlogFileName)
             eh.setLevel(logging.ERROR)
             eh.setFormatter(formatter)
@@ -112,7 +111,7 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
         ch = logging.StreamHandler()
         ch.setLevel(Level)
         ch.setFormatter(formatter)
-    
+
         logger = logging.getLogger()
         logger.addHandler(ch)
 
@@ -166,30 +165,31 @@ def ArgumentsFromDict(dictObj):
     outstr = " "
 
     for entry in dictObj.items():
-        assert(isinstance(entry[0], str))
+        assert (isinstance(entry[0], str))
         outstr = "{0} -{1} {2} ".format(outstr, entry[0], str(entry[1]))
-        #outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
+        # outstr = outstr + " -" + entry[0] + " " + str(entry[1]) + " "
 
     return outstr
+
 
 def GenNameFromDict(dictObj):
     '''Creates a mangled name unique to the contents of a dictionary.
        Take the first three letters from each entry name, append the value, and build a mangled name'''
     outstr = ""
-    
+
     sorted_keys = sorted(dictObj.keys())
 
     for key in sorted_keys:
         value = dictObj[key]
-        assert(isinstance(key, str))
+        assert (isinstance(key, str))
         nameMangle = key
-        if(len(nameMangle) > 3):
+        if len(nameMangle) > 3:
             nameMangle = nameMangle[0:3]
 
         ValueStr = ""
         if value is None:
             ValueStr = "None"
-        elif(isinstance(value, list)):
+        elif isinstance(value, list):
             ValueStr = str(value[0])
             for e in value[1:-1]:
                 ValueStr = 'x' + str(e)
@@ -200,6 +200,7 @@ def GenNameFromDict(dictObj):
 
     return outstr
 
+
 def ListFromDelimited(value, delimiter=None):
     if delimiter is None:
         delimiter = ','
@@ -209,7 +210,7 @@ def ListFromDelimited(value, delimiter=None):
         ValueList = []
         Values = str(value).strip().split(delimiter)
         ValueList = list()
-        for Value in  Values:
+        for Value in Values:
             try:
                 floatVal = float(Value)
                 try:
@@ -220,19 +221,22 @@ def ListFromDelimited(value, delimiter=None):
             except:
                 if len(Value) > 0:
                     ValueList.append(Value)
-                    
+
     elif not isinstance(value, list):
         ValueList = [value]
 
     return ValueList
+
 
 def SortedListFromDelimited(value, delimiter=None):
     ValueList = ListFromDelimited(value, delimiter)
     ValueList.sort()
     return ValueList
 
+
 def ListFromAttribute(attrib):
     return ListFromDelimited(attrib, delimiter=',')
+
 
 def IsSequence(arg):
     '''Return true if arg is iterable and not a string'''

@@ -54,7 +54,6 @@ class Test(unittest.TestCase):
         peak = hist.PeakValue()
         self.assertEqual(peak, (maxVal + minVal) / 2.0)
 
-
         minCutoff = 128
         maxCutoff = 160
         median = hist.Median(minVal=minCutoff, maxVal=maxCutoff)
@@ -65,7 +64,6 @@ class Test(unittest.TestCase):
 
         peak = hist.PeakValue(minVal=minCutoff, maxVal=maxCutoff)
         self.assertEqual(peak, (maxCutoff + minCutoff) / 2.0)
-
 
     def testHistogram8bpp(self):
         '''Test histogram code with typical 8 bit per pixel numbers'''
@@ -169,9 +167,6 @@ class Test(unittest.TestCase):
         gamma = round(gamma, 3)
         self.assertEqual(gamma, 1.577)
 
-
-
-
     def testHistogram16bpp(self):
         '''Test histogram code with typical 8 bit per pixel numbers'''
 
@@ -234,7 +229,6 @@ class Test(unittest.TestCase):
         self.assertEqual(MinCutoff, (maxVal + 1) / 4.0)
         self.assertEqual(MaxCutoff, int(3 * maxVal / 4.0))
 
-
     def testHistogramAdd(self):
         '''Test histogram code with typical 8 bit per pixel numbers'''
 
@@ -250,11 +244,10 @@ class Test(unittest.TestCase):
         self.assertEqual(len(hist.Bins), numBins)
         self.assertEqual(hist.BinWidth, ExpectedBinWidth)
 
-        inputVals = list(map(lambda x : (x * ExpectedBinWidth) - 1, range(1, numBins + 1)))
+        inputVals = list(map(lambda x: (x * ExpectedBinWidth) - 1, range(1, numBins + 1)))
 
         for i in range(0, len(inputVals)):
             inputVals.extend([inputVals[i]] * i)
-
 
         binVals = list(range(1, numBins + 1))
         hist = Histogram.Init(minVal=minVal, maxVal=maxVal, numBins=numBins)
@@ -286,6 +279,7 @@ class Test(unittest.TestCase):
         [MinCutoff, MaxCutoff] = hist.AutoLevel(None, None)
         self.assertEqual(MinCutoff, 0)
         self.assertEqual(MaxCutoff, maxVal)
+
 
 #     def testHugeAdd(self):
 #         '''Wrote to compare performance, OK to disable'''

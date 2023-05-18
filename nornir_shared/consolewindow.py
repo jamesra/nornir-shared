@@ -4,6 +4,7 @@ import subprocess
 
 import nornir_shared.console_constants
 
+
 class ConsoleWindow(object):
     '''
     Creates a second console window which displays text output sent to this Console object

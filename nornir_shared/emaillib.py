@@ -4,19 +4,16 @@
 
 '''
 
-from email import encoders
-from email.mime import multipart, text, image
-from email.utils import COMMASPACE, formatdate
 import os
 import smtplib
+from email import encoders
+from email.mime import multipart, text, image
 
 from . import prettyoutput
 
 
 def SendMail(**kwargs):
     """Sends an email"""
-    
-
 
     host = kwargs.get('host', None)
     username = kwargs.get('username', None)
@@ -60,7 +57,7 @@ def SendMail(**kwargs):
             prettyoutput.Log("Could not start secure session")
 
         try:
-            if (username is not None):
+            if username is not None:
                 smtpConn.login(username, password)
         except:
             prettyoutput.Log("Could not use provided credentials")

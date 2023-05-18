@@ -1,11 +1,8 @@
 import inspect
 import logging
 import os
-import socket
-import subprocess
 import sys
 import time
-import traceback
 
 import nornir_shared.consolewindow
 
@@ -55,6 +52,7 @@ stdscr = None
 if CURSES:
     import atexit
 
+
     def __EndCurses__():
         curses.endwin()
 
@@ -103,7 +101,7 @@ def CurseString(topic, text):
         y = 0
         x = 0
 
-        if (cursesCoords.has_key(topic)):
+        if cursesCoords.has_key(topic):
             y = cursesCoords[topic]
 
         (yMax, xMax) = statusWindow.getmaxyx()
@@ -126,7 +124,7 @@ def CurseProgress(text: str, Progress: float, Total=None):
     # This is used to calculate an ETA for completion
     global LastReportedProgress
     global ProgressStartTime
-    if (Progress < LastReportedProgress):
+    if Progress < LastReportedProgress:
         ProgressStartTime = float(time.time())
 
     console_width = 80
@@ -160,10 +158,10 @@ def CurseProgress(text: str, Progress: float, Total=None):
     if CURSES:
         (yMax, xMax) = statusWindow.getmaxyx()
 
-        if (cursesCoords.has_key("Task")):
+        if cursesCoords.has_key("Task"):
             TaskY = cursesCoords["Task"]
 
-        if (cursesCoords.has_key("Progress")):
+        if cursesCoords.has_key("Progress"):
             ProgressY = cursesCoords["Progress"]
 
         if text is not None:
@@ -294,7 +292,7 @@ def LogErr(error_message=None, calling_func_name=None):
     elif not isinstance(error_message, str):
         error_message = str(error_message)
 
-    if (error_message[-1] != '\n'):
+    if error_message[-1] != '\n':
         error_message = error_message + '\n'
 
     if calling_func_name is None:

@@ -1,6 +1,5 @@
 import hashlib
 import os
-import typing
 
 from nornir_shared import prettyoutput
 
@@ -20,6 +19,7 @@ def FilesizeChecksum(filename) -> str:
         return str(stats.st_size)
     except (OSError, ValueError):
         return ""
+
 
 def DataChecksum(data: str | list | bytes | None) -> str:
     '''

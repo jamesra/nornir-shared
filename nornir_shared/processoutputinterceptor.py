@@ -5,8 +5,8 @@ Created on Dec 29, 2011
 '''
 
 import os
-import shutil
 import re
+import shutil
 
 from . import prettyoutput
 
@@ -21,7 +21,6 @@ class ProcessOutputInterceptor(object):
 
     ProcessData = None  # An arbitrary object containing data about the process we are monitoring.
     Proc = None  # The process we are tracking
-
 
     def __init__(self, proc, processData=None):
         '''
@@ -40,7 +39,7 @@ class ProcessOutputInterceptor(object):
         lineparsefunc is called at least once with None input when the process terminates'''
 
         proc = lineparseobj.Proc
-        
+
         lines = []
 
         if proc is None:
@@ -62,14 +61,14 @@ class ProcessOutputInterceptor(object):
 
             # Break the loop if the process already terminated
 
-
         # This makes sure we call the lineparsefunc at least once
         lineparseobj.Parse(None)
-        
+
         if return_lines:
             return lines
-        
+
         return None
+
 
 class ProgressOutputInterceptor(ProcessOutputInterceptor):
 
@@ -79,7 +78,7 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
            Task Percentage: 6.667e-001 until 9.000e-001
            '''
 
-        if(line is None):
+        if line is None:
             prettyoutput.CurseProgress(None, 1, 1)
             return
 
@@ -88,10 +87,10 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
         if line.find("percentage:") < 0 and line.find("ETA:") < 0:
             prettyoutput.Log(line)
             return
-        
+
         try:
             parts = line.split(':')
-            if(len(parts) < 2):
+            if len(parts) < 2:
                 return
 
             ProgressString = parts[1].strip()
@@ -107,12 +106,13 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
 
         return
 
+
 class StomOutputInterceptor(ProgressOutputInterceptor):
 
     def __init__(self, proc, processData=None, TargetDir=None, FilePrefix=None):
         self.Proc = proc
         self.FilePrefix = FilePrefix  # Prefix to add to files when we rename them
-        if(self.FilePrefix is None):
+        if self.FilePrefix is None:
             self.FilePrefix = ""
 
         self.ProcessData = processData
@@ -141,18 +141,15 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
         else:
             for line in self.Output:
 
-
-
-
                 '''Processes a single line of output from the provided process and updates status as needed'''
                 try:
                     line = line.lower()
-                    if(line.find("loading") >= 0):
+                    if line.find("loading") >= 0:
                         parts = line.split()
                         FileName = os.path.basename(parts[1])
                         [name, ext] = os.path.splitext(FileName)
                         self.LastLoadedFile = name
-                    elif(line.find("saving") >= 0):
+                    elif line.find("saving") >= 0:
                         parts = line.split()
                         outputFile = parts[1]
 
@@ -160,15 +157,16 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
                         path = os.path.dirname(outputFile)
 
                         [name, ext] = os.path.splitext(outputFile)
-                        if(ext is None):
+                        if ext is None:
                             ext = '.tif'
 
-                        if(len(ext) <= 0):
+                        if len(ext) <= 0:
                             ext = '.tif'
 
                         DestinationFile = os.path.join(path, self.FilePrefix + self.LastLoadedFile + ext)
-                        if(self.TargetDir is not None):
-                            DestinationFile = os.path.join(self.TargetDir, os.path.basename(self.FilePrefix + self.LastLoadedFile) + ext)
+                        if self.TargetDir is not None:
+                            DestinationFile = os.path.join(self.TargetDir, os.path.basename(
+                                self.FilePrefix + self.LastLoadedFile) + ext)
 
                         prettyoutput.Log("Renaming " + outputFile + " to " + DestinationFile)
 
@@ -178,14 +176,13 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
 
         return
 
-class IdentifyOutputInterceptor(ProcessOutputInterceptor):
 
+class IdentifyOutputInterceptor(ProcessOutputInterceptor):
     class Category:
 
         def __init__(self, Field, Value=None):
             self.name = Field
             self.value = Value
-
 
     def __init__(self, proc, processData=None):
         self.TextureWidth = None
@@ -222,7 +219,7 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
         if line is not None:
             indentLevel = IdentifyOutputInterceptor.indentCount(line)
 
-            if(self.LastIndentLevel is None):
+            if self.LastIndentLevel is None:
                 self.LastIndentLevel = indentLevel
 
             line = line.strip()
@@ -231,7 +228,7 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
             # prettyoutput.Log(line)
             self.Output.append(line)
 
-            if(len(line) == 0):
+            if len(line) == 0:
                 return
 
             parts = line.split(':', 1)
@@ -248,7 +245,8 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
                 key = self.LastKeyForLevel[self.LastIndentLevel]
                 c = None
                 if key in self.CategoryForLevel[self.LastIndentLevel].__dict__:
-                    c = IdentifyOutputInterceptor.Category(key , self.CategoryForLevel[self.LastIndentLevel].__dict__[key])
+                    c = IdentifyOutputInterceptor.Category(key,
+                                                           self.CategoryForLevel[self.LastIndentLevel].__dict__[key])
                 else:
                     c = IdentifyOutputInterceptor.Category(key)
 
@@ -285,5 +283,3 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
 
                 # prettyoutput.Log(parts[0] + ' : ' + parts[1])
                 self.CategoryForLevel[indentLevel].__dict__[parts[0]] = parts[1]
-
-

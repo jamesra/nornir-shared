@@ -6,6 +6,7 @@ Created on Jul 11, 2012
 import numpy as np
 from numpy.typing import NDArray, DTypeLike
 
+
 def ListMedian(items):
     '''Return the center item from a sorted list'''
     if items is None:
@@ -39,6 +40,7 @@ def RoundingPrecision(dtype: DTypeLike) -> int:
         raise ValueError(f"Expected floating dtype, got {dtype}")
 
     return int(np.abs(np.log10(np.finfo(dtype).eps)))
+
 
 if __name__ == '__main__':
     pass

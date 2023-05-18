@@ -15,6 +15,7 @@ import nornir_shared.console_constants
 curses_available = False
 try:
     import curses
+
     curses_available = True
 except ImportError:
     pass
@@ -28,6 +29,7 @@ _DEBUG = False
 
 try:
     import pydevd
+
     pydevd_available = True
 except ImportError:
     pass
@@ -37,39 +39,39 @@ def CreateParser() -> argparse.ArgumentParser:
     argparser = argparse.ArgumentParser()
 
     argparser.add_argument('-port',
-                        required=False,
-                        default=50007,
-                        type=int,
-                        help='Port # for second console.  Defaults to 50007',
-                        dest='PORT')
+                           required=False,
+                           default=50007,
+                           type=int,
+                           help='Port # for second console.  Defaults to 50007',
+                           dest='PORT')
 
     argparser.add_argument('-host',
-                        required=False,
-                        default='127.0.0.1',
-                        help='Host IP for the second console.  Defaults to 127.0.0.1 (localhost)',
-                        dest='HOST')
+                           required=False,
+                           default='127.0.0.1',
+                           help='Host IP for the second console.  Defaults to 127.0.0.1 (localhost)',
+                           dest='HOST')
 
     argparser.add_argument('-usecurses', '-c',
-                        required=False,
-                        default=False,
-                        action='store_true',
-                        help='Indicates the curses library should be used for the second window',
-                        dest='curses')
+                           required=False,
+                           default=False,
+                           action='store_true',
+                           help='Indicates the curses library should be used for the second window',
+                           dest='curses')
 
     argparser.add_argument('-debug',
-                        required=False,
-                        default=False,
-                        action='store_true',
-                        help='Create text files for second console with recieved lines and exception information',
-                        dest='debug')
+                           required=False,
+                           default=False,
+                           action='store_true',
+                           help='Create text files for second console with recieved lines and exception information',
+                           dest='debug')
 
     argparser.add_argument('-title',
-                        required=False,
-                        default='',
-                        action='store',
-                        type=str,
-                        help='Title of the window',
-                        dest='title')
+                           required=False,
+                           default='',
+                           action='store',
+                           type=str,
+                           help='Title of the window',
+                           dest='title')
 
     return argparser
 
@@ -252,7 +254,7 @@ if __name__ == '__main__':
         if curses_available:
             try:
                 success = nornir_shared.curses_console.InitCurses()
-                assert(success), "Could not InitCurses"
+                assert success, "Could not InitCurses"
             except Exception as e:
                 sys.stdout.write(traceback.format_exc())
                 with CreateDebugInfoFile('Console_Curses_Error.txt') as hFile:

@@ -1,10 +1,10 @@
 from __future__ import annotations
-import typing
+
 import copy
-from decimal import *
 import math
-import os
+import typing
 import xml.dom.minidom
+from decimal import *
 
 from nornir_shared import prettyoutput
 
@@ -159,14 +159,13 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def Load(filename: str) -> Histogram | None: 
+    def Load(filename: str) -> Histogram | None:
         try:
             xml_str = xml.dom.minidom.parse(filename)
             return Histogram.FromXML(xml_str)
         except FileNotFoundError:
             prettyoutput.Log(f"Mosaic file not found: {filename}")
             return None
-        
 
     @property
     def BinWidth(self) -> float:
@@ -498,7 +497,7 @@ class Histogram(object):
             if self.Bins[min_index] >= cutoff:
                 break
 
-        for max_index in range(self.NumBins-1, -1, -1):
+        for max_index in range(self.NumBins - 1, -1, -1):
             if self.Bins[max_index] >= cutoff:
                 break
 
