@@ -47,7 +47,8 @@ def rmtree(directory: str, ignore_errors: bool = False):
         os.rmdir(directory)
     except OSError as e:
         if ignore_errors is True:
-            prettyoutput.error(f'{e}')
+            #prettyoutput.error(f'{e}')
+            pass
         else:
             raise e
             
