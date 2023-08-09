@@ -11,6 +11,7 @@ import os
 import re
 import time
 import typing
+from enum import IntEnum, auto
 
 import nornir_shared
 from nornir_shared import prettyoutput
@@ -21,6 +22,10 @@ DefaultLevelStrings = frozenset([DownsampleFormat % l for l in DefaultLevels])
 DefaultExcludeList = frozenset(
     ["clahe", "mbproj", "8-bit", "16-bit", "blob", "mosaic", "tem", "temp", "bruteresults", "gridresults", "results",
      "registered"])
+
+class FileTimeComparison(IntEnum):
+    MODIFIED = auto()
+    CREATION = auto()
 
 
 def rmtree(directory: str, ignore_errors: bool = False):
@@ -56,7 +61,7 @@ def rmtree(directory: str, ignore_errors: bool = False):
     return
 
 
-def NewestFile(fileA: str, fileB: str):
+def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
 
     if fileA is None:
@@ -64,6 +69,9 @@ def NewestFile(fileA: str, fileB: str):
 
     if fileB is None:
         raise ValueError("fileB should not be None")
+    
+    if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
+        raise ValueError('Unknown comparison')
 
     AStats = None
     try:
@@ -78,16 +86,19 @@ def NewestFile(fileA: str, fileB: str):
     except FileNotFoundError:
         prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
-
-    if AStats.st_mtime > BStats.st_mtime:
+      
+    atime = AStats.st_mtime if comparison == FileTimeComparison.MODIFIED else AStats.st_ctime
+    btime = BStats.st_mtime if comparison == FileTimeComparison.MODIFIED else BStats.st_ctime
+    
+    if atime > btime:
         return fileA
-    elif AStats.st_mtime < BStats.st_mtime:
+    elif atime < btime:
         return fileB
     else:
         return fileB
 
 
-def IsOutdated(ReferenceFilename, TestFilename):
+def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
     '''
     :return: True if TestFilename is older than ReferenceFilename
     '''
@@ -97,13 +108,15 @@ def IsOutdated(ReferenceFilename, TestFilename):
 
 
 def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime | datetime.date | time.struct_time,
-                DateTimeFormat: str | None = None):
+                DateTimeFormat: str | None = None, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
     '''Return true if the file is older than the specified date string
     :param str TestPath: Path we are using to retrieve the last modified time from
     :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
     :param str DateTimeFormat: Optional, if a string is passed this parameter indicates the string format.  Defaults to "%d %b %Y %H:%M:%S"
     :returns: True if the file is older than the reference date
     '''
+    if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
+        raise ValueError('Unknown comparison')
 
     if DateTimeFormat is None:
         DateTimeFormat = "%d %b %Y %H:%M:%S"
@@ -124,17 +137,18 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
         raise TypeError("IsOlderThan expects a string or floating parameter to compare against, got %s" % str(DateTime))
 
     # modified_time = datetime.datetime.fromtimestamp()
-    modified_time = os.path.getmtime(TestPath)
-    return modified_time < DateTime
+    file_time = os.path.getmtime(TestPath) if comparison == FileTimeComparison.MODIFIED else os.path.getctime(TestPath)
+    return file_time < DateTime
 
 
-def OutdatedFile(ReferenceFilename, TestFilename):
+def OutdatedFile(ReferenceFilename: str, TestFilename: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
     return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
 
 
 def RemoveOutdatedFile(ReferenceFilename: str,
-                       remove_if_outdated: str | datetime.datetime | datetime.date | time.struct_time | float | int) -> bool:
+                       remove_if_outdated: str | datetime.datetime | datetime.date | time.struct_time | float | int,
+                       comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     '''
     Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
     :return: True if the input parameter is outdated
@@ -145,17 +159,17 @@ def RemoveOutdatedFile(ReferenceFilename: str,
         raise ValueError("Cannot compare to None")
 
     if isinstance(remove_if_outdated, str):
-        needsRemoving = OutdatedFile(ReferenceFilename, remove_if_outdated)
+        needsRemoving = OutdatedFile(ReferenceFilename, remove_if_outdated, comparison)
     elif isinstance(remove_if_outdated, datetime.datetime):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
     elif isinstance(remove_if_outdated, datetime.date):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
     elif isinstance(remove_if_outdated, time.struct_time):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
     elif isinstance(remove_if_outdated, float):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
     elif isinstance(remove_if_outdated, int):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated)
+        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
     else:
         raise ValueError(f"Unexpected type to compare against {remove_if_outdated.__class__}")
 
