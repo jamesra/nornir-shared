@@ -87,8 +87,8 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
         prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
       
-    atime = AStats.st_mtime if comparison == FileTimeComparison.MODIFIED else AStats.st_ctime
-    btime = BStats.st_mtime if comparison == FileTimeComparison.MODIFIED else BStats.st_ctime
+    atime = AStats.st_mtime_ns if comparison == FileTimeComparison.MODIFIED else AStats.st_ctime_ns
+    btime = BStats.st_mtime_ns if comparison == FileTimeComparison.MODIFIED else BStats.st_ctime_ns
     
     if atime > btime:
         return fileA
@@ -143,7 +143,7 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
 
 def OutdatedFile(ReferenceFilename: str, TestFilename: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
-    return NewestFile(ReferenceFilename, TestFilename) == ReferenceFilename
+    return NewestFile(ReferenceFilename, TestFilename, comparison) == ReferenceFilename
 
 
 def RemoveOutdatedFile(ReferenceFilename: str,
