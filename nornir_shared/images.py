@@ -179,7 +179,7 @@ def IsValidImage(filename: str) -> bool:
     return True
 
 
-def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None):
+def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None) -> list[str]:
     ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
 
     filenamelist = filenames

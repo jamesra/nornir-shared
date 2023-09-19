@@ -476,7 +476,7 @@ def RemoveDirectorySpaces(Path):
     '''
     import shutil
 
-    if os.path.exists(Path) == False:
+    if not os.path.exists(Path):
         prettyoutput.Log("No valid path provided as first argument")
         return
 
@@ -513,7 +513,7 @@ def RemoveFilenameSpaces(Path, ext):
     '''Replaces spaces in filenames with _'''
     import shutil
 
-    if os.path.exists(Path) == False:
+    if not os.path.exists(Path):
         prettyoutput.Log("No valid path provided as first argument")
         return
 

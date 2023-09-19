@@ -11,7 +11,7 @@ CURSES = False
 
 ProgressStartTime = None
 
-if ECLIPSE == False:
+if not ECLIPSE:
     try:
         import curses
 
@@ -39,7 +39,7 @@ def ResetIndent():
     __IndentLevel = 0
 
 
-if os.path.exists('Logs') == False:
+if not os.path.exists('Logs'):
     try:
         os.mkdir('Logs')
     except OSError as E:
