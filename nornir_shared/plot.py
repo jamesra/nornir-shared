@@ -75,8 +75,14 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
               Title: str | None = None,
               xlabel: str | None = None, ylabel: str | None = None,
               minX: float | None = None, maxX: float | None = None, dpi: int | None = None,
-              range_is_power_of_two: bool = False):
+              range_is_power_of_two: bool = False, axes = None):
     Hist = None
+    
+    if axes is None:
+        plt.clf()
+        axes = plt.axes() 
+    else:
+        plt.sca(axes)
 
     if dpi is None:
         dpi = 150
@@ -150,28 +156,28 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     #  print 'Bin Sum: ' + str(sum(Hist.Bins))
 
     # print Hist.Bins
-    plt.clf()
-    plt.bar(BinValues, Hist.Bins, color='blue', edgecolor=None, linewidth=0, width=Hist.BinWidth)
-    plt.title(Title)
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
+    # plt.clf()
+    axes.bar(BinValues, Hist.Bins, color='blue', edgecolor=None, linewidth=0, width=Hist.BinWidth)
+    axes.set_title(Title)
+    axes.set_ylabel(ylabel)
+    axes.set_xlabel(xlabel)
     # plt.xticks([])
-    plt.yticks([])
+    axes.set_yticks([])
 
     # For a time ticks were rendering very slowly, this turned out to be specific to numpy.linalg.inv on Python 2.7.6
 
     if ShowCutoffs:
         if MinCutoff:
-            plt.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
+            axes.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
 
             if MinCutoffPercent:
-                plt.annotate(f'{float(MinCutoffPercent) * 100:.3f}%', [MinCutoff, yMax * 0.5])
+                axes.annotate(f'{float(MinCutoffPercent) * 100:.3f}%', [MinCutoff, yMax * 0.5])
 
         if MaxCutoff:
-            plt.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
+            axes.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
 
             if MaxCutoffPercent:
-                plt.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
+                axes.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
 
     if ShowLine:
         color = 'green'
@@ -186,15 +192,15 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
                 color = LineColorList[i]
 
-            plt.plot([linePos, linePos], [0, yMax], color=color)
-            plt.annotate(f'{linePos:g}', [linePos, yMax * 0.9])
+            axes.plot([linePos, linePos], [0, yMax], color=color)
+            axes.annotate(f'{linePos:g}', [linePos, yMax * 0.9])
 
     plt.gcf().set_dpi(150)
 
     visible_min_x, visible_max_x = None, None
     if minX is None or maxX is None:
 
-        width_pixels, height_pixels = GetPlotSizeInPixels(plt.gcf(), plt.gca())
+        width_pixels, height_pixels = GetPlotSizeInPixels(plt.gcf(), axes)
         # If we do not have enough horizontal space to display the entire histogram, attempt to trim it to the visible region
         if width_pixels < (Hist.MaxValue - Hist.MinValue) / Hist.BinWidth:
             visible_min_x, visible_max_x = Hist.XAxis_Extrema_Using_Threshold(height_pixels)
@@ -213,7 +219,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
     if range_is_power_of_two:
         minX, maxX = EnsureAxisLimitsArePowerOfTwo(minX, maxX)
 
-    plt.xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
+    axes.set_xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
 
     if ImageFilename is not None:
         # plt.show() 
