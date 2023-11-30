@@ -307,6 +307,13 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
                                         caseInsensitive=True,
                                         ):
     '''Same as RecurseSubdirectories, but returns a generator
+    :param str Path: Path to search
+    :param RequiredFiles: A regular expression or list of files which must be present in the directory
+    :param ExcludedFiles: A regular expression or list of files which must not be present in the directory
+    :param MatchNames: A list of directory names which will be included in the output.
+    :param ExcludeNames: A list of directory names which will be excluded from the output
+    :param ExcludedDownsampleLevels: A list of downsample levels which will be excluded from the output
+    :param bool caseInsensitive: If true then directory names are compared in a case insensitive manner
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
     '''
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
@@ -333,7 +340,7 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
         # dirs = filter(lambda e: e.is_dir, entries)
 
         excluded = False
-        required_files = []
+        known_required_files = []
 
         # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
         if RequiredFiles is None and ExcludedFiles is None:
@@ -349,16 +356,19 @@ def _RecurseSubdirectoriesGeneratorTask(executor,
                         break
 
                 if RequiredFiles is not None and check_if_file_matches(file.name, RequiredFiles):
-                    required_files.append(file.name)
+                    known_required_files.append(file.name)
                     # has_required_files = has_required_files or 
 
         # Do not yield the directory since it contains an excluded file
         if excluded:
             return
 
-        # Yield the directory if it has a required file
-        if len(required_files) > 0:
-            yield Path, required_files
+        # Yield the directory if it has a required file or if there are no requirements
+        if len(known_required_files) > 0:
+            yield Path, known_required_files
+        elif (RequiredFiles is None or len(RequiredFiles) == 0) and \
+             (MatchNames is None or len(MatchNames) == 0):
+            yield Path, []
 
         dir_search_tasks = []
 
