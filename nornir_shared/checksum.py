@@ -4,24 +4,22 @@ import os
 from nornir_shared import prettyoutput
 
 
-def FilesizeChecksum(filename) -> str:
+def FilesizeChecksum(filename) -> str | None:
     '''
        Returns the size of a file in bytes for use as a simple checksum
        
        :param str filename: path to file
        :return: Size of file as a string
        :rtype: str
+       :raises FileNotFoundError: If the file does not exist
        
     '''
 
-    try:
-        stats = os.stat(filename)
-        return str(stats.st_size)
-    except (OSError, ValueError):
-        return ""
+    stats = os.stat(filename)
+    return str(stats.st_size) 
 
 
-def DataChecksum(data: str | list | bytes | None) -> str:
+def DataChecksum(data: str | list | bytes | None) -> str | None:
     '''
      Removes whitespace from strings before calculating md5 checksum
     :param obj data: string, list or object convertible to string
@@ -56,6 +54,7 @@ def FileChecksum(filename: str) -> str | None:
     :param str filename: path to file
     :return: md5 checksum
     :rtype str: 
+    :raises FileNotFoundError: If the file does not exist
     '''
     try:
         with open(filename) as f:
@@ -64,11 +63,12 @@ def FileChecksum(filename: str) -> str | None:
             dataStr = data.encode('utf-8')
             return DataChecksum(dataStr)
 
-    except FileNotFoundError as fnfe:
+    except FileNotFoundError:
         prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
-        return None
+        raise
     except Exception as e:
         prettyoutput.LogErr("Could not compute checksum for file: " + filename + "\n" + str(e))
+        raise
 
     return None
 
