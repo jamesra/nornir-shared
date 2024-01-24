@@ -29,7 +29,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-test = [curses>=2.2","pydevd>=2.9"]
+test = ["curses>=2.2","pydevd>=2.9"]
 
 [project.urls]
 Homepage = "https://github.com/clementsan/nornir-shared"
