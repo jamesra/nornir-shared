@@ -45,8 +45,8 @@ jobs:
         echo $GITHUB_WORKSPACE
         echo $HOME
         echo $TESTINPUTPATH
-        mkdir -p $TESTINPUTPATH 
-        mkdir -p $TESTOUTPUTPATH
+        mkdir $TESTINPUTPATH 
+        mkdir $TESTOUTPUTPATH
     - name: Test with unittest
       run: |
         python -m unittest discover -s ./test  -p 'test_Histogram*.py'
