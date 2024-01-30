@@ -48,6 +48,7 @@ import nornir_shared.mathhelper as mathhelper
 import nornir_shared.plot as plot
 import nornir_shared.prettyoutput as prettyoutput
 import nornir_shared.tasktimer as tasktimer
+import nornir_shared.images as images
 from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
 
 def find_first_match(collection, attributes: dict[str, any]) -> object | None:

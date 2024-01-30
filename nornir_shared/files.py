@@ -342,8 +342,8 @@ def _RecurseSubdirectoriesGeneratorTask(
         known_required_files = []
 
         # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
-        if (RequiredFiles is None or len(RequiredFiles) == 0) and \
-           (ExcludedFiles is None or len(ExcludedFiles) == 0):
+        if (RequiredFiles is None or not RequiredFiles) and  \
+           (ExcludedFiles is None or not ExcludedFiles):
             # Automatically pass the test of whether the directory contains or does not have certain files
             excluded = False
         else:
@@ -366,8 +366,8 @@ def _RecurseSubdirectoriesGeneratorTask(
         # Yield the directory if it has a required file or if there are no requirements
         if len(known_required_files) > 0:
             yield Path, known_required_files
-        elif (RequiredFiles is None or len(RequiredFiles) == 0) and \
-             (MatchNames is None or len(MatchNames) == 0):
+        elif (RequiredFiles is None or not RequiredFiles) and \
+             (MatchNames is None or not MatchNames):
             yield Path, []
 
         dir_search_tasks = []

@@ -10,7 +10,7 @@ import os
 import shutil
 import subprocess
 
-import numpy
+import numpy as np
 from numpy.typing import NDArray
 
 from PIL import Image
@@ -128,7 +128,7 @@ def IsImageNumpyFormat(path: str):
     return '.npy' == ext
 
 
-def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
+def GetImageSize(image_param: str | NDArray) -> NDArray[np.integer]:
     """
     :param image_param:
     """
@@ -136,7 +136,7 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
     # if not os.path.exists(ImageFullPath):
     # raise ValueError("%s does not exist" % (ImageFullPath))
 
-    if isinstance(image_param, numpy.ndarray):
+    if isinstance(image_param, np.ndarray):
         return image_param.shape
 
     (root, ext) = os.path.splitext(image_param)
@@ -144,12 +144,12 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[int]:
     im = None
     try:
         if ext == '.npy':
-            im = numpy.load(image_param, 'c')
+            im = np.load(image_param, 'c')
             return im.shape
         else:
             with Image.open(image_param) as im:
                 shape = (im.size[1], im.size[0])
-                return numpy.array(shape, dtype=numpy.int32)
+                return np.array(shape, dtype=np.int32)
     except IOError:
         raise IOError("Unable to read size from %s" % image_param)
     finally:

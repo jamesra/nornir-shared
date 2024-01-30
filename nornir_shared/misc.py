@@ -39,7 +39,7 @@ def RunWithProfiler(functionStr, outputpath=None):
             sys.exit()
 
         pr = pstats.Stats(ProfilePath)
-        if not pr is None:
+        if pr is not None:
             pr.sort_stats('time')
             print(str(pr.print_stats(.1)))
             logger.info(str(pr.print_stats(0.1)))
@@ -47,7 +47,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     pr.print_callers(.1)
 
 
-def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
+def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=None):
     '''
     :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
     :param str OutputPath: Path to directory to use to save log files.
@@ -71,7 +71,7 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
         LogPath = None
 
         # Figure out the loggging directory if it is not specified
-        if not OutputPath is None and os.path.isabs(OutputPath):
+        if OutputPath is not None and os.path.isabs(OutputPath):
             LogPath = OutputPath
         else:
             BaseLoggingDir = None
@@ -85,7 +85,7 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str = None, Level=None):
             else:
                 LogPath = BaseLoggingDir
 
-        if not LogPath is None:
+        if LogPath is not None:
             try:
                 os.makedirs(LogPath, exist_ok=True)
             except:

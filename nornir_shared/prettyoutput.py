@@ -13,9 +13,10 @@ ProgressStartTime = None
 
 if not ECLIPSE:
     try:
-        import curses
-
-        CURSES = True
+        # Jan 30 2024
+        # Curses is causing trouble on Linux installs, so removing it for now
+        # import curses
+        #CURSES = True
     except ImportError:
         pass
 

@@ -30,7 +30,7 @@ def ListMedian(items):
         return (tempList[int(length / 2 - 1)] + tempList[int(length / 2)]) / 2
 
 
-def NearestPowerOfTwo(val: float | int | NDArray[float] | NDArray[int]) -> NDArray[int]:
+def NearestPowerOfTwo(val: float | int | NDArray[np.floating] | NDArray[np.integer]) -> NDArray[np.integer]:
     return np.power(2, np.ceil(np.log2(val))).astype(int, copy=False)
 
 
