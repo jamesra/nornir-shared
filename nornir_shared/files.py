@@ -12,20 +12,27 @@ import re
 import time
 import typing
 from enum import IntEnum, auto
+from typing import Sequence
 
 import nornir_shared
 from nornir_shared import prettyoutput
 
 DownsampleFormat = '%03d'
 DefaultLevels = frozenset([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
-DefaultLevelStrings = frozenset([DownsampleFormat % l for l in DefaultLevels])
+DefaultLevelStrings = frozenset([DownsampleFormat % lev for lev in DefaultLevels])
 DefaultExcludeList = frozenset(
     ["clahe", "mbproj", "8-bit", "16-bit", "blob", "mosaic", "tem", "temp", "bruteresults", "gridresults", "results",
      "registered"])
 
+
 class FileTimeComparison(IntEnum):
     MODIFIED = auto()
     CREATION = auto()
+
+
+class FindFileResult(typing.NamedTuple):
+    path: str  # Path that matched criteria
+    matched_files: list[str] | None  # Files requested by the Match paramter
 
 
 def rmtree(directory: str, ignore_errors: bool = False):
@@ -53,7 +60,7 @@ def rmtree(directory: str, ignore_errors: bool = False):
         os.rmdir(directory)
     except OSError as e:
         if ignore_errors is True:
-            #prettyoutput.error(f'{e}')
+            # prettyoutput.error(f'{e}')
             pass
         else:
             raise e
@@ -61,7 +68,7 @@ def rmtree(directory: str, ignore_errors: bool = False):
     return
 
 
-def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
+def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> str | None:
     ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
 
     if fileA is None:
@@ -69,7 +76,7 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
 
     if fileB is None:
         raise ValueError("fileB should not be None")
-    
+
     if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
         raise ValueError('Unknown comparison')
 
@@ -86,10 +93,10 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
     except FileNotFoundError:
         prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
-      
+
     atime = AStats.st_mtime_ns if comparison == FileTimeComparison.MODIFIED else AStats.st_ctime_ns
     btime = BStats.st_mtime_ns if comparison == FileTimeComparison.MODIFIED else BStats.st_ctime_ns
-    
+
     if atime > btime:
         return fileA
     elif atime < btime:
@@ -98,7 +105,7 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
         return fileB
 
 
-def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
+def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     '''
     :return: True if TestFilename is older than ReferenceFilename
     '''
@@ -108,7 +115,8 @@ def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison =
 
 
 def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime | datetime.date | time.struct_time,
-                DateTimeFormat: str | None = None, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
+                DateTimeFormat: str | None = None,
+                comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     '''Return true if the file is older than the specified date string
     :param str TestPath: Path we are using to retrieve the last modified time from
     :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
@@ -141,7 +149,8 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
     return file_time < DateTime
 
 
-def OutdatedFile(ReferenceFilename: str, TestFilename: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED):
+def OutdatedFile(ReferenceFilename: str, TestFilename: str,
+                 comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
     return NewestFile(ReferenceFilename, TestFilename, comparison) == ReferenceFilename
 
@@ -153,29 +162,29 @@ def RemoveOutdatedFile(ReferenceFilename: str,
     Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
     :return: True if the input parameter is outdated
     '''
-    needsRemoving = False
+    needs_removing = False
 
     if ReferenceFilename is None:
         raise ValueError("Cannot compare to None")
 
     if isinstance(remove_if_outdated, str):
-        needsRemoving = OutdatedFile(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = OutdatedFile(ReferenceFilename, remove_if_outdated, comparison=comparison)
     elif isinstance(remove_if_outdated, datetime.datetime):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     elif isinstance(remove_if_outdated, datetime.date):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     elif isinstance(remove_if_outdated, time.struct_time):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     elif isinstance(remove_if_outdated, float):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     elif isinstance(remove_if_outdated, int):
-        needsRemoving = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison)
+        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     else:
         raise ValueError(f"Unexpected type to compare against {remove_if_outdated.__class__}")
 
     #   [name, ext] = os.path.splitext(TestFilename)
 
-    if needsRemoving:
+    if needs_removing:
 
         if isinstance(remove_if_outdated, str):
             try:
@@ -187,7 +196,7 @@ def RemoveOutdatedFile(ReferenceFilename: str,
                 prettyoutput.Log(f'Exception removing outdated file: {remove_if_outdated}\n{e}')
                 pass
 
-    return needsRemoving
+    return needs_removing
 
 
 def RemoveInvalidImageFile(TestFilename: str):
@@ -211,12 +220,12 @@ def RecurseSubdirectories(Path: str,
                           MatchNames=None,
                           ExcludeNames=None,
                           ExcludedDownsampleLevels=None,
-                          caseInsensitive=True):
+                          caseInsensitive=True) -> list[FindFileResult]:
     '''Recurse Subdirectories adds Path and every subdirectory to a list
        If MatchNames is not null we yield the matching directory, but do not recurse subdirectories underneath.  A directory name matching this parameter will always be included, overriding the RequiredFiles or ExcludeFiles restrictions.
        If ExcludeNames  is not null we do not add the directory to the list and do not recurse subdirectories/
        if RequiredFiles is not null the directory must contain the required file before we add it.  No subdirectories are searched.
-       if ExcludeFiles is not null and the directory contains the a matching file we do not add it or search subdirectories
+       if ExcludeFiles is not null and the directory contains a matching file we do not add it or search subdirectories
        ExcludedDownsampleLevels and ExcludeNames must be an empty list to avoid population with default values.
        RequiredFiles and ExcludeFiles can be either a regular expression string or a list of specific filenames.
        Excluded files take priority over RequiredFiles
@@ -229,8 +238,10 @@ def RecurseSubdirectories(Path: str,
     return list(generator)
 
 
-def ensure_regex_or_set(param: str | re.Pattern | None, caseInsensitive: bool = False) -> re.Pattern[typing.AnyStr] | \
-                                                                                          frozenset[str] | None:
+def ensure_regex_or_set(param: str | re.Pattern | Sequence[str] | None, caseInsensitive: bool = False) -> re.Pattern[
+                                                                                                              typing.AnyStr] | \
+                                                                                                          frozenset[
+                                                                                                              str] | None:
     if param is None:
         return None
     elif isinstance(param, re.Pattern):
@@ -240,16 +251,19 @@ def ensure_regex_or_set(param: str | re.Pattern | None, caseInsensitive: bool = 
         if param[0] == '*':
             param = param.replace('.', '\.')
             param = param.replace('*', '.*')
-            param = param + '$'
+            param += '$'
         return re.compile(param, re.IGNORECASE if caseInsensitive else 0)
     else:
         return ensure_string_set(param, caseInsensitive)
 
 
-def ensure_string_set(param, caseInsensitive: bool = False) -> frozenset[str] | None:
+def ensure_string_set(param: str | Sequence[str] | None, caseInsensitive: bool = False) -> frozenset[str] | None:
     '''Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided'''
     if param is None:
         return None
+
+    if isinstance(param, str):
+        return frozenset([param.lower() if caseInsensitive else param])
 
     if (isinstance(param, frozenset) or isinstance(param, set)) is False:
         if not isinstance(param, collections.abc.Iterable):
@@ -269,19 +283,19 @@ def RecurseSubdirectoriesGenerator(Path: str,
                                    MatchNames: list[str] | None = None,
                                    ExcludeNames: list[str] | None = None,
                                    ExcludedDownsampleLevels: list[int] | None = None,
-                                   caseInsensitive: bool = True):
+                                   caseInsensitive: bool = True) -> typing.Generator[FindFileResult, None, None]:
     '''Same as RecurseSubdirectories, but returns a generator
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
     '''
 
-    yield from _RecurseSubdirectoriesGeneratorTask( 
-                                                  Path,
-                                                  RequiredFiles=RequiredFiles,
-                                                  ExcludedFiles=ExcludedFiles,
-                                                  MatchNames=MatchNames,
-                                                  ExcludeNames=ExcludeNames,
-                                                  ExcludedDownsampleLevels=ExcludedDownsampleLevels,
-                                                  caseInsensitive=caseInsensitive)
+    yield from _RecurseSubdirectoriesGeneratorTask(
+        Path,
+        RequiredFiles=RequiredFiles,
+        ExcludedFiles=ExcludedFiles,
+        MatchNames=MatchNames,
+        ExcludeNames=ExcludeNames,
+        ExcludedDownsampleLevels=ExcludedDownsampleLevels,
+        caseInsensitive=caseInsensitive)
 
 
 def _SeparateFilesAndDirs(entries) -> tuple[list[os.DirEntry], list[os.DirEntry]]:
@@ -297,14 +311,14 @@ def _SeparateFilesAndDirs(entries) -> tuple[list[os.DirEntry], list[os.DirEntry]
 
 
 def _RecurseSubdirectoriesGeneratorTask(
-                                    Path,
-                                    RequiredFiles=None,
-                                    ExcludedFiles=None,
-                                    MatchNames=None,
-                                    ExcludeNames=None,
-                                    ExcludedDownsampleLevels=None,
-                                    caseInsensitive=True,
-                                    ):
+        Path: str,
+        RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
+        ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
+        MatchNames: str | Sequence[str] | None = None,
+        ExcludeNames: str | Sequence[str] | None = None,
+        ExcludedDownsampleLevels: list[int] | None = None,
+        caseInsensitive: bool = True,
+) -> typing.Generator[FindFileResult, None, None]:
     '''Same as RecurseSubdirectories, but returns a generator
     :param str Path: Path to search
     :param RequiredFiles: A regular expression or list of files which must be present in the directory
@@ -312,7 +326,7 @@ def _RecurseSubdirectoriesGeneratorTask(
     :param MatchNames: A list of directory names which will be included in the output.
     :param ExcludeNames: A list of directory names which will be excluded from the output
     :param ExcludedDownsampleLevels: A list of downsample levels which will be excluded from the output
-    :param bool caseInsensitive: If true then directory names are compared in a case insensitive manner
+    :param bool caseInsensitive: If true then directory names are compared in a case-insensitive manner
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
     '''
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
@@ -342,8 +356,8 @@ def _RecurseSubdirectoriesGeneratorTask(
         known_required_files = []
 
         # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
-        if (RequiredFiles is None or not RequiredFiles) and  \
-           (ExcludedFiles is None or not ExcludedFiles):
+        if (RequiredFiles is None or not RequiredFiles) and \
+                (ExcludedFiles is None or not ExcludedFiles):
             # Automatically pass the test of whether the directory contains or does not have certain files
             excluded = False
         else:
@@ -367,12 +381,12 @@ def _RecurseSubdirectoriesGeneratorTask(
         if len(known_required_files) > 0:
             yield Path, known_required_files
         elif (RequiredFiles is None or not RequiredFiles) and \
-             (MatchNames is None or not MatchNames):
-            yield Path, []
+                (MatchNames is None or not MatchNames):
+            yield FindFileResult(path=Path, matched_files=[])
 
         dir_search_tasks = []
 
-        #Filter out directories we do not want to recurse into
+        # Filter out directories we do not want to recurse into
         dirs = set(dirs)
 
         dirs_with_dots = list(filter(lambda d: d.path.find('.') > -1, dirs))
@@ -382,28 +396,29 @@ def _RecurseSubdirectoriesGeneratorTask(
         if ExcludeNames is not None:
             excluded_dir_names = filter(lambda d: d.name.lower() in ExcludeNames, dirs)
             dirs = dirs.difference(excluded_dir_names)
-            
+
         if len(dirs) > 3:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(dirs), 8), thread_name_prefix=Path + '_') as executor: 
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(dirs), 8),
+                                                       thread_name_prefix=Path + '_') as executor:
                 for d in dirs:
                     fullpath = os.path.join(Path, d.path)
                     if MatchNames is not None and d.name.lower() in MatchNames:
-                        yield fullpath, []
+                        yield FindFileResult(path=fullpath, matched_files=[])
                         continue  # We do not iterate the subdirectories of MatchNames
-        
+
                     # If we are not matching names or requiring files then return the path
                     # if MatchNames is None and RequiredFiles is None:
                     # yield fullpath
-        
+
                     # Add directory tree to list and keep looking
-        
+
                     # yield from RecurseSubdirectoriesGenerator(fullpath,
                     #                        RequiredFiles=RequiredFiles,
                     #                        ExcludedFiles=ExcludedFiles,
                     #                        MatchNames=MatchNames,
                     #                        ExcludeNames=ExcludeNames,
                     #                        ExcludedDownsampleLevels=ExcludedDownsampleLevels)
-        
+
                     task = executor.submit(_RecurseSubdirectoriesListTask,
                                            Path=fullpath,
                                            RequiredFiles=RequiredFiles,
@@ -412,7 +427,7 @@ def _RecurseSubdirectoriesGeneratorTask(
                                            ExcludeNames=ExcludeNames,
                                            ExcludedDownsampleLevels=ExcludedDownsampleLevels)
                     dir_search_tasks.append(task)
-        
+
                     # for subd in RecurseSubdirectoriesGenerator(fullpath,
                     #                       RequiredFiles=RequiredFiles,
                     #                       ExcludedFiles=ExcludedFiles,
@@ -420,7 +435,7 @@ def _RecurseSubdirectoriesGeneratorTask(
                     #                       ExcludeNames=ExcludeNames,
                     #                       ExcludedDownsampleLevels=ExcludedDownsampleLevels):
                     #     yield subd
-        
+
                 for t in concurrent.futures.as_completed(dir_search_tasks):
                     output = t.result()
                     if output is not None:
@@ -430,7 +445,7 @@ def _RecurseSubdirectoriesGeneratorTask(
             for d in dirs:
                 fullpath = os.path.join(Path, d.path)
                 if MatchNames is not None and d.name.lower() in MatchNames:
-                    yield fullpath, []
+                    yield FindFileResult(path=fullpath, matched_files=[])
                     continue  # We do not iterate the subdirectories of MatchNames
 
                 # If we are not matching names or requiring files then return the path
@@ -440,15 +455,15 @@ def _RecurseSubdirectoriesGeneratorTask(
                 # Add directory tree to list and keep looking
 
                 yield from RecurseSubdirectoriesGenerator(fullpath,
-                                       RequiredFiles=RequiredFiles,
-                                       ExcludedFiles=ExcludedFiles,
-                                       MatchNames=MatchNames,
-                                       ExcludeNames=ExcludeNames,
-                                       ExcludedDownsampleLevels=ExcludedDownsampleLevels)
+                                                          RequiredFiles=RequiredFiles,
+                                                          ExcludedFiles=ExcludedFiles,
+                                                          MatchNames=MatchNames,
+                                                          ExcludeNames=ExcludeNames,
+                                                          ExcludedDownsampleLevels=ExcludedDownsampleLevels)
 
         # for t in dir_search_tasks:
         # output = t.result()
-        ##if output is not None:
+        # if output is not None:
         #   yield from output
 
     except IOError:
@@ -461,27 +476,27 @@ def _RecurseSubdirectoriesGeneratorTask(
 
 
 def _RecurseSubdirectoriesListTask(
-                                   Path:str,
-                                   RequiredFiles=None,
-                                   ExcludedFiles=None,
-                                   MatchNames=None,
-                                   ExcludeNames=None,
-                                   ExcludedDownsampleLevels=None,
-                                   caseInsensitive=True,
-                                   ):
+        Path: str,
+        RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
+        ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
+        MatchNames: str | Sequence[str] | None = None,
+        ExcludeNames: str | Sequence[str] | None = None,
+        ExcludedDownsampleLevels: Sequence[int] | None = None,
+        caseInsensitive: bool = True,
+):
     """
     This is called on another thread, we force the generator to return its items
     as a list so we can yield results from the main thread
     """
     return list(_RecurseSubdirectoriesGeneratorTask(
-                                                    Path=Path,
-                                                    RequiredFiles=RequiredFiles,
-                                                    ExcludedFiles=ExcludedFiles,
-                                                    MatchNames=MatchNames,
-                                                    ExcludeNames=ExcludeNames,
-                                                    ExcludedDownsampleLevels=ExcludedDownsampleLevels,
-                                                    caseInsensitive=caseInsensitive,
-                                                    ))
+        Path=Path,
+        RequiredFiles=RequiredFiles,
+        ExcludedFiles=ExcludedFiles,
+        MatchNames=MatchNames,
+        ExcludeNames=ExcludeNames,
+        ExcludedDownsampleLevels=ExcludedDownsampleLevels,
+        caseInsensitive=caseInsensitive,
+    ))
 
 
 def check_if_file_matches(file: str, matchCriteria: re.Pattern | collections.abc.Iterable,
@@ -499,29 +514,27 @@ def check_if_file_matches(file: str, matchCriteria: re.Pattern | collections.abc
     else:
         raise ValueError("Unexpected matchCriteria")
 
-    return
 
-
-def RemoveDirectorySpaces(Path):
+def RemoveDirectorySpaces(path: str):
     '''
     Remove spaces from the path and any immediate subdirectories under that path replacing spaces with '_'
     '''
     import shutil
 
-    if not os.path.exists(Path):
+    if not os.path.exists(path):
         prettyoutput.Log("No valid path provided as first argument")
         return
 
     Dirlist = list()
-    Dirlist.append(Path)
+    Dirlist.append(path)
 
     # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
     dirs = []
     try:
         #    prettyoutput.Log( os.path.join(Path, '*[!png]'))
-        dirs = glob.glob(os.path.join(Path, '*'))
+        dirs = glob.glob(os.path.join(path, '*'))
     except:
-        prettyoutput.Log("RecurseSubdirectories could not enumerate " + Path)
+        prettyoutput.Log("RecurseSubdirectories could not enumerate " + path)
         return []
 
     for d in dirs:
@@ -541,11 +554,11 @@ def RemoveDirectorySpaces(Path):
             shutil.move(d, fullnameNoSpace)
 
 
-def RemoveFilenameSpaces(Path, ext):
+def RemoveFilenameSpaces(path: str, ext: str):
     '''Replaces spaces in filenames with _'''
     import shutil
 
-    if not os.path.exists(Path):
+    if not os.path.exists(path):
         prettyoutput.Log("No valid path provided as first argument")
         return
 
@@ -554,10 +567,10 @@ def RemoveFilenameSpaces(Path, ext):
 
     globext = '*' + ext
 
-    prettyoutput.Log(os.path.join(Path, ext))
+    prettyoutput.Log(os.path.join(path, ext))
 
     # List all of the .mrc files in the path
-    files = glob.glob(os.path.join(Path, globext))
+    files = glob.glob(os.path.join(path, globext))
 
     # We expect .mrc files to be named ####_string.mrc
     # #### is a section number
@@ -574,7 +587,7 @@ def RemoveFilenameSpaces(Path, ext):
         shutil.move(f, filePathNoSpaces)
 
 
-def try_locate_file(self, ImageFullPath, listAltDirs):
+def try_locate_file(self, ImageFullPath: str, listAltDirs: list[str]):
     '''
     Identify the path a file exists at.  If the path is absolute that will be
     returned.  If the path is relative it will be combined with the list of

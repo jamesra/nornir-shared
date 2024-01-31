@@ -1,6 +1,6 @@
 import argparse
 import enum
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -189,7 +189,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             if linePos is None:
                 continue
 
-            if isinstance(LineColorList, Iterable) and len(LinePosList) >= i:
+            if isinstance(LineColorList, Sequence) and len(LinePosList) >= i:
                 color = LineColorList[i]
 
             axes.plot([linePos, linePos], [0, yMax], color=color)
@@ -427,7 +427,7 @@ def VectorField(Points: NDArray, Offsets, shapes=None, weights=None,
 
     if isinstance(shapes, str):
         shapes = shapes
-        mask = numpy.ones(Points.shape[0], dtype=numpy.bool)
+        mask = numpy.ones(Points.shape[0], dtype=bool)
         __PlotVectorOriginShape(mask, shapes, Points, weights)
     else:
         try:

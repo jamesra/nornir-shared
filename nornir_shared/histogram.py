@@ -430,7 +430,7 @@ class Histogram(object):
                     break
 
             # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
-            if i is None:
+            if len(hObj.Bins) - 2 <= 0:
                 return hObj
 
             newBins = hObj.Bins[0:i + 1]
@@ -469,8 +469,10 @@ class Histogram(object):
                 if count > 0:
                     break
 
-            # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
-            if i is None:
+            try:
+                i
+            except NameError:
+                # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
                 return hObj
 
             newBins = hObj.Bins[i:]
@@ -502,7 +504,7 @@ class Histogram(object):
                 break
 
         min_x = self.BinValue(min_index)
-        max_x = self.BinValue(max_index, 1.0)
+        max_x = self.BinValue(self.NumBins - 1, 1.0)
 
         return min_x, max_x
 

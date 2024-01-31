@@ -51,13 +51,15 @@ import nornir_shared.tasktimer as tasktimer
 import nornir_shared.images as images
 from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
 
+
 def find_first_match(collection, attributes: dict[str, any]) -> object | None:
     '''
     Returns the first object in the collection whose attributes match the values in the attribute dictionary
     '''
-    #return next((item for item in collection if all(attr in item and item[attr] == attributes[attr] for attr in attributes)), None)
-    assert(collection is not None)
+    # return next((item for item in collection if all(attr in item and item[attr] == attributes[attr] for attr in attributes)), None)
+    assert (collection is not None)
     try:
-        return next(filter(lambda item: (all(attr in item and item[attr] == attributes[attr]) for attr in attributes), collection))
+        return next(filter(lambda item: (all([attr in item and item[attr] == attributes[attr] for attr in attributes]),
+                           collection)))
     except StopIteration:
         return None
