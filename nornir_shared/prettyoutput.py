@@ -265,9 +265,9 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
     if output is None:
         return 
 
-    tabs = ''.join(['  ' for x in range(__IndentLevel)])
+    tabs = '  ' * __IndentLevel
 
-    output = tabs + output
+    #output = tabs + output
     output.replace('\n', '\n' + tabs)
 
     # if logger_name is None:
