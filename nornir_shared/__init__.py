@@ -59,7 +59,6 @@ def find_first_match(collection, attributes: dict[str, any]) -> object | None:
     # return next((item for item in collection if all(attr in item and item[attr] == attributes[attr] for attr in attributes)), None)
     assert (collection is not None)
     try:
-        return next(filter(lambda item: all([attr in item and item[attr] == attributes[attr] for attr in attributes]),
-                           collection))
+        return next(filter(lambda item: all([hasattr(item, attr) and getattr(item, attr) == attributes[attr] for attr in attributes]), collection))
     except StopIteration:
         return None
