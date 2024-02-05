@@ -17,13 +17,13 @@ env:
   CURSES: False
   TERM: xterm
   ECLIPSE: ECLIPSE
-  TESTINPUTPATH: $HOME/testdata
-  TESTOUTPUTPATH: $HOME/testdata_output
+  TESTINPUTPATH: ${{ github.workspace }}/testdata
+  TESTOUTPUTPATH: ${{ github.workspace }}/testdata_output
 
 jobs:
   build:
 
-    #runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -42,11 +42,9 @@ jobs:
         pip install -r requirements.txt
     - name: Create test data folders
       run: |
-        echo $GITHUB_WORKSPACE
-        echo $HOME
         echo $TESTINPUTPATH
-        mkdir $TESTINPUTPATH 
-        mkdir $TESTOUTPUTPATH
+        mkdir -p $TESTINPUTPATH 
+        mkdir -p $TESTOUTPUTPATH
     - name: Test with unittest
       run: |
         python -m unittest discover -s ./test  -p 'test_Histogram*.py'
