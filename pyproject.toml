@@ -19,14 +19,14 @@ maintainers = [
 description = "Shared routines for Nornir python packages and scripts"
 readme = "README.md"
 license = {file = "LICENSE"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "six >= 1.16",
   "numpy >= 1.26",
   "matplotlib >= 3.8",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering",
 ]
