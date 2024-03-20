@@ -3,8 +3,9 @@ requires = ["setuptools >= 61.0"]
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools.packages.find]
-where = ["nornir_shared"]
-
+where = ["."]
+include = ["nornir_shared"]
+# namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
 name = "nornir_shared"
@@ -20,7 +21,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.7"
 dependencies = [
-	"six",
+  "six",
   "numpy",
   "matplotlib",
 ]
