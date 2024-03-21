@@ -70,51 +70,47 @@ def SetSquareAspectRatio(ax):
     return
 
 
-def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
-              MaxCutoffPercent=None, LinePosList=None, LineColorList=None,
+def Histogram(HistogramOrFilename: histogram.Histogram | str,
+              ImageFilename: str | None = None,
+              MinCutoffPercent: float | None = None,
+              MaxCutoffPercent: float | None = None,
+              LinePosList: Sequence[float] | None = None,
+              LineColorList=None,
               Title: str | None = None,
               xlabel: str | None = None, ylabel: str | None = None,
-              minX: float | None = None, maxX: float | None = None, dpi: int | None = None,
-              range_is_power_of_two: bool = False, axes = None):
-    Hist = None
-    
+              minX: float | None = None, maxX: float | None = None,
+              dpi: int | None = None,
+              range_is_power_of_two: bool = False,
+              axes: matplotlib.pyplot.Axes | None = None):
     if axes is None:
         plt.clf()
-        axes = plt.axes() 
+        axes = plt.axes()
     else:
         plt.sca(axes)
 
-    if dpi is None:
-        dpi = 150
+    pi = 150 if dpi is None else dpi
 
     if ImageFilename is not None:
         # plt.show()
         plt.ioff()
 
-    if isinstance(HistogramOrFilename, histogram.Histogram):
-        Hist = HistogramOrFilename
-    else:
-        Hist = histogram.Histogram.Load(HistogramOrFilename)
+    Hist = HistogramOrFilename if isinstance(HistogramOrFilename, histogram.Histogram) else histogram.Histogram.Load(
+        HistogramOrFilename)
 
-        if Hist is None:
-            prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
-            return
+    if Hist is None and isinstance(HistogramOrFilename, str):
+        prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
+        return
 
-    if Title is None:
-        Title = 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
-
-    if xlabel is None:
-        xlabel = 'Intensity'
-
-    if ylabel is None:
-        ylabel = 'Counts'
+    Title = Title if Title is not None else 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
+    xlabel = xlabel if xlabel is not None else 'Intensity'
+    ylabel = ylabel if ylabel is not None else 'Counts'
 
     # prettyoutput.Log("Graphing histogram:")
     # prettyoutput.Log(str(Hist))
 
-    ShowLine = False
+    add_reference_lines = False
     if LinePosList is not None:
-        ShowLine = True
+        add_reference_lines = True
         if not isinstance(LinePosList, list):
             LinePosList = [LinePosList]
     else:
@@ -179,7 +175,7 @@ def Histogram(HistogramOrFilename, ImageFilename=None, MinCutoffPercent=None,
             if MaxCutoffPercent:
                 axes.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
 
-    if ShowLine:
+    if add_reference_lines:
         color = 'green'
         if not LineColorList is None:
             if not isinstance(LineColorList, Iterable):

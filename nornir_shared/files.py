@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jul 11, 2012
 
 @author: Jamesan
-'''
+"""
 import collections.abc
 import concurrent.futures
 import datetime
@@ -69,7 +69,7 @@ def rmtree(directory: str, ignore_errors: bool = False):
 
 
 def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> str | None:
-    ''':return: Newest file, or fileB in the case of a tie. Return None in case of an error.'''
+    """:return: Newest file, or fileB in the case of a tie. Return None in case of an error."""
 
     if fileA is None:
         raise ValueError("fileA should not be None")
@@ -106,9 +106,9 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
 
 
 def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
-    '''
+    """
     :return: True if TestFilename is older than ReferenceFilename
-    '''
+    """
     newestFile = NewestFile(ReferenceFilename, TestFilename)
 
     return newestFile is None or newestFile == ReferenceFilename
@@ -117,12 +117,12 @@ def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison =
 def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime | datetime.date | time.struct_time,
                 DateTimeFormat: str | None = None,
                 comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
-    '''Return true if the file is older than the specified date string
+    """Return true if the file is older than the specified date string
     :param str TestPath: Path we are using to retrieve the last modified time from
     :param str DateTime: Either a string in the specified format or a floating point number representing seconds past the Unix epoch.
     :param str DateTimeFormat: Optional, if a string is passed this parameter indicates the string format.  Defaults to "%d %b %Y %H:%M:%S"
     :returns: True if the file is older than the reference date
-    '''
+    """
     if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
         raise ValueError('Unknown comparison')
 
@@ -151,17 +151,17 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
 
 def OutdatedFile(ReferenceFilename: str, TestFilename: str,
                  comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
-    '''Return true if ReferenceFilename modified time is newer than the TestFilename'''
+    """Return true if ReferenceFilename modified time is newer than the TestFilename"""
     return NewestFile(ReferenceFilename, TestFilename, comparison) == ReferenceFilename
 
 
 def RemoveOutdatedFile(ReferenceFilename: str,
                        remove_if_outdated: str | datetime.datetime | datetime.date | time.struct_time | float | int,
                        comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
-    '''
+    """
     Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
     :return: True if the input parameter is outdated
-    '''
+    """
     needs_removing = False
 
     if ReferenceFilename is None:
@@ -199,8 +199,8 @@ def RemoveOutdatedFile(ReferenceFilename: str,
     return needs_removing
 
 
-def RemoveInvalidImageFile(TestFilename: str):
-    '''Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference'''
+def RemoveInvalidImageFile(TestFilename: str) -> bool:
+    """Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference"""
     if not nornir_shared.images.IsValidImage(TestFilename):
         try:
             prettyoutput.Log('Removing invalid image file: ' + TestFilename)
@@ -215,13 +215,13 @@ def RemoveInvalidImageFile(TestFilename: str):
 
 
 def RecurseSubdirectories(Path: str,
-                          RequiredFiles=None,
-                          ExcludedFiles=None,
-                          MatchNames=None,
-                          ExcludeNames=None,
-                          ExcludedDownsampleLevels=None,
-                          caseInsensitive=True) -> list[FindFileResult]:
-    '''Recurse Subdirectories adds Path and every subdirectory to a list
+                          RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
+                          ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
+                          MatchNames: list[str] | None = None,
+                          ExcludeNames: list[str] | None = None,
+                          ExcludedDownsampleLevels: list[int] | None = None,
+                          caseInsensitive: bool = True) -> list[FindFileResult]:
+    """Recurse Subdirectories adds Path and every subdirectory to a list
        If MatchNames is not null we yield the matching directory, but do not recurse subdirectories underneath.  A directory name matching this parameter will always be included, overriding the RequiredFiles or ExcludeFiles restrictions.
        If ExcludeNames  is not null we do not add the directory to the list and do not recurse subdirectories/
        if RequiredFiles is not null the directory must contain the required file before we add it.  No subdirectories are searched.
@@ -229,7 +229,7 @@ def RecurseSubdirectories(Path: str,
        ExcludedDownsampleLevels and ExcludeNames must be an empty list to avoid population with default values.
        RequiredFiles and ExcludeFiles can be either a regular expression string or a list of specific filenames.
        Excluded files take priority over RequiredFiles
-       '''
+       """
 
     generator = RecurseSubdirectoriesGenerator(Path=Path, RequiredFiles=RequiredFiles, ExcludedFiles=ExcludedFiles,
                                                MatchNames=MatchNames, ExcludeNames=ExcludeNames,
@@ -258,7 +258,7 @@ def ensure_regex_or_set(param: str | re.Pattern | Sequence[str] | None, caseInse
 
 
 def ensure_string_set(param: str | Sequence[str] | None, caseInsensitive: bool = False) -> frozenset[str] | None:
-    '''Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided'''
+    """Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided"""
     if param is None:
         return None
 
@@ -278,15 +278,23 @@ def ensure_string_set(param: str | Sequence[str] | None, caseInsensitive: bool =
 
 
 def RecurseSubdirectoriesGenerator(Path: str,
-                                   RequiredFiles: list[str] | None = None,
-                                   ExcludedFiles: list[str] | None = None,
+                                   RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
+                                   ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
                                    MatchNames: list[str] | None = None,
                                    ExcludeNames: list[str] | None = None,
                                    ExcludedDownsampleLevels: list[int] | None = None,
                                    caseInsensitive: bool = True) -> typing.Generator[FindFileResult, None, None]:
-    '''Same as RecurseSubdirectories, but returns a generator
+    """
+    Same as RecurseSubdirectories, but returns a generator
+    :param str Path: Path to search
+    :param RequiredFiles: A regular expression or list of files which must be present in the directory
+    :param ExcludedFiles: A regular expression or list of files which must not be present in the directory
+    :param MatchNames: A list of directory names which will be included in the output.
+    :param ExcludeNames: A list of directory names which will be excluded from the output
+    :param ExcludedDownsampleLevels: A list of downsample levels which will be excluded from the output
+    :param bool caseInsensitive: If true then directory names are compared in a case-insensitive manner
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
-    '''
+    """
 
     yield from _RecurseSubdirectoriesGeneratorTask(
         Path,
@@ -319,7 +327,7 @@ def _RecurseSubdirectoriesGeneratorTask(
         ExcludedDownsampleLevels: list[int] | None = None,
         caseInsensitive: bool = True,
 ) -> typing.Generator[FindFileResult, None, None]:
-    '''Same as RecurseSubdirectories, but returns a generator
+    """Same as RecurseSubdirectories, but returns a generator
     :param str Path: Path to search
     :param RequiredFiles: A regular expression or list of files which must be present in the directory
     :param ExcludedFiles: A regular expression or list of files which must not be present in the directory
@@ -328,7 +336,7 @@ def _RecurseSubdirectoriesGeneratorTask(
     :param ExcludedDownsampleLevels: A list of downsample levels which will be excluded from the output
     :param bool caseInsensitive: If true then directory names are compared in a case-insensitive manner
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
-    '''
+    """
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
     ExcludedFiles = ensure_regex_or_set(ExcludedFiles, caseInsensitive=caseInsensitive)
     MatchNames = ensure_string_set(MatchNames, caseInsensitive=caseInsensitive)
@@ -516,9 +524,9 @@ def check_if_file_matches(file: str, matchCriteria: re.Pattern | collections.abc
 
 
 def RemoveDirectorySpaces(path: str):
-    '''
+    """
     Remove spaces from the path and any immediate subdirectories under that path replacing spaces with '_'
-    '''
+    """
     import shutil
 
     if not os.path.exists(path):
@@ -555,7 +563,7 @@ def RemoveDirectorySpaces(path: str):
 
 
 def RemoveFilenameSpaces(path: str, ext: str):
-    '''Replaces spaces in filenames with _'''
+    """Replaces spaces in filenames with _"""
     import shutil
 
     if not os.path.exists(path):
@@ -588,11 +596,11 @@ def RemoveFilenameSpaces(path: str, ext: str):
 
 
 def try_locate_file(self, ImageFullPath: str, listAltDirs: list[str]):
-    '''
+    """
     Identify the path a file exists at.  If the path is absolute that will be
     returned.  If the path is relative it will be combined with the list of
     alternative paths to see if it can be found
-    '''
+    """
     if os.path.exists(ImageFullPath):
         return ImageFullPath
     else:
