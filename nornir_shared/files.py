@@ -217,8 +217,8 @@ def RemoveInvalidImageFile(TestFilename: str) -> bool:
 def RecurseSubdirectories(Path: str,
                           RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
                           ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
-                          MatchNames: list[str] | None = None,
-                          ExcludeNames: list[str] | None = None,
+                          MatchNames: str | Sequence[str] | re.Pattern | None = None,
+                          ExcludeNames: Sequence[str] | None = None,
                           ExcludedDownsampleLevels: list[int] | None = None,
                           caseInsensitive: bool = True) -> list[FindFileResult]:
     """Recurse Subdirectories adds Path and every subdirectory to a list
@@ -280,8 +280,8 @@ def ensure_string_set(param: str | Sequence[str] | None, caseInsensitive: bool =
 def RecurseSubdirectoriesGenerator(Path: str,
                                    RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
                                    ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
-                                   MatchNames: list[str] | None = None,
-                                   ExcludeNames: list[str] | None = None,
+                                   MatchNames: str | Sequence[str] | re.Pattern | None = None,
+                                   ExcludeNames: Sequence[str] | None = None,
                                    ExcludedDownsampleLevels: list[int] | None = None,
                                    caseInsensitive: bool = True) -> typing.Generator[FindFileResult, None, None]:
     """
@@ -322,7 +322,7 @@ def _RecurseSubdirectoriesGeneratorTask(
         Path: str,
         RequiredFiles: str | Sequence[str] | re.Pattern | None = None,
         ExcludedFiles: str | Sequence[str] | re.Pattern | None = None,
-        MatchNames: str | Sequence[str] | None = None,
+        MatchNames: str | Sequence[str] | re.Pattern | None = None,
         ExcludeNames: str | Sequence[str] | None = None,
         ExcludedDownsampleLevels: list[int] | None = None,
         caseInsensitive: bool = True,
@@ -339,7 +339,7 @@ def _RecurseSubdirectoriesGeneratorTask(
     """
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)
     ExcludedFiles = ensure_regex_or_set(ExcludedFiles, caseInsensitive=caseInsensitive)
-    MatchNames = ensure_string_set(MatchNames, caseInsensitive=caseInsensitive)
+    MatchNames = ensure_regex_or_set(MatchNames, caseInsensitive=caseInsensitive)
     ExcludedDownsampleLevels = DefaultLevels if ExcludedDownsampleLevels is None else ensure_string_set(
         ExcludedDownsampleLevels, caseInsensitive=caseInsensitive)
     ExcludeNames = DefaultExcludeList if ExcludeNames is None else ensure_string_set(ExcludeNames,
@@ -373,11 +373,11 @@ def _RecurseSubdirectoriesGeneratorTask(
             for file in files:
                 # Check if the directory is excluded
                 if not excluded and ExcludedFiles is not None:
-                    excluded = excluded or check_if_file_matches(file.name, ExcludedFiles)
+                    excluded = excluded or check_if_str_matches(file.name, ExcludedFiles)
                     if excluded:
                         break
 
-                if RequiredFiles is not None and check_if_file_matches(file.name, RequiredFiles):
+                if RequiredFiles is not None and check_if_str_matches(file.name, RequiredFiles):
                     known_required_files.append(file.name)
                     # has_required_files = has_required_files or 
 
@@ -410,7 +410,7 @@ def _RecurseSubdirectoriesGeneratorTask(
                                                        thread_name_prefix=Path + '_') as executor:
                 for d in dirs:
                     fullpath = os.path.join(Path, d.path)
-                    if MatchNames is not None and d.name.lower() in MatchNames:
+                    if check_if_str_matches(d.name, MatchNames, caseInsensitive):
                         yield FindFileResult(path=fullpath, matched_files=[])
                         continue  # We do not iterate the subdirectories of MatchNames
 
@@ -452,7 +452,7 @@ def _RecurseSubdirectoriesGeneratorTask(
             # Do not create threads, just run the IO on this thread
             for d in dirs:
                 fullpath = os.path.join(Path, d.path)
-                if MatchNames is not None and d.name.lower() in MatchNames:
+                if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
                     yield FindFileResult(path=fullpath, matched_files=[])
                     continue  # We do not iterate the subdirectories of MatchNames
 
@@ -507,8 +507,8 @@ def _RecurseSubdirectoriesListTask(
     ))
 
 
-def check_if_file_matches(file: str, matchCriteria: re.Pattern | collections.abc.Iterable,
-                          caseInsensitive: bool = True):
+def check_if_str_matches(file: str, matchCriteria: re.Pattern | collections.abc.Iterable,
+                         caseInsensitive: bool = True):
     # Exclude takes priority over included files
     if caseInsensitive:
         file = file.lower()
