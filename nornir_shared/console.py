@@ -252,10 +252,12 @@ if __name__ == '__main__':
                 pydevd.settrace(suspend=False)
 
         if curses_available:
+
             try:
                 success = nornir_shared.curses_console.InitCurses()
                 assert success, "Could not InitCurses"
             except Exception as e:
+                success = False
                 sys.stdout.write(traceback.format_exc())
                 with CreateDebugInfoFile('Console_Curses_Error.txt') as hFile:
                     hFile.write(traceback.format_exc())

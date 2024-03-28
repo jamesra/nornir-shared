@@ -5,6 +5,7 @@
 '''
 
 import os
+import typing
 import smtplib
 from email import encoders
 from email.mime import multipart, text, image
@@ -12,43 +13,41 @@ from email.mime import multipart, text, image
 from . import prettyoutput
 
 
-def SendMail(**kwargs):
+class EmailArgs(typing.NamedTuple):
+    host: str
+    username: str
+    password: str
+    subject: str
+    toAddresses: typing.List[str] | str
+    ccAddresses: typing.List[str] | str | None
+    fromAddress: str
+    fromFriendlyAddress: str
+    message: str
+    files: typing.List[str]
+    port: int = 25
+
+def SendMail(args: EmailArgs):
     """Sends an email"""
 
-    host = kwargs.get('host', None)
-    username = kwargs.get('username', None)
-    password = kwargs.get('password', None)
-    subject = kwargs.get('subject', "Build progress")
-    toAddresses = kwargs.get('to', "")
-    ccAddresses = kwargs.get('cc', "")
-    fromAddress = kwargs.get('from', None)
-    fromFriendlyAddress = kwargs.get('fromFriendlyAddress', "Build Script Pipeline")
-    message = kwargs.get('message', "A build has completed.")
-    files = (str(kwargs.get('files', []))).split(',')
-    port = kwargs.get('port', 25)
-
-    toAddressList = toAddresses
-    ccAddressList = ccAddresses
-
-    if isinstance(toAddresses, list):
-        toAddressString = ', '.join(toAddresses)
-    else:
-        assert (isinstance(toAddresses, str))
-        toAddressString = toAddresses
-        toAddressList = [toAddressList]
-
-    if isinstance(ccAddresses, list):
-        ccAddressString = ', '.join(ccAddresses)
-    else:
-        assert (isinstance(ccAddresses, str))
-        ccAddressString = ccAddresses
-        ccAddressList = [ccAddressList]
-
-    if len(toAddressString) == 0 and len(ccAddressString) == 0:
+    if not args.toAddresses and not args.ccAddresses:
         prettyoutput.Log('No Email addresses specified for report, no report E-mailed.')
         return
 
-    smtpConn = smtplib.SMTP(host, port)
+    if isinstance(args.toAddresses, list):
+        to_address_string = ', '.join(args.toAddresses)
+    else:
+        assert (isinstance(args.toAddresses, str))
+        to_address_string = args.toAddresses
+        to_address_list = [args.toAddresses]
+
+    if isinstance(args.ccAddresses, list):
+        cc_address_string = ', '.join(args.ccAddresses)
+    elif args.ccAddresses is not None:
+        assert (isinstance(args.ccAddresses, str))
+        cc_address_string = args.ccAddresses
+        cc_address_list = [args.ccAddresses]
+
+    smtpConn = smtplib.SMTP(args.host, args.port)
     try:
         smtpConn.set_debuglevel(False)
         try:
@@ -57,8 +56,8 @@ def SendMail(**kwargs):
             prettyoutput.Log("Could not start secure session")
 
         try:
-            if username is not None:
-                smtpConn.login(username, password)
+            if args.username is not None:
+                smtpConn.login(args.username, args.password)
         except:
             prettyoutput.Log("Could not use provided credentials")
 
@@ -70,38 +69,35 @@ def SendMail(**kwargs):
         #        ConcatenatedCCAddress = ','.join(ccAddresses)
 
         msg = multipart.MIMEMultipart()
-        msg['Subject'] = subject
-        msg['From'] = fromFriendlyAddress + ' [' + fromAddress + ']'
-        msg['reply-to'] = fromAddress
-        msg['To'] = toAddressString
-        msg['cc'] = ccAddressString
-        msg.attach(text.MIMEText(message))
+        msg['Subject'] = args.subject
+        msg['From'] = f'{args.fromFriendlyAddress} [{args.fromAddress}]'
+        msg['reply-to'] = args.fromAddress
+        msg['To'] = to_address_string
+        msg['cc'] = cc_address_string
+        msg.attach(text.MIMEText(args.message))
 
-        if not files is None:
-            for f in files:
+        if not args.files is None:
+            for f in args.files:
                 if not os.path.exists(f):
                     prettyoutput.Log("Attachment Not found: " + f)
                     continue
 
-                hFile = open(f, 'rb')
-                Data = hFile.read()
-                hFile.close()
-                hFile = None
+                with open(f, 'rb') as hFile:
+                    Data = hFile.read()
+                    part = image.MIMEImage(Data)
+                    part.set_payload(Data)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 'attachment filename="%s"' % f)
+                    msg.attach(part)
 
-                part = image.MIMEImage(Data)
-                part.set_payload(Data)
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', 'attachment filename="%s"' % f)
-                msg.attach(part)
-
-        prettyoutput.Log("\nTo: " + toAddressString)
-        prettyoutput.Log("\nCC: " + ccAddressString)
+        prettyoutput.Log("\nTo: " + to_address_string)
+        prettyoutput.Log("\nCC: " + cc_address_string)
         prettyoutput.Log("Message:")
-        prettyoutput.Log('\t' + message)
+        prettyoutput.Log('\t' + args.message)
 
-        AllRecipientAddresses = toAddressList + ccAddressList
+        AllRecipientAddresses = args.to_address_list + args.cc_address_list
 
-        smtpConn.sendmail(fromAddress,
+        smtpConn.sendmail(args.fromAddress,
                           AllRecipientAddresses,
                           msg.as_string())
     finally:
@@ -110,18 +106,17 @@ def SendMail(**kwargs):
 
 if __name__ == '__main__':
     # Email the completion notice
-    class EmailArgs(object): pass
 
+    args = EmailArgs(host='smtp.utah.edu',
+                     username=None,
+                     password=None,
+                     subject="Build progress",
+                     toAddresses=["u0490822@utah.edu"],
+                     ccAddresses="",
+                     fromAddress="james.r.anderson@utah.edu",
+                     message="A build has completed.",
+                     port=25,
+                     fromFriendlyAddress="Build Notifications")
 
-    Email = EmailArgs()
-    Email.subject = "Build progress"
-    Email.toAddresses = ["u0388504@utah.edu"]
-    Email.ccAddresses = ""
-    Email.fromAddress = "james.r.anderson@utah.edu"
-    Email.fromFriendlyAddress = "Build Notifications"
-    Email.message = "A build has completed."
-    Email.host = 'smtp.utah.edu'
-    Email.port = 25
-
-    SendMail(Email)
+    SendMail(args)
     pass

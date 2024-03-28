@@ -9,6 +9,7 @@ import shutil
 import time
 import unittest
 
+import nornir_shared.files
 from nornir_shared.files import RecurseSubdirectories, IsOlderThan
 
 
@@ -26,15 +27,17 @@ def CreateDirTree(path, dictSubTrees):
             CreateDirTree(subtreepath, dictSubTrees[key])
 
 
-def RecurseDictValues(dictSubTrees, path):
+def RecurseDictValues(dictSubTrees, path: str) -> list[str]:
     vals = list(dictSubTrees.keys())
 
     for (key, value) in dictSubTrees.items():
         if value is None:  # Skip file entries
             continue
         subpath = os.path.join(path, key)
-        vals.append(subpath)
+#        vals.append(subpath)
         vals.extend(RecurseDictValues(dictSubTrees[key], subpath))
+
+    vals.append(path)
 
     return vals
 
@@ -42,7 +45,8 @@ def RecurseDictValues(dictSubTrees, path):
 class TestFiles(unittest.TestCase):
     DirTree = {'aaa': {},
                'bbb': {'baaa': {}, '1.idoc': None, '1.png': None, '2.png': None},
-               'ccc': {'ca': {}, 'cb': {'cba': {}}, 'cc': {'cca': {}, 'ccb': {}, '2.idoc': None}}}
+               'ccc': {'ca': {}, 'cb': {'cba': {}}, 'cc': {'cca': {}, 'ccb': {}, '2.idoc': None}},
+               'ddd': {'cc': {}}}
 
     @property
     def classname(self):
@@ -69,14 +73,14 @@ class TestFiles(unittest.TestCase):
         outdir = self.TestOutputPath
         shutil.rmtree(outdir)
 
-    def IsSubset(self, ListA, ListB):
+    def IsSubset(self, ListA: list[nornir_shared.files.FindFileResult], ListB: list[str]):
         '''Verify ListA is a subset of ListB'''
         for l in ListA:
-            self.assertTrue(l in ListB, str(l) + " is missing from target set")
+            self.assertTrue(l.path in ListB, str(l) + " is missing from target set")
 
     def IsSingleResult(self, ListA, result):
         self.assertEqual(len(ListA), 1, "Result list should have one entry")
-        self.assertEqual(ListA[0][0], result,
+        self.assertEqual(ListA[0].path, result,
                          "Expected result not found, expected " + str(result) + " got " + str(ListA[0]))
 
     def test_recursesubdirectories(self):
@@ -100,18 +104,23 @@ class TestFiles(unittest.TestCase):
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[],
                                      ExcludeNames='ccc', ExcludedDownsampleLevels=[])
-        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa']]
+        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa', 'ddd', 'ddd\\cc']]
+        expectedVals.append(self.TestOutputPath)
         self.IsSubset(dirs, expectedVals)
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles='*.idoc', ExcludedFiles=[], MatchNames=[],
                                      ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']]
+        expectedVals.append(self.TestOutputPath)
         self.IsSubset(dirs, expectedVals)
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=None, ExcludedFiles='*.idoc', MatchNames=[],
                                      ExcludeNames='ccc', ExcludedDownsampleLevels=[])
         expectedDirs = set(RecurseDictValues(TestFiles.DirTree, self.TestOutputPath))
-        expectedVals = expectedDirs - set([os.path.join(self.TestOutputPath, x) for x in ['bbb', 'cc']])
+        remove_dirs = os.path.join(self.TestOutputPath, 'ccc')
+        expectedVals = list(filter(lambda x: remove_dirs not in x, expectedDirs))
+        #expectedVals = expectedDirs - set([os.path.join(self.TestOutputPath, x) for x in ['ccc']])
+        expectedVals.append(self.TestOutputPath)
         self.IsSubset(dirs, expectedVals)
 
     def test_IsOlderThan(self):

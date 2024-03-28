@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 import time
+import typing
+from typing import Any
 
 import nornir_shared.consolewindow
 
@@ -13,9 +15,11 @@ ProgressStartTime = None
 
 if not ECLIPSE:
     try:
-        import curses
-
-        CURSES = True
+        # Jan 30 2024
+        # Curses is causing trouble on Linux installs, so removing it for now
+        # import curses
+        # CURSES = True
+        pass
     except ImportError:
         pass
 
@@ -26,12 +30,12 @@ __IndentLevel = 0
 
 def IncreaseIndent():
     global __IndentLevel
-    __IndentLevel = __IndentLevel + 1
+    __IndentLevel += 1
 
 
 def DecreaseIndent():
     global __IndentLevel
-    __IndentLevel = __IndentLevel - 1
+    __IndentLevel -= 1
 
 
 def ResetIndent():
@@ -71,7 +75,7 @@ if CURSES:
                     "Lock": 7,
                     "Path": 8,
                     "Cmd": 9
-                    }
+                    }  # type: dict[str, int]
 
     # sys.stdout = logFile
 
@@ -96,12 +100,12 @@ if CURSES:
         raise e
 
 
-def CurseString(topic, text):
+def CurseString(topic: str, text: str):
     if CURSES:
         y = 0
         x = 0
 
-        if cursesCoords.has_key(topic):
+        if topic in cursesCoords:
             y = cursesCoords[topic]
 
         (yMax, xMax) = statusWindow.getmaxyx()
@@ -117,9 +121,9 @@ def CurseString(topic, text):
         return
 
 
-def CurseProgress(text: str, Progress: float, Total=None):
-    '''If Total is specified we display a percentage, otherwise
-       a number'''
+def CurseProgress(text: str, Progress: float, Total: float | None = None):
+    """If Total is specified we display a percentage, otherwise
+       a number"""
 
     # This is used to calculate an ETA for completion
     global LastReportedProgress
@@ -142,7 +146,7 @@ def CurseProgress(text: str, Progress: float, Total=None):
     TaskY = 0
 
     # Estimate how long until we reach total
-    ETASec = 0
+    # ETASec = 0
     tstruct = None
     ETAString = ""
     fraction = None
@@ -158,10 +162,10 @@ def CurseProgress(text: str, Progress: float, Total=None):
     if CURSES:
         (yMax, xMax) = statusWindow.getmaxyx()
 
-        if cursesCoords.has_key("Task"):
+        if "Task" in cursesCoords:
             TaskY = cursesCoords["Task"]
 
-        if cursesCoords.has_key("Progress"):
+        if "Progress" in cursesCoords:
             ProgressY = cursesCoords["Progress"]
 
         if text is not None:
@@ -171,13 +175,13 @@ def CurseProgress(text: str, Progress: float, Total=None):
             statusWindow.clrtoeol()
 
         if Total is not None:
-            ProgressStr = "Progress : %4.2f%%" % (fraction * 100.0)
-            if not tstruct is None:
-                ProgressStr = ProgressStr + "        " + ETAString
+            progress_str = "Progress : %4.2f%%" % (fraction * 100.0)
+            if tstruct is not None:
+                progress_str = progress_str + "        " + ETAString
 
             # Log(ProgressStr)
 
-            statusWindow.addnstr(ProgressY, ProgressX, ProgressStr, console_width)
+            statusWindow.addnstr(ProgressY, ProgressX, progress_str, console_width)
             statusWindow.clrtoeol()
             statusWindow.move(yMax - 1, 0)
             statusWindow.refresh()
@@ -189,7 +193,7 @@ def CurseProgress(text: str, Progress: float, Total=None):
         if fraction is not None:
             output_str = f'{output_str} {fraction:0.3g}'
             if ETAString is not None:
-                output_str = output_str + ETAString
+                output_str += ETAString
 
         if ECLIPSE:
             print(output_str)
@@ -203,8 +207,8 @@ def CurseProgress(text: str, Progress: float, Total=None):
             print(text)
 
 
-def get_calling_func_name():
-    '''Beware that calling this function is fairly slow.'''
+def get_calling_func_name() -> str | None:
+    """Beware that calling this function is fairly slow."""
     stack = inspect.stack()
     if len(stack) < 3:
         return None
@@ -232,74 +236,93 @@ def get_calling_func_name():
 
 #   return funcName
 
+def input_to_string(input_str: Any, tablevel: int = 0) -> str | None:
+    """
+    Converts an input variable into a string we can print in the log
+    :param input_str:
+    :param tablevel:
+    :return:
+    """
+    if input_str is None:
+        return None
 
-def Log(text=None, logger_name=None):
-    if text is None or len(text) == 0:
-        text = os.linesep
-    elif not isinstance(text, str):
-        text = str(text)
+    tabs = '\t' * tablevel
 
-    tabs = ''.join(['  ' for x in range(__IndentLevel)])
+    if isinstance(input_str, str):
+        return tabs + input_str
 
-    text = tabs + text
-    text.replace('\n', '\n' + tabs)
+    if isinstance(input_str, (int, float)):
+        return tabs + str(input_str)
+
+    if isinstance(input_str, typing.Iterable):
+        return os.linesep.join([tabs + input_to_string(obj, tablevel=tablevel+1) for obj in input_str])
+    else:
+        return tabs + str(input_str)
+
+
+def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = None):
+    output = input_to_string(text)
+    if output is None:
+        return 
+
+    tabs = '  ' * __IndentLevel
+
+    #output = tabs + output
+    output.replace('\n', '\n' + tabs)
 
     # if logger_name is None:
     # logger_name = get_calling_func_name()
 
     logger = logging.getLogger(logger_name)
-    logger.info(text)
+    logger.info(output)
 
     if CURSES:
-        text = text + os.linesep
+        output += os.linesep
 
-        sys.stdout.write(text)
+        sys.stdout.write(output)
         sys.stdout.flush()
 
-        numChars = len(text)
+        numChars = len(output)
 
         (yMax, xMax) = stdscr.getmaxyx()
 
         numLines = int(numChars / xMax)
         if numChars % xMax != 0:
-            numLines = numLines + 1
+            numLines += 1
 
         logWindow.move(0, 0)
 
         for i in range(numLines):
             logWindow.insertln()
 
-        logWindow.addstr(0, 0, text)
+        logWindow.addstr(0, 0, output)
         logWindow.clrtoeol()
         logWindow.refresh(0, 0, LogStartY, 0, yMax - 1, xMax)
     elif ECLIPSE:
-        text = text.replace('\b', '')
-        print(text)
+        output = output.replace('\b', '')
+        print(output)
     else:
-        print(text)
+        print(output)
 
 
 _error_console = None
 
 
-def error(error_message=None):
+def error(error_message: str | None = None):
     LogErr(error_message, calling_func_name=get_calling_func_name())
 
 
-def LogErr(error_message=None, calling_func_name=None):
-    if error_message is None or len(error_message) == 0:
-        error_message = "\n"
-    elif not isinstance(error_message, str):
-        error_message = str(error_message)
+def LogErr(error_message: str | None = None, calling_func_name: str | None = None):
+    error_output = input_to_string(error_message)
 
-    if error_message[-1] != '\n':
-        error_message = error_message + '\n'
+    if error_output[-1] != '\n':
+        error_output += '\n'
 
     if calling_func_name is None:
         calling_func_name = get_calling_func_name()
 
     logger = logging.getLogger(calling_func_name)
-    logger.error(error_message)
+    logger.error(error_output)
 
     if not ECLIPSE:
         try:
@@ -308,9 +331,9 @@ def LogErr(error_message=None, calling_func_name=None):
             if _error_console is None:
                 _error_console = nornir_shared.consolewindow.ConsoleWindow()
 
-            _error_console.WriteMessage(error_message)
+            _error_console.WriteMessage(error_output)
             logger = logging.getLogger(calling_func_name)
-            logger.error(error_message)
+            logger.error(error_output)
         except:
             _error_console = None
             # logger = logging.getLogger(calling_func_name)
@@ -318,10 +341,10 @@ def LogErr(error_message=None, calling_func_name=None):
             pass
     else:
         logger = logging.getLogger(get_calling_func_name())
-        logger.error(error_message)
+        logger.error(error_output)
 
 
-def PrettyOutputModulePath():
+def PrettyOutputModulePath() -> str:
     try:
         path = os.path.dirname(__file__)
     except:
