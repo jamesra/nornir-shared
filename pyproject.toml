@@ -24,7 +24,6 @@ dependencies = [
   "six >= 1.16",
   "numpy >= 1.26",
   "matplotlib >= 3.8",
-  "nornir_pools @ git+https://github.com/clementsan/nornir-pools.git@dev",
 ]
 classifiers = [
     "Programming Language :: Python :: 3.10",
