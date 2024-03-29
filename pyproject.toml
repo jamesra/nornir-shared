@@ -13,9 +13,6 @@ version = "1.5.1"
 authors = [
   { name="James Anderson", email="James.R.Anderson@utah.edu" },
 ]
-maintainers = [
-  { name="Clement Vachet", email="cvachet@sci.utah.edu" },
-]
 description = "Shared routines for Nornir python packages and scripts"
 readme = "README.md"
 license = {file = "LICENSE"}
