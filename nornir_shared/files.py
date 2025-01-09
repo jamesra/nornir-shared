@@ -364,8 +364,8 @@ def _RecurseSubdirectoriesGeneratorTask(
         known_required_files = []
 
         # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
-        if (RequiredFiles is None or not RequiredFiles) and \
-                (ExcludedFiles is None or not ExcludedFiles):
+        if not isinstance(RequiredFiles, re.Pattern) and (RequiredFiles is None or len(RequiredFiles) == 0) and \
+                not isinstance(ExcludedFiles, re.Pattern) and (ExcludedFiles is None or len(ExcludedFiles) == 0):
             # Automatically pass the test of whether the directory contains or does not have certain files
             excluded = False
         else:
