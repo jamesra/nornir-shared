@@ -150,9 +150,15 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
 
 
 def OutdatedFile(ReferenceFilename: str, TestFilename: str,
-                 comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
-    """Return true if ReferenceFilename modified time is newer than the TestFilename"""
-    return NewestFile(ReferenceFilename, TestFilename, comparison) == ReferenceFilename
+                 comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool | None:
+    """
+
+    :param ReferenceFilename: File to compare against
+    :param TestFilename: File to compare
+    :param comparison: Which timestamp to use for comparison. Defaults to FileTimeComparison.MODIFIED
+    :return: True if TestFilename is older than ReferenceFilename, None if one of the files did not exist"""
+    result = NewestFile(ReferenceFilename, TestFilename, comparison)
+    return None if result is None else result == ReferenceFilename
 
 
 def RemoveOutdatedFile(ReferenceFilename: str,
@@ -184,8 +190,15 @@ def RemoveOutdatedFile(ReferenceFilename: str,
 
     #   [name, ext] = os.path.splitext(TestFilename)
 
-    if needs_removing:
-
+    if needs_removing is None:
+        # One of the files did not exist
+        if not os.path.exists(ReferenceFilename):
+            prettyoutput.LogErr(f'Reference file does not exist: {ReferenceFilename}')
+            return False
+        elif not os.path.exists(remove_if_outdated):
+            prettyoutput.LogErr(f'Test file does not exist: {remove_if_outdated}')
+            return True
+    elif needs_removing:
         if isinstance(remove_if_outdated, str):
             try:
                 prettyoutput.Log(
@@ -196,7 +209,7 @@ def RemoveOutdatedFile(ReferenceFilename: str,
                 prettyoutput.Log(f'Exception removing outdated file: {remove_if_outdated}\n{e}')
                 pass
 
-    return needs_removing
+    # None is returned if the file did not exist
 
 
 def RemoveInvalidImageFile(TestFilename: str) -> bool:
