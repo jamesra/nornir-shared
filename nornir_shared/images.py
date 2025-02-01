@@ -1,8 +1,9 @@
-'''
+"""
 Created on Jul 11, 2012
 
 @author: Jamesan
-'''
+"""
+import concurrent.futures
 import logging
 import math
 import multiprocessing
@@ -19,7 +20,7 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 
 import PIL.ImageOps
-import nornir_pools
+# import nornir_pools
 import nornir_shared
 
 from . import prettyoutput
@@ -27,7 +28,7 @@ from . import processoutputinterceptor
 
 
 def GetImageBpp(path: str):
-    '''Returns how many bits per pixel the image at the provided path uses'''
+    """Returns how many bits per pixel the image at the provided path uses"""
 
     if not os.path.exists(path):
         raise ValueError('GetImageBpp File not found ' + path)
@@ -71,7 +72,7 @@ def GetImageColorspace(path: str):
 
 
 def GetImageStats(path: str) -> (float, float, float, float):
-    '''Returns [Min, Mean, Max, StdDev] of an image via ImageMagick'''
+    """Returns [Min, Mean, Max, StdDev] of an image via ImageMagick"""
 
     cmd = 'magick identify -verbose -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
 
@@ -109,7 +110,7 @@ def GetImageStats(path: str) -> (float, float, float, float):
 
 
 def IdentifyImage(ImageFilePath: str):
-    '''Returns all output from identify as a dictionary'''
+    """Returns all output from identify as a dictionary"""
     cmd = 'magick identify -verbose ' + ImageFilePath
     try:
         NewP = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
@@ -162,7 +163,7 @@ def _is_numpy_extension(filename: str):
 
 
 def IsValidImage(filename: str) -> bool:
-    ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
+    """:return: true/false if passed a single image."""
     try:
         with Image.open(filename) as im:
             im.verify()
@@ -179,8 +180,13 @@ def IsValidImage(filename: str) -> bool:
     return True
 
 
+def IsValidImageReturnName(filename: str) -> tuple[bool, str]:
+    """:return: A tuple of (true/false, filename). """
+    return IsValidImage(filename), filename
+
+
 def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None) -> list[str]:
-    ''':return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list'''
+    """:return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list"""
 
     filenamelist = filenames
     if not isinstance(filenames, list):
@@ -189,14 +195,18 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
     if len(filenamelist) == 0:
         return []
 
+    # If there is only one entry in the list do not bother to multiprocess
+    if len(filenamelist) == 1:
+        return [] if IsValidImage(filenamelist[0]) else [filenamelist[0]]
+
     num_threads = multiprocessing.cpu_count() * 2
     # if num_threads > len(filenames):
     #    num_threads = len(filenames) + 1
 
-    if Pool is None:
-        # Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
-        # Pool = nornir_pools.GetGlobalLocalMachinePool()
-        Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=num_threads)
+    # if Pool is None:
+    #     # Pool = nornir_pools.GetThreadPool('IsValidImage {0}'.format(filenamelist[0]), multiprocessing.cpu_count() * 2)
+    #     # Pool = nornir_pools.GetGlobalLocalMachinePool()
+    #     Pool = nornir_pools.GetLocalMachinePool("IOBound", num_threads=num_threads)
 
     ImageDir = "" if ImageDir is None else ImageDir
 
@@ -208,46 +218,52 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
     testable_image_extensions = list(filter(lambda filename: not _is_numpy_extension(filename), filenamelist))
     image_full_paths = [os.path.join(ImageDir, filename) for filename in testable_image_extensions]
 
-    for i, ImageFullPath in enumerate(image_full_paths):
+    max_workers = min(os.process_cpu_count() * 2, 60)
 
-        # cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
-        filename = testable_image_extensions[i]
-        try:
-            TaskList.append(Pool.add_task(filename, IsValidImage, ImageFullPath))
-        except subprocess.CalledProcessError as CPE:
-            # Identify returned an error, so the file is bad
-            InvalidImageList.append(filename)
-            continue
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        image_iterator = executor.map(IsValidImageReturnName, image_full_paths,
+                                      chunksize=len(image_full_paths) // (max_workers * 8))
 
-    #         cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
-    #
-    #         try:
-    #             if IsSingleImage:
-    #                 SingleParameterProc = subprocess.check_call(cmd + " && exit", shell=True)
-    #             else:
-    #                 TaskList.append(Pool.add_process(filename, cmd + " && exit", shell=True))
-    #         except subprocess.CalledProcessError as CPE:
-    #             # Identify returned an error, so the file is bad
-    #             InvalidImageList.append(filename)
-    #             continue
-    # #
-    if Pool is not None:
-        Pool.wait_completion()
-        # Pool.shutdown()
-        Pool = None
-
-    # If check_call succeeded then we know the file is good and we can return 
-    while len(TaskList) > 0:
-        Task = TaskList.pop(0)
-        # if Task.returncode == False:
-        if Task.wait_return() is False:
-            InvalidImageList.append(Task.name)
+        for image_task in image_iterator:
+            result, filename = image_task
+            if not result:
+                InvalidImageList.append(filename)
+        #
+        # # while image_task is not None:
+        # #     if not image_task:
+        # #         InvalidImageList.append(image_task)
+        # #
+        # #     image_task = image_iterator.__next__()
+        # #
+        #
+        # for i, ImageFullPath in enumerate(image_full_paths):
+        #
+        #     # cmd = 'magick identify -verbose -format "  %f %G %b" ' + ImageFullPath
+        #     filename = testable_image_extensions[i]
+        #     try:
+        #         TaskList.append(Pool.add_task(filename, IsValidImage, ImageFullPath))
+        #     except subprocess.CalledProcessError as CPE:
+        #         # Identify returned an error, so the file is bad
+        #         InvalidImageList.append(filename)
+        #         continue
+        #
+        # if Pool is not None:
+        #     Pool.wait_completion()
+        #     # Pool.shutdown()
+        #     Pool = None
+        #
+        # # If check_call succeeded then we know the file is good and we can return
+        # while len(TaskList) > 0:
+        #     Task = TaskList.pop(0)
+        #     # if Task.returncode == False:
+        #     if Task.wait_return() is False:
+        #         InvalidImageList.append(Task.name)
 
     return InvalidImageList
 
 
 def __Fix_sRGB_String(path: str):
-    '''Generate a string which will correctly convert an image from either linear or sRGB colorspaces to grayscale'''
+    """Generate a string which will correctly convert an image from either linear or sRGB colorspaces to grayscale"""
 
     colorspace = GetImageColorspace(path)
     if colorspace is None:
@@ -266,143 +282,144 @@ def InvertImage(input_image_fullpath: str, output_image_fullpath: str):
         inverted_img.save(output_image_fullpath)
 
 
-def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False,
-                        RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
-    '''
-    The key and value in the dictionary have the full path of an image to convert.
-    MinMax is a tuple [Min,Max] passed to the -level parameter if it is not None
-    RightLeftShift is a tuple containing a right then left then return to center shift which should be done to remove useless bits from the data
-    I do not use an and because I do not calculate ImageMagick's quantum size yet.
-    Every image must share the same colorspace
-    
-    :return: True if images were converted
-    :rtype: bool 
-    '''
-
-    if len(ImagesToConvertDict) == 0:
-        return False
-
-    if Bpp is None:
-        Bpp = GetImageBpp(ImagesToConvertDict.keys[0])
-
-    prettyoutput.CurseString('Stage', "ConvertImagesInDict")
-    # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
-    # doubling the number of procs should keep the CPU busy
-
-    ProcPool = nornir_pools.GetGlobalClusterPool()
-
-    if not MinMax is None:
-        if MinMax[0] > MinMax[1]:
-            prettyoutput.Log("Invalid MinMax parameter passed to ConvertImagesInDict")
-            MinMax = None
-
-    originalFileName = ""
-    targetFileName = ""
-
-    DepthStr = ' -depth ' + str(Bpp) + ' '
-
-    InvertStr = ''
-    if Invert:
-        InvertStr = ' -negate '
-
-    #    LeftShiftStr = ''
-    # if LeftShift > 0:
-    #        LeftShiftStr = " -evaluate leftshift " + str(LeftShift) + " "
-
-    AndStr = ""
-    if not AndValue is None:
-        AndStr = " -evaluate And " + str(AndValue) + " "
-
-    RightLeftShiftStr = ''
-    if not RightLeftShift is None:
-        # This would be much clearer simply using an AND operation, but the ImageMagick output depends on the
-        # bpp a particular build of IM was compiled for
-
-        # Track the shift required to return to center
-
-        if RightLeftShift[0] > 0:
-            RightLeftShiftStr = " -evaluate rightshift " + str(RightLeftShift[0]) + ' '
-
-        if RightLeftShift[1] > 0:
-            RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0] + RightLeftShift[1])
-        else:
-            RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0])
-
-        # " -evaluate rightshift " + str(RightLeftShift[1])
-
-    MinMaxStr = ''
-    if MinMax is not None and RightLeftShift is None:
-        MinMaxStr = ' -level ' + str(MinMax[0]) + ',' + str(MinMax[1]) + ' '
-
-    flipStr = ""
-    if Flip:
-        flipStr = " -flip "
-
-    flopStr = ""
-    if Flop:
-        flopStr = " -flop "
-
-    QualityStr = ''
-    if Bpp <= 8:
-        QualityStr = ' -quality 106 '
-
-    SampleCmdPrinted = False
-
-    colorspaceString = __Fix_sRGB_String(list(ImagesToConvertDict.keys())[0])
-
-    tasks = []
-
-    for f in ImagesToConvertDict.keys():
-        OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
-
-        originalFileName = '"' + f + '"'
-
-        # I move images to a temporary file, then rename at the end to prevent half-written files when the user uses CTRL+C
-        temptargetFileName = '"' + ImagesToConvertDict[f] + '"'
-        targetFileName = '"' + ImagesToConvertDict[f] + '"'
-
-        if os.path.exists(targetFileName):
-            prettyoutput.Log('Skipping existing file: ' + str(targetFileName))
-            continue
-
-        # prettyoutput.Log(f + ' -> ' + ImagesToConvertDict[f])
-
-        # Find out if we need to flip the image
-        if (originalFileName != targetFileName) or Flip or Flop:
-            cmd = "magick convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
-        else:
-            # Nothing to do, source and target names match and no flipping required, skip everything
-            return False
-
-        if not SampleCmdPrinted:
-            SampleCmdPrinted = True
-            prettyoutput.Log('Converting images, example command:')
-            prettyoutput.CurseString('Cmd', cmd)
-        # prettyoutput.CurseString('Cmd', cmd)
-        tasks.append(ProcPool.add_process(OpNameStr, cmd, shell=True))
-
-    # Keep waiting until all processes are finished
-    # WaitForAllProcesses(Procs)
-    if not Async:
-        ProcPool.wait_completion()
-
-    for t in tasks:
-        if not t.returncode == 0:
-            prettyoutput.LogErr("Failed to convert " + t.name)
-
-    if bDeleteOriginal and (originalFileName != targetFileName):
-        for f in ImagesToConvertDict.keys():
-            # Don't delete unless the target file was created
-            if os.path.exists(ImagesToConvertDict[f]):
-                prettyoutput.Log("Deleting: " + f)
-                os.remove(f)
-
-    return len(tasks) > 0
+#
+# def ConvertImagesInDict(ImagesToConvertDict, Flip=False, Flop=False, Bpp=None, Invert=False, bDeleteOriginal=False,
+#                         RightLeftShift=None, AndValue=None, MinMax=None, Async=False):
+#     """
+#     The key and value in the dictionary have the full path of an image to convert.
+#     MinMax is a tuple [Min,Max] passed to the -level parameter if it is not None
+#     RightLeftShift is a tuple containing a right then left then return to center shift which should be done to remove useless bits from the data
+#     I do not use an and because I do not calculate ImageMagick's quantum size yet.
+#     Every image must share the same colorspace
+#
+#     :return: True if images were converted
+#     :rtype: bool
+#     """
+#
+#     if len(ImagesToConvertDict) == 0:
+#         return False
+#
+#     if Bpp is None:
+#         Bpp = GetImageBpp(ImagesToConvertDict.keys[0])
+#
+#     prettyoutput.CurseString('Stage', "ConvertImagesInDict")
+#     # numProcs = Config.NumProcs * 1.25 #ir-flip spends about half the time loading from disk...
+#     # doubling the number of procs should keep the CPU busy
+#
+#     ProcPool = nornir_pools.GetGlobalClusterPool()
+#
+#     if not MinMax is None:
+#         if MinMax[0] > MinMax[1]:
+#             prettyoutput.Log("Invalid MinMax parameter passed to ConvertImagesInDict")
+#             MinMax = None
+#
+#     originalFileName = ""
+#     targetFileName = ""
+#
+#     DepthStr = ' -depth ' + str(Bpp) + ' '
+#
+#     InvertStr = ''
+#     if Invert:
+#         InvertStr = ' -negate '
+#
+#     #    LeftShiftStr = ''
+#     # if LeftShift > 0:
+#     #        LeftShiftStr = " -evaluate leftshift " + str(LeftShift) + " "
+#
+#     AndStr = ""
+#     if not AndValue is None:
+#         AndStr = " -evaluate And " + str(AndValue) + " "
+#
+#     RightLeftShiftStr = ''
+#     if not RightLeftShift is None:
+#         # This would be much clearer simply using an AND operation, but the ImageMagick output depends on the
+#         # bpp a particular build of IM was compiled for
+#
+#         # Track the shift required to return to center
+#
+#         if RightLeftShift[0] > 0:
+#             RightLeftShiftStr = " -evaluate rightshift " + str(RightLeftShift[0]) + ' '
+#
+#         if RightLeftShift[1] > 0:
+#             RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0] + RightLeftShift[1])
+#         else:
+#             RightLeftShiftStr = RightLeftShiftStr + " -evaluate leftshift " + str(RightLeftShift[0])
+#
+#         # " -evaluate rightshift " + str(RightLeftShift[1])
+#
+#     MinMaxStr = ''
+#     if MinMax is not None and RightLeftShift is None:
+#         MinMaxStr = ' -level ' + str(MinMax[0]) + ',' + str(MinMax[1]) + ' '
+#
+#     flipStr = ""
+#     if Flip:
+#         flipStr = " -flip "
+#
+#     flopStr = ""
+#     if Flop:
+#         flopStr = " -flop "
+#
+#     QualityStr = ''
+#     if Bpp <= 8:
+#         QualityStr = ' -quality 106 '
+#
+#     SampleCmdPrinted = False
+#
+#     colorspaceString = __Fix_sRGB_String(list(ImagesToConvertDict.keys())[0])
+#
+#     tasks = []
+#
+#     for f in ImagesToConvertDict.keys():
+#         OpNameStr = f + ' -> ' + ImagesToConvertDict[f]
+#
+#         originalFileName = '"' + f + '"'
+#
+#         # I move images to a temporary file, then rename at the end to prevent half-written files when the user uses CTRL+C
+#         temptargetFileName = '"' + ImagesToConvertDict[f] + '"'
+#         targetFileName = '"' + ImagesToConvertDict[f] + '"'
+#
+#         if os.path.exists(targetFileName):
+#             prettyoutput.Log('Skipping existing file: ' + str(targetFileName))
+#             continue
+#
+#         # prettyoutput.Log(f + ' -> ' + ImagesToConvertDict[f])
+#
+#         # Find out if we need to flip the image
+#         if (originalFileName != targetFileName) or Flip or Flop:
+#             cmd = "magick convert " + originalFileName + InvertStr + AndStr + RightLeftShiftStr + MinMaxStr + colorspaceString + DepthStr + " -type optimize " + flipStr + flopStr + QualityStr + targetFileName
+#         else:
+#             # Nothing to do, source and target names match and no flipping required, skip everything
+#             return False
+#
+#         if not SampleCmdPrinted:
+#             SampleCmdPrinted = True
+#             prettyoutput.Log('Converting images, example command:')
+#             prettyoutput.CurseString('Cmd', cmd)
+#         # prettyoutput.CurseString('Cmd', cmd)
+#         tasks.append(ProcPool.add_process(OpNameStr, cmd, shell=True))
+#
+#     # Keep waiting until all processes are finished
+#     # WaitForAllProcesses(Procs)
+#     if not Async:
+#         ProcPool.wait_completion()
+#
+#     for t in tasks:
+#         if not t.returncode == 0:
+#             prettyoutput.LogErr("Failed to convert " + t.name)
+#
+#     if bDeleteOriginal and (originalFileName != targetFileName):
+#         for f in ImagesToConvertDict.keys():
+#             # Don't delete unless the target file was created
+#             if os.path.exists(ImagesToConvertDict[f]):
+#                 prettyoutput.Log("Deleting: " + f)
+#                 os.remove(f)
+#
+#     return len(tasks) > 0
 
 
 def TilesFromImage(ImageFullPath, OutputPath, ImageExt=None, TileSize=None, DownsampleList=None,
                    GridTileCoordFormat=None, Logger=None):
-    '''Create tiles for a single image'''
+    """Create tiles for a single image"""
 
     if GridTileCoordFormat is None:
         GridTileCoordFormat = 'd'
