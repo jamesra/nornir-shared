@@ -34,6 +34,22 @@ class Test(unittest.TestCase):
         valid = images.IsValidImage(InvalidImagePath)
         self.assertFalse(valid, "invalid image is returning valid")
 
+    def test_AreValidImages(self):
+        ValidImagePath = os.path.join(self.TestInputPath, 'Transforms', 'FixedMoving_Registered.png')
+        InvalidImagePath = os.path.join(self.TestInputPath, 'Transforms', 'FixedMoving_RBF.stos')
+
+        valid = images.AreValidImages([ValidImagePath, InvalidImagePath])
+        self.assertTrue(valid[0] == InvalidImagePath, "Valid image is returning invalid")
+        self.assertTrue(len(valid) == 1, "Valid image is returning invalid")
+
+        valid = images.AreValidImages([ValidImagePath])
+        self.assertTrue(len(valid) == 0, "Valid image is returning invalid")
+
+        valid = images.AreValidImages([InvalidImagePath])
+        self.assertTrue(valid[0] == InvalidImagePath, "Invalid image is returning valid")
+
+        valid = images.AreValidImages([])
+        self.assertTrue(len(valid) == 0, "Empty image list not returning empty result list")
         pass
 
 

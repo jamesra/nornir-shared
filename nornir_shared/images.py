@@ -221,8 +221,12 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
     max_workers = min(os.process_cpu_count() * 2, 60)
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        chunksize = len(image_full_paths) // (max_workers * 8)
+        if chunksize < 1:
+            chunksize = 1
+
         image_iterator = executor.map(IsValidImageReturnName, image_full_paths,
-                                      chunksize=len(image_full_paths) // (max_workers * 8))
+                                      chunksize=chunksize)
 
         for image_task in image_iterator:
             result, filename = image_task
