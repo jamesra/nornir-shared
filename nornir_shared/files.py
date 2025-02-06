@@ -196,7 +196,7 @@ def RemoveOutdatedFile(ReferenceFilename: str,
             prettyoutput.LogErr(f'Reference file does not exist: {ReferenceFilename}')
             return False
         elif not os.path.exists(remove_if_outdated):
-            prettyoutput.LogErr(f'Test file does not exist: {remove_if_outdated}')
+            prettyoutput.Log(f'Test file does not exist: {remove_if_outdated}')
             return True
     elif needs_removing:
         if isinstance(remove_if_outdated, str):
