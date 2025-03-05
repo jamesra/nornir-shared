@@ -262,7 +262,7 @@ def ensure_regex_or_set(param: str | re.Pattern | Sequence[str] | None, caseInse
     elif isinstance(param, str):
         # helper change, if it starts with a *, then assume it is a file expression and convert it crudely
         if param[0] == '*':
-            param = param.replace('.', '\.')
+            param = param.replace('.', r'\.')
             param = param.replace('*', '.*')
             param += '$'
         return re.compile(param, re.IGNORECASE if caseInsensitive else 0)
