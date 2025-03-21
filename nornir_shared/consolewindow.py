@@ -6,16 +6,16 @@ import nornir_shared.console_constants
 
 
 class ConsoleWindow(object):
-    '''
+    """
     Creates a second console window which displays text output sent to this Console object
-    '''
+    """
 
     def __init__(self, title=None, host=None, port=None, *args, **kwargs):
-        '''
+        """
         :param str title: Title to place on new console
         :param str host: Host address to use
         :param int port: Port to use
-        '''
+        """
 
         super(ConsoleWindow, self).__init__(*args, **kwargs)
         self.HOST = nornir_shared.console_constants.DefaultHost if host is None else host
@@ -27,7 +27,7 @@ class ConsoleWindow(object):
                                              shell=True)
 
     def pycmd(self, title, host, port):
-        '''Command to use to launch python'''
+        """Command to use to launch python"""
         pycmd = "python -m nornir_shared.console -host %s -port %d" % (host, int(port))
 
         if len(self.title) > 0:
@@ -47,7 +47,7 @@ class ConsoleWindow(object):
         if self._socket is None:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._socket.connect((self.HOST, self.PORT))
-            atexit.register(self._socket.close)
+            atexit.register(self.Close)
 
         return self._socket
 
@@ -71,7 +71,7 @@ class CursesConsoleWindow(ConsoleWindow):
         super(CursesConsoleWindow, self).__init__(title=title, host=host, port=port, *args, **kwargs)
 
     def pycmd(self, title, host, port):
-        '''Command to use to launch python'''
+        """Command to use to launch python"""
         pycmd = "python -m nornir_shared.console -host %s -port %d -usecurses " % (host, int(port))
         debug = False
         cmd = 'start "%s" %s ' % (title, pycmd)

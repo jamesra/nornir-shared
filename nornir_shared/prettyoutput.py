@@ -255,7 +255,7 @@ def input_to_string(input_str: Any, tablevel: int = 0) -> str | None:
         return tabs + str(input_str)
 
     if isinstance(input_str, typing.Iterable):
-        return os.linesep.join([tabs + input_to_string(obj, tablevel=tablevel+1) for obj in input_str])
+        return os.linesep.join([tabs + input_to_string(obj, tablevel=tablevel + 1) for obj in input_str])
     else:
         return tabs + str(input_str)
 
@@ -263,11 +263,11 @@ def input_to_string(input_str: Any, tablevel: int = 0) -> str | None:
 def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = None):
     output = input_to_string(text)
     if output is None:
-        return 
+        return
 
     tabs = '  ' * __IndentLevel
 
-    #output = tabs + output
+    # output = tabs + output
     output.replace('\n', '\n' + tabs)
 
     # if logger_name is None:
@@ -305,7 +305,7 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
         print(output)
 
 
-_error_console = None
+_error_console = None  # type: nornir_shared.consolewindow.ConsoleWindow | None
 
 
 def error(error_message: str | None = None):
