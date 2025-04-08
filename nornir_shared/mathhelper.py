@@ -31,6 +31,7 @@ def ListMedian(items):
 
 
 def NearestPowerOfTwo(val: float | int | NDArray[np.floating] | NDArray[np.integer]) -> NDArray[np.integer]:
+    """Return the nearest power of two greater than or equal to val"""
     return np.power(2, np.ceil(np.log2(val))).astype(int, copy=False)
 
 
@@ -40,6 +41,16 @@ def RoundingPrecision(dtype: DTypeLike) -> int:
         raise ValueError(f"Expected floating dtype, got {dtype}")
 
     return int(np.abs(np.log10(np.finfo(dtype).eps)))
+
+
+def max_shape(shapes: list[np.integer]) -> NDArray[np.integer]:
+    """A function that returns the maximum value for each shape in the array"""
+    if len(shapes) == 0:
+        return np.zeros(0, dtype=int)
+
+    shapes = np.vstack(shapes)
+    max_shape = np.max(shapes, axis=0)
+    return max_shape
 
 
 if __name__ == '__main__':
