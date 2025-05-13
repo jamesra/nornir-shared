@@ -9,27 +9,27 @@ include = ["nornir_shared"]
 
 [project]
 name = "nornir_shared"
-version = "1.5.1"
+version = "1.5.2"
 authors = [
-  { name="James Anderson", email="James.R.Anderson@utah.edu" },
+    { name = "James Anderson", email = "James.R.Anderson@utah.edu" },
 ]
 description = "Shared routines for Nornir python packages and scripts"
 readme = "README.md"
-license = {file = "LICENSE"}
-requires-python = ">=3.10"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
 dependencies = [
-  "six >= 1.16",
-  "numpy >= 1.26",
-  "matplotlib >= 3.8",
+    "six >= 1.16",
+    "numpy >= 1.26",
+    "matplotlib >= 3.8",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering",
 ]
 
 [project.optional-dependencies]
-test = ["curses>=2.2","pydevd>=2.9"]
+test = ["curses>=2.2", "pydevd>=2.9"]
 
 [project.urls]
 Homepage = "https://github.com/jamesra/nornir-shared"
