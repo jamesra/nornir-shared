@@ -3,14 +3,20 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 """
+import asyncio
 import collections.abc
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import glob
+import functools
 import os
 import re
+import sys
 import time
 import typing
+import shutil
+import logging
 from enum import IntEnum, auto
 from typing import Sequence
 
@@ -35,37 +41,125 @@ class FindFileResult(typing.NamedTuple):
     matched_files: list[str] | None  # Files requested by the Match paramter
 
 
-def rmtree(directory: str, ignore_errors: bool = False):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        for root, dirs, files in os.walk(directory, topdown=False):
-            try:
-                files_futures = executor.map(os.remove, [os.path.join(root, f) for f in files])
-                t = list(files_futures)  # Force the map operation to complete
-            except OSError as e:
-                if ignore_errors is True:
-                    prettyoutput.error(f'{e}')
-                else:
-                    raise e
+def path_entry_count(directory: str, max_count: int = 1000) -> int:
+    """
+    Count path files and directories up to max_count and return True if count is less than max_count.
+    Short-circuits as soon as count exceeds max_count.
+    """
+    count = 0
+    with os.scandir(directory) as it:
+        try:
+            for item in it:
+                if item.is_file():
+                    count += 1
+                    if count > max_count:
+                        return count
+                elif item.is_dir():
+                    count += path_entry_count(item.path, max_count - count)
+                    if count > max_count:
+                        return count
 
-            try:
-                dir_futures = executor.map(os.rmdir, [os.path.join(root, d) for d in dirs])
-                d = list(dir_futures)  # Force the map operation to complete
-            except OSError as e:
-                if ignore_errors is True:
-                    prettyoutput.error(f'{e}')
-                else:
-                    raise e
+        except OSError as e:
+            prettyoutput.error(f"Error reading directory {directory}: {e}")
+            return False
+
+    return count
+
+
+def rmtree(directory: str, ignore_errors: bool = False, executor: concurrent.futures.ThreadPoolExecutor | None = None,
+           wait: bool = True):
+    """Recursively remove a directory and all its contents.  Uses multithreading for large directories."""
+    cleanup_executor = executor is None
+
+    if not os.path.exists(directory):
+        return
+
+    if sys.is_finalizing():
+        prettyoutput.Log(
+            "Python is shutting down. Waiting for rmtree operation to complete contradicting passed wait parameter.")
+        wait = True
 
     try:
-        os.rmdir(directory)
-    except OSError as e:
-        if ignore_errors is True:
-            # prettyoutput.error(f'{e}')
-            pass
-        else:
-            raise e
 
-    return
+        try:
+            # For small directories, use shutil.rmtree directly
+            # Short-circuit as soon as we exceed 1000 entries
+            if path_entry_count(directory, max_count=50) < 50:
+                shutil.rmtree(directory, ignore_errors=ignore_errors)
+                return
+        except IOError as e:
+            if not ignore_errors:
+                raise
+
+        executor = concurrent.futures.ThreadPoolExecutor() if executor is None else executor
+
+        folders = []
+        files = []
+
+        directory_remover = functools.partial(rmtree, executor=executor, ignore_errors=ignore_errors, wait=wait)
+
+        for entry in os.scandir(directory):
+            if entry.is_file():
+                files.append(entry.path)
+            elif entry.is_dir():
+                folders.append(entry.path)
+
+        folder_futures = []
+        files_futures = []
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for folder in folders:
+                folder_futures.append(executor.submit(directory_remover, os.path.join(directory, folder)))
+
+            for file in files:
+                files_futures.append(executor.submit(os.remove, os.path.join(directory, file)))
+
+        for f in as_completed(folder_futures):
+            try:
+                f.result()  # This will raise an exception if the task failed
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                if ignore_errors is True:
+                    prettyoutput.error(f'Error removing {t}: {e}')
+                else:
+                    raise
+
+        del folder_futures  # Clear the list to free memory
+
+        for f in as_completed(files_futures):
+            try:
+                f.result()  # This will raise an exception if the task failed
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                if ignore_errors is True:
+                    prettyoutput.error(f'Error removing {t}: {e}')
+                else:
+                    raise
+
+        del files_futures
+
+        try:
+            os.rmdir(directory)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            if ignore_errors is True:
+                prettyoutput.error(f'Error removing {t}: {e}')
+                pass
+            else:
+                raise
+
+        return
+    finally:
+        if cleanup_executor and executor is not None:
+            # Test if python is in shutdown
+
+            executor.shutdown(wait=wait)
+            # If we created the executor, we should clean it up
+            # This is to avoid leaving threads running in the background
+            # when this function is called from a thread pool.
 
 
 def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> str | None:
@@ -84,14 +178,14 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
     try:
         AStats = os.stat(fileA)
     except FileNotFoundError:
-        prettyoutput.Log(f"NewestFile: File not found {fileA}")
+        # prettyoutput.Log(f"NewestFile: File not found {fileA}")
         return None
 
     BStats = None
     try:
         BStats = os.stat(fileB)
     except FileNotFoundError:
-        prettyoutput.Log(f"NewestFile: File not found {fileB}")
+        # prettyoutput.Log(f"NewestFile: File not found {fileB}")
         return None
 
     atime = AStats.st_mtime_ns if comparison == FileTimeComparison.MODIFIED else AStats.st_ctime_ns
