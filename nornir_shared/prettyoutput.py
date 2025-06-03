@@ -5,27 +5,152 @@ import sys
 import time
 import typing
 from typing import Any
+import atexit
+import json
 
 import nornir_shared.consolewindow
+
+# MQTT imports and setup
+try:
+    import paho.mqtt.client as mqtt
+    import paho.mqtt.enums as mqtt_enum
+    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, start_mosquitto_broker, \
+        stop_mosquitto_broker
+
+    MQTT_AVAILABLE = True
+except ImportError:
+    MQTT_AVAILABLE = False
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = False
 
 ProgressStartTime = None
 
+# MQTT client globals
+_mqtt_client = None
+_mosquitto_process = None
+_mqtt_initialized = False
+
 if not ECLIPSE:
     try:
         # Jan 30 2024
         # Curses is causing trouble on Linux installs, so removing it for now
-        # import curses
-        # CURSES = True
+        if sys.stdin.isatty():
+            import curses
+
+            print("Curses should work!")
+            CURSES = True
+        else:
+            print("Redirection detected. Try running in a standard terminal.")
+            CURSES = False
         pass
     except ImportError:
+        CURSES = False
         pass
 
 LastReportedProgress = 100
 
 __IndentLevel = 0
+
+
+def _initialize_mqtt():
+    """Initialize MQTT client and start mosquitto broker if needed"""
+    global _mqtt_client, _mosquitto_process, _mqtt_initialized
+
+    if not MQTT_AVAILABLE or _mqtt_initialized:
+        return
+
+    try:
+        # Try to start mosquitto broker
+        _mosquitto_process = start_mosquitto_broker()
+
+        # Create MQTT client (using compatible API)
+        _mqtt_client = mqtt.Client(callback_api_version=mqtt_enum.CallbackAPIVersion.VERSION2)
+
+        # Set up callbacks
+        def on_connect(client: mqtt.Client,
+                       userdata: any,
+                       connect_flags: mqtt.ConnectFlags,
+                       reason_code: mqtt.ReasonCode,
+                       properties: mqtt.Properties | None = None,
+                       flags: dict | None = None,
+                       connection_result: mqtt.ConnackCode | None = None):
+            if reason_code == 0:  # SUCCESS:
+                logging.getLogger(__name__).info("Connected to MQTT broker")
+            else:
+                logging.getLogger(__name__).error(f"Failed to connect to MQTT broker: {rc}")
+
+        def on_disconnect(client: mqtt.Client,
+                          userdata: any,
+                          reason_code: mqtt.ReasonCodes,
+                          properties: mqtt.Properties,
+                          rc: int | None = None):
+            logging.getLogger(__name__).info("Disconnected from MQTT broker")
+
+        _mqtt_client.on_connect = on_connect
+        _mqtt_client.on_disconnect = on_disconnect
+
+        # Connect to broker
+        _mqtt_client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE)
+        _mqtt_client.loop_start()
+
+        # Register cleanup function
+        atexit.register(_cleanup_mqtt)
+
+        _mqtt_initialized = True
+
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Failed to initialize MQTT: {e}")
+
+
+def _cleanup_mqtt():
+    """Cleanup MQTT client and broker"""
+    global _mqtt_client, _mosquitto_process
+
+    if _mqtt_client:
+        try:
+            _mqtt_client.loop_stop()
+            _mqtt_client.disconnect()
+        except:
+            pass
+        _mqtt_client = None
+
+    if _mosquitto_process:
+        try:
+            stop_mosquitto_broker(_mosquitto_process)
+        except:
+            pass
+        _mosquitto_process = None
+
+
+def _publish_mqtt_message(topic_key: str, message: str, metadata: dict | None = None):
+    """Publish a message to MQTT topic"""
+    global _mqtt_client
+
+    if not _mqtt_initialized:
+        _initialize_mqtt()
+
+    if not _mqtt_client or not MQTT_AVAILABLE:
+        return
+
+    try:
+        topic = MQTT_TOPICS.get(topic_key, MQTT_TOPICS['info'])
+
+        # Create message payload
+        payload = {
+            'message': message,
+            'timestamp': time.time(),
+            'severity': topic_key
+        }
+
+        if metadata is not None:
+            payload.update(metadata)
+
+        # Publish message
+        _mqtt_client.publish(topic, json.dumps(payload))
+
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Failed to publish MQTT message: {e}")
 
 
 def IncreaseIndent():
@@ -117,7 +242,11 @@ def CurseString(topic: str, text: str):
         statusWindow.move(yMax - 1, 0)
         statusWindow.refresh()
     else:
-        print(topic + ": " + text)
+        output_message = topic + ": " + text
+        print(output_message)
+
+        # Also publish status messages to MQTT
+        _publish_mqtt_message('status', output_message, {'topic': topic})
         return
 
 
@@ -158,6 +287,23 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
             ETASec = (elapsedSec / fraction) * (1.0 - fraction)
             tstruct = time.gmtime(ETASec)
             ETAString = "ETA: " + time.strftime("%H:%M:%S", tstruct)
+
+    # Prepare progress message for MQTT
+    progress_info = {
+        'progress': Progress,
+        'total': Total,
+        'fraction': fraction,
+        'eta_string': ETAString
+    }
+
+    progress_message = text if text is not None else ""
+    if fraction is not None:
+        progress_message += f" {fraction:0.3g}"
+        if ETAString:
+            progress_message += " " + ETAString
+
+    # Publish progress to MQTT
+    _publish_mqtt_message('progress', progress_message, progress_info)
 
     if CURSES:
         (yMax, xMax) = statusWindow.getmaxyx()
@@ -276,6 +422,9 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
     logger = logging.getLogger(logger_name)
     logger.info(output)
 
+    # Publish to MQTT
+    _publish_mqtt_message('info', output, {'logger_name': logger_name})
+
     if CURSES:
         output += os.linesep
 
@@ -324,20 +473,34 @@ def LogErr(error_message: str | None = None, calling_func_name: str | None = Non
     logger = logging.getLogger(calling_func_name)
     logger.error(error_output)
 
+    # Publish to MQTT
+    _publish_mqtt_message('error', error_output, {'logger_name': calling_func_name})
+
     if not ECLIPSE:
         try:
             global _error_console
+            import multiprocessing
 
+            # Check if we're in a child process
+            is_child_process = multiprocessing.current_process().name != 'MainProcess'
+
+            # Only create a console window in the main process or if one doesn't exist yet
             if _error_console is None:
-                _error_console = nornir_shared.consolewindow.ConsoleWindow()
+                # Create a console window with create_window=True only in the main process
+                # In child processes, set create_window=False to ensure they connect to the parent's console
+                _error_console = nornir_shared.consolewindow.ConsoleWindow(
+                    title="Error Console",
+                    create_window=not is_child_process  # Only create a window in the main process
+                )
 
+            # Send the error message to the console
             _error_console.WriteMessage(error_output)
             logger = logging.getLogger(calling_func_name)
             logger.error(error_output)
-        except:
+        except Exception as e:
+            # If there's an error with the console window, log it and continue
+            print(f"Error with console window: {e}")
             _error_console = None
-            # logger = logging.getLogger(calling_func_name)
-            # logger.error(error_message)
             pass
     else:
         logger = logging.getLogger(get_calling_func_name())

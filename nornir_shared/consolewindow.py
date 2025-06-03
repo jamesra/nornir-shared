@@ -1,81 +1,158 @@
 import atexit
-import socket
-import subprocess
+import json
+import time
+import threading
+from typing import Optional
+
+# MQTT imports
+try:
+    import paho.mqtt.client as mqtt
+    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
+
+    MQTT_AVAILABLE = True
+except ImportError:
+    MQTT_AVAILABLE = False
 
 import nornir_shared.console_constants
 
 
 class ConsoleWindow(object):
     """
-    Creates a second console window which displays text output sent to this Console object
+    Creates a second console window which displays text output sent to this Console object via MQTT
     """
 
-    def __init__(self, title=None, host=None, port=None, *args, **kwargs):
+    def __init__(self, title=None, auto_start=True, *args, **kwargs):
         """
         :param str title: Title to place on new console
-        :param str host: Host address to use
-        :param int port: Port to use
+        :param bool auto_start: Whether to automatically start the console subscriber
         """
 
         super(ConsoleWindow, self).__init__(*args, **kwargs)
-        self.HOST = nornir_shared.console_constants.DefaultHost if host is None else host
-        self.PORT = nornir_shared.console_constants.DefaultPort if port is None else int(port)
         self.title = '' if title is None else title.strip()
+        self._mqtt_client = None
+        self._subscribed_topics = []
+        self._running = False
+        self._message_callback = None
 
-        self._socket = None
-        self._consoleProc = subprocess.Popen(self.pycmd(self.title, self.HOST, self.PORT), stdin=subprocess.PIPE,
-                                             shell=True)
+        if auto_start and MQTT_AVAILABLE:
+            self._initialize_mqtt_subscriber()
 
-    def pycmd(self, title, host, port):
-        """Command to use to launch python"""
-        pycmd = "python -m nornir_shared.console -host %s -port %d" % (host, int(port))
+    def _initialize_mqtt_subscriber(self):
+        """Initialize MQTT client for subscribing to console messages"""
+        if not MQTT_AVAILABLE:
+            print("MQTT not available, falling back to print statements")
+            return
 
-        if len(self.title) > 0:
-            pycmd += " -title {0}".format(self.title)
+        try:
+            # Create MQTT client
+            self._mqtt_client = mqtt.Client()
 
-        debug = False
-        cmd = 'start "%s" %s' % (title, pycmd)
-        if debug:
-            # Debug does not seem to be working for non-curses consoles for some reason
-            cmd = 'start "%s" %s -debug' % (title, pycmd)
+            # Set up callbacks
+            def on_connectclient(client: mqtt.Client,
+                                 userdata: any,
+                                 connect_flags: mqtt.ConnectFlags,
+                                 reason_code: mqtt.ReasonCode,
+                                 properties: mqtt.Properties | None = None,
+                                 flags: dict | None = None,
+                                 connection_result: mqtt.ConnackCode | None = None):
+                if reason_code == 0:
+                    print(f"Console '{self.title}' connected to MQTT broker")
+                    # Subscribe to all log topics
+                    for topic in MQTT_TOPICS.values():
+                        client.subscribe(topic)
+                        print(f"Subscribed to {topic}")
+                else:
+                    print(f"Failed to connect console to MQTT broker: {rc}")
 
-        return cmd
+            def on_message(client: mqtt.Client, userdata: any, msg: mqtt.MQTTMessage):
+                try:
+                    payload = json.loads(msg.payload.decode())
+                    message = payload.get('message', '')
+                    severity = payload.get('severity', 'info')
+                    timestamp = payload.get('timestamp', time.time())
 
-    @property
-    def socket(self):
+                    # Format message with timestamp and severity
+                    formatted_msg = f"[{time.strftime('%H:%M:%S', time.localtime(timestamp))}] [{severity.upper()}] {message}"
 
-        if self._socket is None:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.connect((self.HOST, self.PORT))
+                    if self._message_callback:
+                        self._message_callback(formatted_msg)
+                    else:
+                        # Default behavior - print to console
+                        print(formatted_msg.rstrip())
+
+                except Exception as e:
+                    print(f"Error processing MQTT message: {e}")
+
+            def on_disconnect(client: mqtt.Client,
+                              userdata: any,
+                              reason_code: mqtt.ReasonCodes,
+                              properties: mqtt.Properties,
+                              rc: int | None = None):
+                print(f"Console '{self.title}' disconnected from MQTT broker")
+
+            self._mqtt_client.on_connect = on_connect
+            self._mqtt_client.on_message = on_message
+            self._mqtt_client.on_disconnect = on_disconnect
+
+            # Connect to broker
+            self._mqtt_client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE)
+            self._mqtt_client.loop_start()
+            self._running = True
+
+            # Register cleanup function
             atexit.register(self.Close)
 
-        return self._socket
+        except Exception as e:
+            print(f"Failed to initialize MQTT console subscriber: {e}")
 
-    @property
-    def ConsoleProc(self):
-        return self._consoleProc
+    def set_message_callback(self, callback):
+        """Set a callback function to handle received messages"""
+        self._message_callback = callback
 
     def WriteMessage(self, text):
-        self.socket.sendall(text.encode())
+        """
+        For compatibility with existing code.
+        This method is now redundant since messages are published directly from prettyoutput.
+        """
+        # If MQTT is not available, fallback to printing
+        if not MQTT_AVAILABLE or not self._running:
+            print(text.rstrip())
 
     def Close(self):
-        if not self._socket is None:
-            self._socket.sendall(nornir_shared.console_constants.console_exit_string.encode())
-            self._socket.close()
-            self._socket = None
+        """Close the MQTT connection"""
+        if self._mqtt_client and self._running:
+            try:
+                self._mqtt_client.loop_stop()
+                self._mqtt_client.disconnect()
+                self._running = False
+            except:
+                pass
 
 
 class CursesConsoleWindow(ConsoleWindow):
+    """Console window that can work with curses interface"""
 
-    def __init__(self, title=None, host=None, port=None, *args, **kwargs):
-        super(CursesConsoleWindow, self).__init__(title=title, host=host, port=port, *args, **kwargs)
+    def __init__(self, title=None, auto_start=True, *args, **kwargs):
+        super(CursesConsoleWindow, self).__init__(title=title, auto_start=auto_start, *args, **kwargs)
 
-    def pycmd(self, title, host, port):
-        """Command to use to launch python"""
-        pycmd = "python -m nornir_shared.console -host %s -port %d -usecurses " % (host, int(port))
-        debug = False
-        cmd = 'start "%s" %s ' % (title, pycmd)
-        if debug:
-            cmd = 'start "%s" %s -debug' % (title, pycmd)
+        # Set up curses-specific message handling if needed
+        self._setup_curses_handling()
 
-        return cmd
+    def _setup_curses_handling(self):
+        """Setup curses-specific message handling"""
+
+        def curses_message_handler(message):
+            # Extract topic and text for curses display
+            # Format: [timestamp] [severity] message
+            parts = message.split('] ', 2)
+            if len(parts) >= 3:
+                topic = parts[1][1:]  # Remove the leading '['
+                text = parts[2]
+            else:
+                topic = "Log"
+                text = message
+
+            # Print to console (curses handling would be in the console module)
+            print(f"{topic}: {text}")
+
+        self.set_message_callback(curses_message_handler)

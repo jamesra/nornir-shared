@@ -21,6 +21,7 @@ dependencies = [
     "six >= 1.16",
     "numpy >= 1.26",
     "matplotlib >= 3.8",
+    "paho-mqtt >= 2.1.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3.13",
@@ -29,7 +30,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-test = ["curses>=2.2", "pydevd>=2.9"]
+curses = ["windows-curses; sys_platform == 'win32'"]
+test = ["pydevd>=2.9"]
 
 [project.urls]
 Homepage = "https://github.com/jamesra/nornir-shared"
