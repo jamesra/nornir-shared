@@ -135,14 +135,16 @@ def lowpriority():
             # Based on:
             #   "Recipe 496767: Set Process Priority In Windows" on ActiveState
             #   http://code.activestate.com/recipes/496767/
-            import win32api, win32process, win32con
+            import win32api  # type: ignore[reportMissingModuleSource]
+            import win32process  # type: ignore[reportMissingModuleSource]
+            import win32con  # type: ignore[reportMissingModuleSource]
             pid = os.getpid()
             handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
             win32process.SetPriorityClass(handle, win32process.BELOW_NORMAL_PRIORITY_CLASS)
             win32api.CloseHandle(handle)
         else:
             # Unix and Mac should have a nice function
-            os.nice(1)
+            getattr(os, 'nice', lambda _: None)(1)  # type: ignore[attr-defined]
     except:
         logger = logging.getLogger(__name__ + '.lowpriority')
         if not logger is None:

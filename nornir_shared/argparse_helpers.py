@@ -21,7 +21,7 @@ def _IntegerRangeToList(argstr: str) -> list[int]:
         start_int = int(start)
         end_int = int(end)
 
-        numbers = range(start_int, end_int + 1)
+        numbers = list(range(start_int, end_int + 1))
 
     except ValueError as e:
         raise argparse.ArgumentTypeError()
@@ -82,7 +82,7 @@ def IntegerPair(argstr: str) -> tuple[int, int]:
         raise argparse.ArgumentTypeError(f"IntegerPair function could not convert {argstr} to integer value(s)")
 
 
-def Tuple(argstr: str) -> list[int]:
+def Tuple(argstr: str) -> list[int] | None:
     if len(argstr) == 0:
         return None
 
@@ -96,7 +96,7 @@ def Tuple(argstr: str) -> list[int]:
     return IntegerList(argstr)
 
 
-def Triple(argstr) -> list[int]:
+def Triple(argstr) -> list[int] | None:
     if len(argstr) == 0:
         return None
 
@@ -110,7 +110,7 @@ def Triple(argstr) -> list[int]:
     return IntegerList(argstr)
 
 
-def Quadruple(argstr) -> list[int]:
+def Quadruple(argstr) -> list[int] | None:
     if len(argstr) == 0:
         return None
 
@@ -124,7 +124,7 @@ def Quadruple(argstr) -> list[int]:
     return IntegerList(argstr)
 
 
-def FloatPair(argstr) -> tuple[int]:
+def FloatPair(argstr) -> tuple[float, float]:
     '''Return a pair of floats based on a comma delimited string
     :param argstr:  A string defining one or two floats.  If only one float is defined it is returned twice.  Commas separate values. Ex: 1,3
     :rtype: tuple of 2 integers
@@ -147,7 +147,7 @@ def FloatPair(argstr) -> tuple[int]:
         raise argparse.ArgumentTypeError("FloatPair function could not convert %s to float value(s)" % argstr)
 
 
-def FloatRange(argstr) -> list[float]:
+def FloatRange(argstr) -> list[float] | None:
     '''Return a pair of numbers based on a comma delimited string
     :param argstr:  A string defining either: A single number or a pair of hyphen delimited numbers indicating a range.
                     A trailing comma indicates the step size for the floating point values. Ex: 0:0.5:2 -> [0, 0.5, 1, 1.5, 2] 
@@ -183,6 +183,7 @@ def FloatRange(argstr) -> list[float]:
     except ValueError:
         raise argparse.ArgumentTypeError("FloatRange function could not convert %s to integer value(s)" % argstr)
 
+    assert start_val is not None and end_val is not None
     NextVal = start_val
     while NextVal <= end_val:
         listNums.append(NextVal)

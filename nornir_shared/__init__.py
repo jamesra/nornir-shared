@@ -41,18 +41,23 @@ __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'math
 # .. automodule:: nornir_shared.argparse_helpers
 
 
+import nornir_shared.argparse_helpers as argparse_helpers
 import nornir_shared.checksum as checksum
 import nornir_shared.files as files
 import nornir_shared.histogram as histogram
 import nornir_shared.mathhelper as mathhelper
+import nornir_shared.misc as misc
+import nornir_shared.parallel as parallel
 import nornir_shared.plot as plot
 import nornir_shared.prettyoutput as prettyoutput
+import nornir_shared.processoutputinterceptor as processoutputinterceptor
+import nornir_shared.reflection as reflection
 import nornir_shared.tasktimer as tasktimer
 import nornir_shared.images as images
 from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
 
 
-def find_first_match(collection, attributes: dict[str, any]) -> object | None:
+def find_first_match(collection, attributes: dict[str, object]) -> object | None:
     '''
     Returns the first object in the collection whose attributes match the values in the attribute dictionary
     '''

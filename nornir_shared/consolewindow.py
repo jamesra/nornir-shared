@@ -2,11 +2,13 @@ import atexit
 import json
 import time
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 # MQTT imports
 try:
     import paho.mqtt.client as mqtt
+    from paho.mqtt.properties import Properties
+    from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
 
     MQTT_AVAILABLE = True
@@ -49,12 +51,10 @@ class ConsoleWindow(object):
 
             # Set up callbacks
             def on_connectclient(client: mqtt.Client,
-                                 userdata: any,
+                                 userdata: Any,
                                  connect_flags: mqtt.ConnectFlags,
-                                 reason_code: mqtt.ReasonCode,
-                                 properties: mqtt.Properties | None = None,
-                                 flags: dict | None = None,
-                                 connection_result: mqtt.ConnackCode | None = None):
+                                 reason_code: ReasonCode,
+                                 properties: Properties | None = None):
                 if reason_code == 0:
                     print(f"Console '{self.title}' connected to MQTT broker")
                     # Subscribe to all log topics
@@ -62,9 +62,9 @@ class ConsoleWindow(object):
                         client.subscribe(topic)
                         print(f"Subscribed to {topic}")
                 else:
-                    print(f"Failed to connect console to MQTT broker: {rc}")
+                    print(f"Failed to connect console to MQTT broker: {reason_code}")
 
-            def on_message(client: mqtt.Client, userdata: any, msg: mqtt.MQTTMessage):
+            def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
                 try:
                     payload = json.loads(msg.payload.decode())
                     message = payload.get('message', '')
@@ -84,13 +84,13 @@ class ConsoleWindow(object):
                     print(f"Error processing MQTT message: {e}")
 
             def on_disconnect(client: mqtt.Client,
-                              userdata: any,
-                              reason_code: mqtt.ReasonCodes,
-                              properties: mqtt.Properties,
-                              rc: int | None = None):
+                              userdata: Any,
+                              disconnect_flags: mqtt.DisconnectFlags,
+                              reason_code: ReasonCode,
+                              properties: Properties | None = None):
                 print(f"Console '{self.title}' disconnected from MQTT broker")
 
-            self._mqtt_client.on_connect = on_connect
+            self._mqtt_client.on_connect = on_connectclient
             self._mqtt_client.on_message = on_message
             self._mqtt_client.on_disconnect = on_disconnect
 
@@ -156,3 +156,4 @@ class CursesConsoleWindow(ConsoleWindow):
             print(f"{topic}: {text}")
 
         self.set_message_callback(curses_message_handler)
+

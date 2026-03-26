@@ -73,7 +73,11 @@ class TaskTimerContext(TaskTimer):
     @staticmethod
     def _get_calling_function_name():
         frame = inspect.currentframe()
+        if frame is None or frame.f_back is None:
+            return "unknown"
         caller_frame = frame.f_back.f_back
+        if caller_frame is None or caller_frame.f_code is None:
+            return "unknown"
         return caller_frame.f_code.co_name
 
     def __enter__(self):

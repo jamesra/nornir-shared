@@ -7,6 +7,7 @@ Created on Dec 29, 2011
 import os
 import re
 import shutil
+from typing import Any
 
 from . import prettyoutput
 
@@ -79,7 +80,7 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
            '''
 
         if line is None:
-            prettyoutput.CurseProgress(None, 1, 1)
+            prettyoutput.CurseProgress(None, 1, 1)  # type: ignore[arg-type]
             return
 
         '''Processes a single line of output from the provided process and updates status as needed'''
@@ -100,7 +101,7 @@ class ProgressOutputInterceptor(ProcessOutputInterceptor):
 
             Progress = float(parts[0].strip())
 
-            prettyoutput.CurseProgress(None, Progress, 1)
+            prettyoutput.CurseProgress(None, Progress, 1)  # type: ignore[arg-type]
         except ValueError:
             pass
 
@@ -163,10 +164,10 @@ class StomOutputInterceptor(ProgressOutputInterceptor):
                         if len(ext) <= 0:
                             ext = '.tif'
 
-                        DestinationFile = os.path.join(path, self.FilePrefix + self.LastLoadedFile + ext)
+                        DestinationFile = os.path.join(path, self.FilePrefix + self.LastLoadedFile + ext)  # type: ignore[operator]
                         if self.TargetDir is not None:
                             DestinationFile = os.path.join(self.TargetDir, os.path.basename(
-                                self.FilePrefix + self.LastLoadedFile) + ext)
+                                self.FilePrefix + self.LastLoadedFile) + ext)  # type: ignore[operator]
 
                         prettyoutput.Log("Renaming " + outputFile + " to " + DestinationFile)
 
@@ -193,8 +194,8 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
         self.Output = list()  # List of output lines
 
         # Category to use for a given indentation level
-        self.LastKeyForLevel = {0: None, 1: None}
-        self.CategoryForLevel = {0: self, 1: self}
+        self.LastKeyForLevel: dict[int, str | None] = {0: None, 1: None}
+        self.CategoryForLevel: dict[int, Any] = {0: self, 1: self}
 
         self.LastIndentLevel = None
 
@@ -212,7 +213,7 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
             else:
                 break
 
-        return count / 2
+        return count // 2
 
     def Parse(self, line):
 
@@ -251,7 +252,8 @@ class IdentifyOutputInterceptor(ProcessOutputInterceptor):
                     c = IdentifyOutputInterceptor.Category(key)
 
                 self.CategoryForLevel[indentLevel] = c
-                self.CategoryForLevel[self.LastIndentLevel].__dict__[key] = c
+                if key is not None:
+                    self.CategoryForLevel[self.LastIndentLevel].__dict__[key] = c
 
             parts[0] = parts[0].strip().lower()
             parts[1] = parts[1].strip().lower()

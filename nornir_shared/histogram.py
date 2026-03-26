@@ -4,7 +4,7 @@ import copy
 import math
 import typing
 import xml.dom.minidom
-from decimal import *
+from decimal import Decimal
 
 from nornir_shared import prettyoutput
 
@@ -104,13 +104,13 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def FromXML(xml: str) -> Histogram | None:
+    def FromXML(xml_input: str | xml.dom.minidom.Document) -> Histogram | None:
         obj = Histogram()
 
-        if isinstance(xml, str):
-            xmlDoc = xml.dom.minidom.parseString(xml)
+        if isinstance(xml_input, str):
+            xmlDoc = xml.dom.minidom.parseString(xml_input)
         else:
-            xmlDoc = xml
+            xmlDoc = xml_input
         # else:
         # raise InvalidOperation("xml parameter was not a string or XML minidom object")
 
@@ -142,7 +142,7 @@ class Histogram(object):
         ChannelElem = ChannelElems[0]
 
         BinNode = ChannelElem.firstChild
-        BinString = BinNode.data
+        BinString = BinNode.data  # type: ignore[union-attr]
 
         BinStrings = BinString.split()
 
@@ -270,6 +270,7 @@ class Histogram(object):
 
         percentile = float(val) / float(self.MaxValue)
         if not (minVal is None and maxVal is None):
+            assert minVal is not None and maxVal is not None
             percentile = (float(val) - float(minVal)) / (float(maxVal) - float(minVal))
 
         assert (percentile >= 0.0)
@@ -470,7 +471,7 @@ class Histogram(object):
                     break
 
             try:
-                i
+                _ = i  # Reference to ensure loop set i; NameError if no break
             except NameError:
                 # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
                 return hObj
@@ -515,7 +516,7 @@ class Histogram(object):
 
         Elems = xmlDoc.getElementsByTagName('Histogram')
         if len(Elems) != 1:
-            return
+            raise RuntimeError("Expected exactly one Histogram element in XML document")
 
         HistogramElem = Elems[0]
 

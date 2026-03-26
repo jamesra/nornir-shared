@@ -37,10 +37,11 @@ def NearestPowerOfTwo(val: float | int | NDArray[np.floating] | NDArray[np.integ
 
 def RoundingPrecision(dtype: DTypeLike) -> int:
     """Determine how many digits of precision we can get from a value at most"""
-    if not dtype.kind == 'f':
+    np_dtype = np.dtype(dtype)  # type: ignore[call-overload]
+    if not np_dtype.kind == 'f':
         raise ValueError(f"Expected floating dtype, got {dtype}")
 
-    return int(np.abs(np.log10(np.finfo(dtype).eps)))
+    return int(np.abs(np.log10(np.finfo(np_dtype).eps)))  # type: ignore[call-overload]
 
 
 def max_shape(shapes: list[np.integer]) -> NDArray[np.integer]:
@@ -48,7 +49,7 @@ def max_shape(shapes: list[np.integer]) -> NDArray[np.integer]:
     if len(shapes) == 0:
         return np.zeros(0, dtype=int)
 
-    shapes = np.vstack(shapes)
+    shapes = np.vstack(shapes)  # type: ignore[assignment]
     max_shape = np.max(shapes, axis=0)
     return max_shape
 

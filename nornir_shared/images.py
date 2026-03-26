@@ -58,7 +58,7 @@ def GetImageColorspace(path: str):
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
         [stdoutdata, stderrdata] = proc.communicate()
 
-        lines = stdoutdata.splitlines()
+        lines = stdoutdata.decode('utf-8').splitlines()
         for line in lines:
             Parts = line.split(':')
             Header = Parts[0].strip()
@@ -71,7 +71,7 @@ def GetImageColorspace(path: str):
     return colorspace
 
 
-def GetImageStats(path: str) -> (float, float, float, float):
+def GetImageStats(path: str) -> tuple[float | None, float | None, float | None, float | None]:
     """Returns [Min, Mean, Max, StdDev] of an image via ImageMagick"""
 
     cmd = 'magick identify -verbose -format "min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" ' + path
@@ -85,7 +85,7 @@ def GetImageStats(path: str) -> (float, float, float, float):
         proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
         (stdoutdata, stderrdata) = proc.communicate()
 
-        lines = stdoutdata.splitlines()
+        lines = stdoutdata.decode('utf-8').splitlines()
 
         for line in lines:
             Parts = line.split(':')
@@ -118,8 +118,8 @@ def IdentifyImage(ImageFilePath: str):
         prettyoutput.Log('Eror calling ' + cmd)
         return
 
-    interceptor = processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
-    processoutputinterceptor.ProcessOutputInterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
+    interceptor = processoutputinterceptor.IdentifyOutputInterceptor(NewP, ImageFilePath)
+    processoutputinterceptor.IdentifyOutputInterceptor.Intercept(interceptor)
 
     return interceptor
 
@@ -138,7 +138,7 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[np.integer]:
     # raise ValueError("%s does not exist" % (ImageFullPath))
 
     if isinstance(image_param, np.ndarray):
-        return image_param.shape
+        return np.array(image_param.shape, dtype=np.int32)
 
     (root, ext) = os.path.splitext(image_param)
 
@@ -169,9 +169,6 @@ def IsValidImage(filename: str) -> bool:
             im.verify()
     except OSError as os_e:
         prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
-        return False
-    except FileNotFoundError as fnf_e:
-        prettyoutput.Log("{0} -> {1}".format(filename, fnf_e.strerror))
         return False
     except Exception as e:
         prettyoutput.Log("{0} -> {1}".format(filename, str(e)))
@@ -218,7 +215,7 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
     testable_image_extensions = list(filter(lambda filename: not _is_numpy_extension(filename), filenamelist))
     image_full_paths = [os.path.join(ImageDir, filename) for filename in testable_image_extensions]
 
-    max_workers = min(os.process_cpu_count() * 2, 60)
+    max_workers = min((os.process_cpu_count() or 1) * 2, 60)
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         chunksize = len(image_full_paths) // (max_workers * 8)

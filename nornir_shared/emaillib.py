@@ -15,8 +15,8 @@ from . import prettyoutput
 
 class EmailArgs(typing.NamedTuple):
     host: str
-    username: str
-    password: str
+    username: str | None
+    password: str | None
     subject: str
     toAddresses: typing.List[str] | str
     ccAddresses: typing.List[str] | str | None
@@ -35,6 +35,7 @@ def SendMail(args: EmailArgs):
 
     if isinstance(args.toAddresses, list):
         to_address_string = ', '.join(args.toAddresses)
+        to_address_list = args.toAddresses
     else:
         assert (isinstance(args.toAddresses, str))
         to_address_string = args.toAddresses
@@ -42,10 +43,14 @@ def SendMail(args: EmailArgs):
 
     if isinstance(args.ccAddresses, list):
         cc_address_string = ', '.join(args.ccAddresses)
+        cc_address_list = args.ccAddresses
     elif args.ccAddresses is not None:
         assert (isinstance(args.ccAddresses, str))
         cc_address_string = args.ccAddresses
         cc_address_list = [args.ccAddresses]
+    else:
+        cc_address_string = ''
+        cc_address_list = []
 
     smtpConn = smtplib.SMTP(args.host, args.port)
     try:
@@ -56,7 +61,7 @@ def SendMail(args: EmailArgs):
             prettyoutput.Log("Could not start secure session")
 
         try:
-            if args.username is not None:
+            if args.username is not None and args.password is not None:
                 smtpConn.login(args.username, args.password)
         except:
             prettyoutput.Log("Could not use provided credentials")
@@ -95,7 +100,7 @@ def SendMail(args: EmailArgs):
         prettyoutput.Log("Message:")
         prettyoutput.Log('\t' + args.message)
 
-        AllRecipientAddresses = args.to_address_list + args.cc_address_list
+        AllRecipientAddresses = to_address_list + cc_address_list
 
         smtpConn.sendmail(args.fromAddress,
                           AllRecipientAddresses,
@@ -116,7 +121,8 @@ if __name__ == '__main__':
                      fromAddress="james.r.anderson@utah.edu",
                      message="A build has completed.",
                      port=25,
-                     fromFriendlyAddress="Build Notifications")
+                     fromFriendlyAddress="Build Notifications",
+                     files=[])
 
     SendMail(args)
     pass

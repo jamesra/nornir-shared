@@ -17,6 +17,8 @@ import signal
 try:
     import paho.mqtt.enums as mqtt_enum
     import paho.mqtt.client as mqtt
+    from paho.mqtt.properties import Properties
+    from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
 
     MQTT_AVAILABLE = True
@@ -43,7 +45,7 @@ _mqtt_client = None
 _console_running = False
 
 try:
-    import pydevd
+    import pydevd  # type: ignore[reportMissingImports]
 
     pydevd_available = True
 except ImportError:
@@ -153,12 +155,10 @@ def MQTTConsoleLoop(HOST: str, PORT: int, title: str, handler_func):
         _console_running = True
 
         def on_connect(client: mqtt.Client,
-                       userdata: any,
+                       userdata: object,
                        connect_flags: mqtt.ConnectFlags,
-                       reason_code: mqtt.ReasonCode,
-                       properties: mqtt.Properties | None = None,
-                       flags: dict | None = None,
-                       connection_result: mqtt.ConnackCode | None = None):
+                       reason_code: ReasonCode,
+                       properties: Properties | None = None):
             if reason_code == 0:  # SUCCESS
                 print(f"MQTT Console '{title}' connected to broker at {HOST}:{PORT}")
                 # Subscribe to all log topics
@@ -168,11 +168,11 @@ def MQTTConsoleLoop(HOST: str, PORT: int, title: str, handler_func):
                 if _DEBUG and debug_file:
                     debug_file.write(f"Connected and subscribed to topics\n")
             else:
-                print(f"Failed to connect to MQTT broker: {connection_result}")
+                print(f"Failed to connect to MQTT broker: {reason_code}")
                 global _console_running
                 _console_running = False
 
-        def on_message(client: mqtt.Client, userdata: any, msg: mqtt.MQTTMessage):
+        def on_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage):
             try:
                 payload = json.loads(msg.payload.decode())
                 message = payload.get('message', '')
@@ -194,10 +194,10 @@ def MQTTConsoleLoop(HOST: str, PORT: int, title: str, handler_func):
                     debug_file.write(f"{error_msg}\n")
 
         def on_disconnect(client: mqtt.Client,
-                          userdata: any,
-                          reason_code: mqtt.ReasonCodes,
-                          properties: mqtt.Properties,
-                          rc: int | None = None):
+                          userdata: object,
+                          disconnect_flags: mqtt.DisconnectFlags,
+                          reason_code: ReasonCode,
+                          properties: Properties | None = None):
             print(f"MQTT Console '{title}' disconnected from broker")
             if _DEBUG and debug_file:
                 debug_file.write("Disconnected from broker\n")
@@ -316,3 +316,4 @@ if __name__ == '__main__':
         sys.stdout.write(f"Console error: {traceback.format_exc()}")
     finally:
         print("Console shutdown complete")
+

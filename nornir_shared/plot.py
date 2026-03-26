@@ -3,6 +3,8 @@ import enum
 from collections.abc import Iterable, Sequence
 
 import matplotlib
+import matplotlib.axes
+import matplotlib.collections
 import matplotlib.pyplot as plt
 import numpy
 from numpy.typing import NDArray
@@ -81,12 +83,13 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
               minX: float | None = None, maxX: float | None = None,
               dpi: int | None = None,
               range_is_power_of_two: bool = False,
-              axes: matplotlib.pyplot.Axes | None = None):
+              axes: matplotlib.axes.Axes | None = None):
     if axes is None:
         plt.clf()
         axes = plt.axes()
     else:
         plt.sca(axes)
+    assert axes is not None
 
     pi = 150 if dpi is None else dpi
 
@@ -100,6 +103,7 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
     if Hist is None and isinstance(HistogramOrFilename, str):
         prettyoutput.LogErr("PlotHistogram: Histogram file not found " + HistogramOrFilename)
         return
+    assert Hist is not None
 
     Title = Title if Title is not None else 'Histogram of 16-bit intensity and cutoffs for 8-bit mapping'
     xlabel = xlabel if xlabel is not None else 'Intensity'
@@ -112,7 +116,7 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
     if LinePosList is not None:
         add_reference_lines = True
         if not isinstance(LinePosList, list):
-            LinePosList = [LinePosList]
+            LinePosList = [LinePosList]  # type: ignore[reportAssignmentType]
     else:
         LinePosList = []
 
@@ -124,11 +128,11 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
 
     if ShowCutoffs:
         # If the either number is greater than 1 assume it is an absolute value
-        if MinCutoffPercent >= 1 or MaxCutoffPercent > 1:
+        if MinCutoffPercent >= 1 or MaxCutoffPercent > 1:  # type: ignore[reportOptionalOperand]
             MinCutoff = MinCutoffPercent
-            MinCutoffPercent = MinCutoff / Hist.MaxValue
+            MinCutoffPercent = MinCutoff / Hist.MaxValue  # type: ignore[reportOptionalOperand]
             MaxCutoff = MaxCutoffPercent
-            MaxCutoffPercent = 1 - (MaxCutoff / Hist.MaxValue)
+            MaxCutoffPercent = 1 - (MaxCutoff / Hist.MaxValue)  # type: ignore[reportOptionalOperand]
         else:
             [MinCutoff, MaxCutoff] = Hist.AutoLevel(MinCutoffPercent, MaxCutoffPercent)
 
@@ -167,13 +171,13 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
             axes.plot([MinCutoff, MinCutoff], [0, yMax], color='red')
 
             if MinCutoffPercent:
-                axes.annotate(f'{float(MinCutoffPercent) * 100:.3f}%', [MinCutoff, yMax * 0.5])
+                axes.annotate(f'{float(MinCutoffPercent) * 100:.3f}%', [MinCutoff, yMax * 0.5])  # type: ignore[reportArgumentType]
 
         if MaxCutoff:
             axes.plot([MaxCutoff, MaxCutoff], [0, yMax], color='red')
 
             if MaxCutoffPercent:
-                axes.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])
+                axes.annotate(f'{((1 - float(MaxCutoffPercent)) * 100):.3f}%', [MaxCutoff, yMax * 0.5])  # type: ignore[reportArgumentType]
 
     if add_reference_lines:
         color = 'green'
@@ -181,6 +185,7 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
             if not isinstance(LineColorList, Iterable):
                 color = LineColorList
 
+        assert LinePosList is not None
         for i, linePos in enumerate(LinePosList):
             if linePos is None:
                 continue
@@ -189,7 +194,7 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
                 color = LineColorList[i]
 
             axes.plot([linePos, linePos], [0, yMax], color=color)
-            axes.annotate(f'{linePos:g}', [linePos, yMax * 0.9])
+            axes.annotate(f'{linePos:g}', [linePos, yMax * 0.9])  # type: ignore[reportArgumentType]
 
     plt.gcf().set_dpi(150)
 
@@ -204,18 +209,18 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
             visible_min_x, visible_max_x = Hist.MinValue, Hist.MaxValue
 
     if minX is None:
-        options = LinePosList + [visible_min_x]
-        minX = min(options)
+        options = LinePosList + [visible_min_x]  # type: ignore[operator]
+        minX = min(options)  # type: ignore[arg-type]
 
     if maxX is None:
-        options = LinePosList + [visible_max_x]
-        maxX = max(options)
+        options = LinePosList + [visible_max_x]  # type: ignore[operator]
+        maxX = max(options)  # type: ignore[arg-type]
 
     # adjust range to a power of two
     if range_is_power_of_two:
-        minX, maxX = EnsureAxisLimitsArePowerOfTwo(minX, maxX)
+        minX, maxX = EnsureAxisLimitsArePowerOfTwo(minX, maxX)  # type: ignore[arg-type]
 
-    axes.set_xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])
+    axes.set_xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])  # type: ignore[operator]
 
     if ImageFilename is not None:
         # plt.show() 
@@ -241,14 +246,14 @@ def EnsureAxisLimitsArePowerOfTwo(min_val: float, max_val: float) -> tuple[float
     # If we can set the min_val to 0, then do so and use remaining range to increase
     # the max value
     if min_val - extra_range <= 0:
-        min_val = min_val - extra_range
+        min_val = min_val - extra_range  # type: ignore[reportAssignmentType]
         extra_range = -min_val
         min_val = 0
         max_val = max_val + extra_range
     else:  # Apply extra range equally to both min/max values
         extra_range_half = extra_range / 2.0
-        min_val -= extra_range_half
-        max_val += extra_range_half
+        min_val -= extra_range_half  # type: ignore[reportAssignmentType]
+        max_val += extra_range_half  # type: ignore[reportAssignmentType]
 
     return min_val, max_val
 

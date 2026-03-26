@@ -14,6 +14,8 @@ import nornir_shared.consolewindow
 try:
     import paho.mqtt.client as mqtt
     import paho.mqtt.enums as mqtt_enum
+    from paho.mqtt.properties import Properties
+    from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, start_mosquitto_broker, \
         stop_mosquitto_broker
 
@@ -37,11 +39,8 @@ if not ECLIPSE:
         # Curses is causing trouble on Linux installs, so removing it for now
         if sys.stdin.isatty():
             import curses
-
-            print("Curses should work!")
             CURSES = True
         else:
-            print("Redirection detected. Try running in a standard terminal.")
             CURSES = False
         pass
     except ImportError:
@@ -69,22 +68,20 @@ def _initialize_mqtt():
 
         # Set up callbacks
         def on_connect(client: mqtt.Client,
-                       userdata: any,
+                       userdata: Any,
                        connect_flags: mqtt.ConnectFlags,
-                       reason_code: mqtt.ReasonCode,
-                       properties: mqtt.Properties | None = None,
-                       flags: dict | None = None,
-                       connection_result: mqtt.ConnackCode | None = None):
+                       reason_code: ReasonCode,
+                       properties: Properties | None = None):
             if reason_code == 0:  # SUCCESS:
                 logging.getLogger(__name__).info("Connected to MQTT broker")
             else:
-                logging.getLogger(__name__).error(f"Failed to connect to MQTT broker: {rc}")
+                logging.getLogger(__name__).error(f"Failed to connect to MQTT broker: {reason_code}")
 
         def on_disconnect(client: mqtt.Client,
-                          userdata: any,
-                          reason_code: mqtt.ReasonCodes,
-                          properties: mqtt.Properties,
-                          rc: int | None = None):
+                          userdata: Any,
+                          disconnect_flags: mqtt.DisconnectFlags,
+                          reason_code: ReasonCode,
+                          properties: Properties | None = None):
             logging.getLogger(__name__).info("Disconnected from MQTT broker")
 
         _mqtt_client.on_connect = on_connect
@@ -206,6 +203,8 @@ if CURSES:
 
     try:
         (maxY, maxX) = stdscr.getmaxyx()
+        if maxX == 0 or maxY == 0:
+            raise RuntimeError(f"Terminal reported zero dimensions ({maxY}x{maxX}); curses unavailable")
         LogStartY = 16
         ScreenWidth = maxX
 
@@ -222,7 +221,8 @@ if CURSES:
         atexit.register(__EndCurses__)
     except Exception as e:
         curses.endwin()
-        raise e
+        CURSES = False
+        logging.getLogger(__name__).debug("Curses initialization failed, falling back to plain output: %s", e)
 
 
 def CurseString(topic: str, text: str):
@@ -233,14 +233,14 @@ def CurseString(topic: str, text: str):
         if topic in cursesCoords:
             y = cursesCoords[topic]
 
-        (yMax, xMax) = statusWindow.getmaxyx()
+        (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
 
         outStr = topic + " : " + text
         # Log(outStr)
-        statusWindow.addstr(y, x, outStr)
-        statusWindow.clrtoeol()
-        statusWindow.move(yMax - 1, 0)
-        statusWindow.refresh()
+        statusWindow.addstr(y, x, outStr)  # type: ignore[union-attr]
+        statusWindow.clrtoeol()  # type: ignore[union-attr]
+        statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
+        statusWindow.refresh()  # type: ignore[union-attr]
     else:
         output_message = topic + ": " + text
         print(output_message)
@@ -283,7 +283,7 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
     if Total is not None:
         fraction = float(Progress / float(Total))
         if fraction > 0:
-            elapsedSec = float(time.time() - ProgressStartTime)
+            elapsedSec = float(time.time() - ProgressStartTime)  # type: ignore[operator]
             ETASec = (elapsedSec / fraction) * (1.0 - fraction)
             tstruct = time.gmtime(ETASec)
             ETAString = "ETA: " + time.strftime("%H:%M:%S", tstruct)
@@ -306,7 +306,7 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
     _publish_mqtt_message('progress', progress_message, progress_info)
 
     if CURSES:
-        (yMax, xMax) = statusWindow.getmaxyx()
+        (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
 
         if "Task" in cursesCoords:
             TaskY = cursesCoords["Task"]
@@ -317,20 +317,20 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
         if text is not None:
             # TaskStr = "Task: " + text
             # Log(TaskStr)
-            statusWindow.addnstr(TaskY, TaskX, "Task: " + text, console_width)
-            statusWindow.clrtoeol()
+            statusWindow.addnstr(TaskY, TaskX, "Task: " + text, console_width)  # type: ignore[union-attr]
+            statusWindow.clrtoeol()  # type: ignore[union-attr]
 
         if Total is not None:
-            progress_str = "Progress : %4.2f%%" % (fraction * 100.0)
+            progress_str = "Progress : %4.2f%%" % (fraction * 100.0)  # type: ignore[operator]
             if tstruct is not None:
                 progress_str = progress_str + "        " + ETAString
 
             # Log(ProgressStr)
 
-            statusWindow.addnstr(ProgressY, ProgressX, progress_str, console_width)
-            statusWindow.clrtoeol()
-            statusWindow.move(yMax - 1, 0)
-            statusWindow.refresh()
+            statusWindow.addnstr(ProgressY, ProgressX, progress_str, console_width)  # type: ignore[union-attr]
+            statusWindow.clrtoeol()  # type: ignore[union-attr]
+            statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
+            statusWindow.refresh()  # type: ignore[union-attr]
     else:
         output_str = text
         if output_str is None:
@@ -372,7 +372,7 @@ def get_calling_func_name() -> str | None:
     if module is None:
         return func_name
 
-    mod_name = inspect.getmodule(records[0]).__name__
+    mod_name = module.__name__
 
     return mod_name + "." + func_name
 
@@ -401,7 +401,7 @@ def input_to_string(input_str: Any, tablevel: int = 0) -> str | None:
         return tabs + str(input_str)
 
     if isinstance(input_str, typing.Iterable):
-        return os.linesep.join([tabs + input_to_string(obj, tablevel=tablevel + 1) for obj in input_str])
+        return os.linesep.join([tabs + input_to_string(obj, tablevel=tablevel + 1) for obj in input_str])  # type: ignore[operator]
     else:
         return tabs + str(input_str)
 
@@ -433,20 +433,20 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
 
         numChars = len(output)
 
-        (yMax, xMax) = stdscr.getmaxyx()
+        (yMax, xMax) = stdscr.getmaxyx()  # type: ignore[union-attr]
 
         numLines = int(numChars / xMax)
         if numChars % xMax != 0:
             numLines += 1
 
-        logWindow.move(0, 0)
+        logWindow.move(0, 0)  # type: ignore[union-attr]
 
         for i in range(numLines):
-            logWindow.insertln()
+            logWindow.insertln()  # type: ignore[union-attr]
 
-        logWindow.addstr(0, 0, output)
-        logWindow.clrtoeol()
-        logWindow.refresh(0, 0, LogStartY, 0, yMax - 1, xMax)
+        logWindow.addstr(0, 0, output)  # type: ignore[union-attr]
+        logWindow.clrtoeol()  # type: ignore[union-attr]
+        logWindow.refresh(0, 0, LogStartY, 0, yMax - 1, xMax)  # type: ignore[union-attr]
     elif ECLIPSE:
         output = output.replace('\b', '')
         print(output)
@@ -463,6 +463,7 @@ def error(error_message: str | None = None):
 
 def LogErr(error_message: str | None = None, calling_func_name: str | None = None):
     error_output = input_to_string(error_message)
+    assert error_output is not None
 
     if error_output[-1] != '\n':
         error_output += '\n'
@@ -514,3 +515,4 @@ def PrettyOutputModulePath() -> str:
         path = os.getcwd()
 
     return os.path.join(path, 'prettyoutput.py')
+
