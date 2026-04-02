@@ -26,7 +26,6 @@ MQTT_TOPICS = {
     'status': 'nornir/log/status'
 }
 
-
 def is_port_in_use(host: str, port: int) -> bool:
     """Check if a port is already in use"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -80,9 +79,12 @@ def start_mosquitto_broker() -> Optional[subprocess.Popen]:
     Returns the subprocess.Popen object if started, None if already running
     """
     logger = logging.getLogger(__name__)
+    logger.debug("start_mosquitto_broker host=%s port=%s platform=%s", MQTT_HOST, MQTT_PORT, sys.platform)
     
     # Check if mosquitto is already running on our port
-    if is_port_in_use(MQTT_HOST, MQTT_PORT):
+    port_in_use = is_port_in_use(MQTT_HOST, MQTT_PORT)
+    logger.debug("start_mosquitto_broker port_in_use=%s", port_in_use)
+    if port_in_use:
         logger.info(f"MQTT broker already running on {MQTT_HOST}:{MQTT_PORT}")
         return None
     
@@ -107,6 +109,7 @@ def start_mosquitto_broker() -> Optional[subprocess.Popen]:
                 try:
                     subprocess.run([path, '--help'], capture_output=True, timeout=5)
                     mosquitto_path = path
+                    logger.debug("mosquitto executable candidate succeeded path=%s", path)
                     break
                 except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
                     continue
@@ -114,6 +117,7 @@ def start_mosquitto_broker() -> Optional[subprocess.Popen]:
             if mosquitto_path:
                 cmd[0] = mosquitto_path
             else:
+                logger.debug("mosquitto not found in candidate paths=%s", possible_paths)
                 logger.warning("mosquitto not found in common Windows locations")
                 return None
         

@@ -37,7 +37,11 @@ if not ECLIPSE:
     try:
         # Jan 30 2024
         # Curses is causing trouble on Linux installs, so removing it for now
-        if sys.stdin.isatty():
+        stdin_is_tty = sys.stdin.isatty()
+        stdout_is_tty = sys.stdout.isatty()
+        stderr_is_tty = sys.stderr.isatty()
+        streams_tty_ok = stdin_is_tty and stdout_is_tty and stderr_is_tty
+        if streams_tty_ok:
             import curses
             CURSES = True
         else:
@@ -165,14 +169,6 @@ def ResetIndent():
     __IndentLevel = 0
 
 
-if not os.path.exists('Logs'):
-    try:
-        os.mkdir('Logs')
-    except OSError as E:
-        if E.errno == 17:
-            # Log("Log dir already exists: " + 'Logs')
-            pass
-
 stdscr = None
 
 if CURSES:
@@ -182,8 +178,6 @@ if CURSES:
     def __EndCurses__():
         curses.endwin()
 
-
-    stdscr = curses.initscr()
 
     statusWindow = []
     logWindow = []
@@ -202,6 +196,7 @@ if CURSES:
     # sys.stdout = logFile
 
     try:
+        stdscr = curses.initscr()
         (maxY, maxX) = stdscr.getmaxyx()
         if maxX == 0 or maxY == 0:
             raise RuntimeError(f"Terminal reported zero dimensions ({maxY}x{maxX}); curses unavailable")
@@ -219,8 +214,11 @@ if CURSES:
         statusWindow.standend()
 
         atexit.register(__EndCurses__)
-    except Exception as e:
-        curses.endwin()
+    except BaseException as e:
+        try:
+            curses.endwin()
+        except Exception:
+            pass
         CURSES = False
         logging.getLogger(__name__).debug("Curses initialization failed, falling back to plain output: %s", e)
 

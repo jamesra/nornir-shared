@@ -7,11 +7,195 @@ Functions that are broadly used in Python programs but don't have a specific cat
 '''
 import atexit
 import logging
+import logging.handlers
+import multiprocessing
 import os
 import sys
 import time
 
 logging_setup = False
+_active_log_session_id: str | None = None
+_multiprocess_logging_queue = None
+_multiprocess_logging_listener = None
+_multiprocess_logging_owner_pid: int | None = None
+
+NORNIR_LOG_ROOT_ENV = 'NORNIR_LOG_ROOT'
+NORNIR_LOG_SESSION_ENV = 'NORNIR_LOG_SESSION_ID'
+
+
+def _resolve_unified_log_root() -> str | None:
+    env_value = os.environ.get(NORNIR_LOG_ROOT_ENV)
+    if env_value is None:
+        return None
+
+    stripped_value = env_value.strip()
+    if len(stripped_value) == 0:
+        return None
+
+    return os.path.abspath(stripped_value)
+
+
+def _get_or_create_session_id() -> str:
+    global _active_log_session_id
+    if _active_log_session_id is not None:
+        return _active_log_session_id
+
+    session_id = os.environ.get(NORNIR_LOG_SESSION_ENV)
+    if session_id is not None:
+        session_id = session_id.strip()
+
+    if not session_id:
+        session_id = time.strftime('%Y%m%d-%H%M%S', time.localtime())
+        os.environ[NORNIR_LOG_SESSION_ENV] = session_id
+
+    _active_log_session_id = session_id
+    return _active_log_session_id
+
+
+def _session_date_folder_name(session_id: str) -> str:
+    if len(session_id) >= 8 and session_id[:8].isdigit():
+        return f'{session_id[:4]}-{session_id[4:6]}-{session_id[6:8]}'
+
+    return time.strftime('%Y-%m-%d', time.localtime())
+
+
+def GetUnifiedSessionPaths() -> tuple[str, str, str] | None:
+    """Returns (log_dir, session_log_path, error_log_path) for shared session logs."""
+    log_root = _resolve_unified_log_root()
+    if log_root is None:
+        return None
+
+    session_id = _get_or_create_session_id()
+    date_folder = _session_date_folder_name(session_id)
+    log_dir = os.path.join(log_root, date_folder)
+    session_log_path = os.path.join(log_dir, f'nornir-session-{session_id}.log')
+    error_log_path = os.path.join(log_dir, f'nornir-session-{session_id}-errors.log')
+    return (log_dir, session_log_path, error_log_path)
+
+
+def GetUnifiedConsoleLogPath() -> str | None:
+    """Returns a unified console tee path for the active session, if configured."""
+    session_paths = GetUnifiedSessionPaths()
+    if session_paths is None:
+        return None
+
+    log_dir, _, _ = session_paths
+    session_id = _get_or_create_session_id()
+    return os.path.join(log_dir, f'nornir-console-{session_id}.log')
+
+
+def _reset_root_logger(level=None):
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
+
+    if level is not None:
+        root_logger.setLevel(level)
+
+
+def _build_standard_handlers(level) -> list[logging.Handler]:
+    formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
+    handlers: list[logging.Handler] = []
+
+    session_paths = GetUnifiedSessionPaths()
+    if session_paths is not None:
+        log_dir, log_file_name, errlog_file_name = session_paths
+        os.makedirs(log_dir, exist_ok=True)
+
+        info_handler = logging.FileHandler(log_file_name)
+        info_handler.setLevel(level)
+        info_handler.setFormatter(formatter)
+        handlers.append(info_handler)
+
+        error_handler = logging.FileHandler(errlog_file_name)
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(formatter)
+        handlers.append(error_handler)
+
+    if 'ECLIPSE' not in os.environ:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(level)
+        stream_handler.setFormatter(formatter)
+        handlers.append(stream_handler)
+
+    return handlers
+
+
+def StartMultiprocessLoggingListener(level=None):
+    """Create and start a queue listener for multiprocess-safe logging."""
+    global _multiprocess_logging_queue
+    global _multiprocess_logging_listener
+    global _multiprocess_logging_owner_pid
+
+    if level is None:
+        level = logging.INFO
+
+    session_paths = GetUnifiedSessionPaths()
+    if session_paths is None:
+        logging.warning("Multiprocess file logging disabled because %s is not set", NORNIR_LOG_ROOT_ENV)
+        return None
+
+    if _multiprocess_logging_listener is not None and _multiprocess_logging_owner_pid == os.getpid():
+        return _multiprocess_logging_queue
+
+    handlers = _build_standard_handlers(level)
+    if len(handlers) == 0:
+        return None
+
+    _multiprocess_logging_queue = multiprocessing.Queue(-1)
+    _multiprocess_logging_listener = logging.handlers.QueueListener(_multiprocess_logging_queue, *handlers)
+    _multiprocess_logging_listener.start()
+    _multiprocess_logging_owner_pid = os.getpid()
+    atexit.register(StopMultiprocessLoggingListener)
+    return _multiprocess_logging_queue
+
+
+def StopMultiprocessLoggingListener():
+    """Stop the active queue listener and close associated resources."""
+    global _multiprocess_logging_queue
+    global _multiprocess_logging_listener
+    global _multiprocess_logging_owner_pid
+
+    if _multiprocess_logging_listener is not None:
+        try:
+            _multiprocess_logging_listener.stop()
+        except Exception:
+            pass
+        _multiprocess_logging_listener = None
+
+    if _multiprocess_logging_queue is not None:
+        try:
+            _multiprocess_logging_queue.close()
+        except Exception:
+            pass
+        _multiprocess_logging_queue = None
+
+    _multiprocess_logging_owner_pid = None
+
+
+def ConfigureWorkerQueueLogging(log_queue=None, level=None):
+    """Configure this process to emit logs via QueueHandler."""
+    global logging_setup
+    global _multiprocess_logging_queue
+
+    if level is None:
+        level = logging.INFO
+
+    queue_to_use = log_queue if log_queue is not None else _multiprocess_logging_queue
+    if queue_to_use is None:
+        return False
+
+    _multiprocess_logging_queue = queue_to_use
+    _reset_root_logger(level)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(logging.handlers.QueueHandler(queue_to_use))
+    root_logger.setLevel(level)
+    logging_setup = True
+    return True
 
 
 def RunWithProfiler(functionStr, outputpath=None):
@@ -62,28 +246,46 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
     if Level is None:
         Level = logging.INFO
 
+    if ConfigureWorkerQueueLogging(level=Level):
+        atexit.register(logging.shutdown)
+        return
+
     formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
+
+    unified_session_paths = None
+    if OutputPath is None:
+        unified_session_paths = GetUnifiedSessionPaths()
+        if unified_session_paths is not None:
+            LogToFile = True
+        elif not LogToFile:
+            # Fallback when unified log root is not configured: write to CWD.
+            LogToFile = True
 
     if OutputPath is not None:
         LogToFile = True
 
     if LogToFile:
         LogPath = None
+        logFileName = None
+        errlogFileName = None
 
-        # Figure out the loggging directory if it is not specified
-        if OutputPath is not None and os.path.isabs(OutputPath):
-            LogPath = OutputPath
+        if unified_session_paths is not None:
+            LogPath, logFileName, errlogFileName = unified_session_paths
         else:
-            BaseLoggingDir = None
-            if 'TESTOUTPUTPATH' in os.environ:
-                BaseLoggingDir = os.environ['TESTOUTPUTPATH']
+            # Figure out the loggging directory if it is not specified
+            if OutputPath is not None and os.path.isabs(OutputPath):
+                LogPath = OutputPath
             else:
-                BaseLoggingDir = os.getcwd()
+                BaseLoggingDir = None
+                if 'TESTOUTPUTPATH' in os.environ:
+                    BaseLoggingDir = os.environ['TESTOUTPUTPATH']
+                else:
+                    BaseLoggingDir = os.getcwd()
 
-            if OutputPath is not None:
-                LogPath = os.path.join(BaseLoggingDir, OutputPath)
-            else:
-                LogPath = BaseLoggingDir
+                if OutputPath is not None:
+                    LogPath = os.path.join(BaseLoggingDir, OutputPath)
+                else:
+                    LogPath = BaseLoggingDir
 
         if LogPath is not None:
             try:
@@ -92,10 +294,13 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
                 print("Could not create logging output directory: " + LogPath)
                 pass
 
-            logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
-            logFileName = os.path.join(LogPath, logFileName)
-            errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
-            errlogFileName = os.path.join(LogPath, errlogFileName)
+            if logFileName is None:
+                logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
+                logFileName = os.path.join(LogPath, logFileName)
+
+            if errlogFileName is None:
+                errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
+                errlogFileName = os.path.join(LogPath, errlogFileName)
 
             logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
 
