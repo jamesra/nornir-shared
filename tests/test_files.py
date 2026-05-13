@@ -96,15 +96,15 @@ class TestFiles(unittest.TestCase):
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['baaa'],
                                      ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'bbb\\baaa'))
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, os.path.join('bbb','baaa')))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=['cca'],
                                      ExcludeNames=[], ExcludedDownsampleLevels=[])
-        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, 'ccc\\cc\\cca'))
+        self.IsSingleResult(dirs, os.path.join(self.TestOutputPath, os.path.join('ccc','cc', 'cca')))
 
         dirs = RecurseSubdirectories(self.TestOutputPath, RequiredFiles=[], ExcludedFiles=[], MatchNames=[],
                                      ExcludeNames='ccc', ExcludedDownsampleLevels=[])
-        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', 'bbb\\baaa', 'ddd', 'ddd\\cc']]
+        expectedVals = [os.path.join(self.TestOutputPath, x) for x in ['aaa', 'bbb', os.path.join('bbb','baaa'), 'ddd', os.path.join('ddd', 'cc')]]
         expectedVals.append(self.TestOutputPath)
         self.IsSubset(dirs, expectedVals)
 
@@ -129,6 +129,7 @@ class TestFiles(unittest.TestCase):
         older_date = datetime.date.today()
         testPath = os.path.join(self.TestOutputPath, "IsOlderThanTest.tmp")
 
+        time.sleep(0.01)
         try:
             with open(testPath, 'w') as f:
                 f.close()
