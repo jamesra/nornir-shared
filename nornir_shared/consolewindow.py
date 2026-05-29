@@ -18,6 +18,31 @@ except ImportError:
 import nornir_shared.console_constants
 
 
+class _LegacyConsoleStdin:
+    """Backward-compatible stdin facade used by old prettyoutput tests."""
+
+    def __init__(self, owner: "ConsoleWindow"):
+        self._owner = owner
+
+    def write(self, data):
+        if isinstance(data, bytes):
+            text = data.decode(errors="replace")
+        else:
+            text = str(data)
+        self._owner.WriteMessage(text)
+        return len(data)
+
+
+class _LegacyConsoleProc:
+    """Backward-compatible process-like facade (stdin + terminate)."""
+
+    def __init__(self, owner: "ConsoleWindow"):
+        self.stdin = _LegacyConsoleStdin(owner)
+
+    def terminate(self):
+        return None
+
+
 class ConsoleWindow(object):
     """
     Creates a second console window which displays text output sent to this Console object via MQTT
@@ -29,12 +54,20 @@ class ConsoleWindow(object):
         :param bool auto_start: Whether to automatically start the console subscriber
         """
 
-        super(ConsoleWindow, self).__init__(*args, **kwargs)
+        host = kwargs.pop('host', MQTT_HOST if MQTT_AVAILABLE else None)
+        port = kwargs.pop('port', MQTT_PORT if MQTT_AVAILABLE else None)
+
+        # ConsoleWindow does not derive from a class that accepts init args.
+        super(ConsoleWindow, self).__init__()
         self.title = '' if title is None else title.strip()
+        self.host = host
+        self.port = port
         self._mqtt_client = None
         self._subscribed_topics = []
         self._running = False
         self._message_callback = None
+        # Legacy compatibility for historical tests that wrote to ConsoleProc.stdin.
+        self.ConsoleProc = _LegacyConsoleProc(self)
 
         if auto_start and MQTT_AVAILABLE:
             self._initialize_mqtt_subscriber()
@@ -95,7 +128,9 @@ class ConsoleWindow(object):
             self._mqtt_client.on_disconnect = on_disconnect
 
             # Connect to broker
-            self._mqtt_client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE)
+            mqtt_host = self.host if self.host is not None else MQTT_HOST
+            mqtt_port = self.port if self.port is not None else MQTT_PORT
+            self._mqtt_client.connect(mqtt_host, mqtt_port, MQTT_KEEPALIVE)
             self._mqtt_client.loop_start()
             self._running = True
 
