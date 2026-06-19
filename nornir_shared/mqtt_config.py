@@ -1,20 +1,25 @@
 """
 MQTT configuration and mosquitto broker management for nornir_shared
 """
-import os
-import subprocess
-import socket
-import time
-import tempfile
-import sys
-from typing import Optional
 import logging
-
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+from typing import Optional
 
 # MQTT Configuration
-MQTT_HOST = "localhost"
-MQTT_PORT = 1883
+# Clients must connect to a concrete address; never use 0.0.0.0.
+MQTT_CONNECT_HOST = os.environ.get("NORNIR_MQTT_HOST", "127.0.0.1")
+# Broker bind address (localhost-only by default).
+MQTT_BIND_HOST = os.environ.get("NORNIR_MQTT_BIND", "127.0.0.1")
+MQTT_PORT = int(os.environ.get("NORNIR_MQTT_PORT", "1883"))
 MQTT_KEEPALIVE = 60
+
+# Backward-compatible alias used by subscribers and CLI defaults.
+MQTT_HOST = MQTT_CONNECT_HOST
 
 # MQTT Topics based on log severity
 MQTT_TOPICS = {
@@ -26,8 +31,9 @@ MQTT_TOPICS = {
     'status': 'nornir/log/status'
 }
 
+
 def is_port_in_use(host: str, port: int) -> bool:
-    """Check if a port is already in use"""
+    """Return True when the given host/port is already bound."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.bind((host, port))
@@ -36,16 +42,16 @@ def is_port_in_use(host: str, port: int) -> bool:
             return True
 
 
-def create_mosquitto_config() -> str:
-    """Create a basic mosquitto configuration file for localhost-only access"""
+def create_mosquitto_config(bind_host: str | None = None, port: int | None = None) -> str:
+    """Create a basic mosquitto configuration file for localhost-only access."""
+    listener_host = MQTT_BIND_HOST if bind_host is None else bind_host
+    listener_port = MQTT_PORT if port is None else port
     config_content = f"""
 # Mosquitto configuration for nornir_shared
-# Only accepts connections from localhost, no authentication
+# Only accepts connections from {listener_host}, no authentication
 
-listener {MQTT_PORT}
-bind_address {MQTT_HOST}
+listener {listener_port} {listener_host}
 
-# Disable authentication 
 allow_anonymous true
 
 # Log settings
@@ -61,108 +67,123 @@ persistence false
 # Disable websockets
 websockets_log_level 0
 """
-    
+
     # Create temporary config file
     config_fd, config_path = tempfile.mkstemp(suffix='.conf', prefix='mosquitto_nornir_')
     try:
         with os.fdopen(config_fd, 'w') as f:
             f.write(config_content)
         return config_path
-    except:
+    except Exception:
         os.close(config_fd)
         raise
 
 
+def _resolve_mosquitto_executable() -> str | None:
+    """Return the mosquitto executable path when available on this platform."""
+    if not sys.platform.startswith('win'):
+        return 'mosquitto'
+
+    possible_paths = [
+        'mosquitto',
+        'C:/Program Files/mosquitto/mosquitto.exe',
+        'C:/Program Files (x86)/mosquitto/mosquitto.exe'
+    ]
+
+    for path in possible_paths:
+        try:
+            subprocess.run([path, '--help'], capture_output=True, timeout=5, check=False)
+            return path
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+
+    return None
+
+
 def start_mosquitto_broker() -> Optional[subprocess.Popen]:
     """
-    Start mosquitto broker if it's not already running
-    Returns the subprocess.Popen object if started, None if already running
+    Start mosquitto broker if it is not already running.
+
+    Returns the subprocess.Popen object if this call started the broker, or None
+    when a broker is already listening or startup failed.
     """
     logger = logging.getLogger(__name__)
-    logger.debug("start_mosquitto_broker host=%s port=%s platform=%s", MQTT_HOST, MQTT_PORT, sys.platform)
-    
-    # Check if mosquitto is already running on our port
-    port_in_use = is_port_in_use(MQTT_HOST, MQTT_PORT)
-    logger.debug("start_mosquitto_broker port_in_use=%s", port_in_use)
-    if port_in_use:
-        logger.info(f"MQTT broker already running on {MQTT_HOST}:{MQTT_PORT}")
+    logger.debug(
+        "start_mosquitto_broker bind=%s connect=%s port=%s platform=%s",
+        MQTT_BIND_HOST,
+        MQTT_CONNECT_HOST,
+        MQTT_PORT,
+        sys.platform,
+    )
+
+    if is_port_in_use(MQTT_BIND_HOST, MQTT_PORT):
+        logger.info("MQTT broker already running on %s:%s", MQTT_BIND_HOST, MQTT_PORT)
         return None
-    
+
+    config_path: str | None = None
+    process: subprocess.Popen | None = None
+
     try:
-        # Create config file
         config_path = create_mosquitto_config()
-        
-        # Try to start mosquitto with our config
-        cmd = ['mosquitto', '-c', config_path]
-        
-        # On Windows, mosquitto might be in different locations
-        if sys.platform.startswith('win'):
-            # Try common Windows locations
-            possible_paths = [
-                'mosquitto',
-                'C:/Program Files/mosquitto/mosquitto.exe',
-                'C:/Program Files (x86)/mosquitto/mosquitto.exe'
-            ]
-            
-            mosquitto_path = None
-            for path in possible_paths:
-                try:
-                    subprocess.run([path, '--help'], capture_output=True, timeout=5)
-                    mosquitto_path = path
-                    logger.debug("mosquitto executable candidate succeeded path=%s", path)
-                    break
-                except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-                    continue
-            
-            if mosquitto_path:
-                cmd[0] = mosquitto_path
-            else:
-                logger.debug("mosquitto not found in candidate paths=%s", possible_paths)
-                logger.warning("mosquitto not found in common Windows locations")
-                return None
-        
-        # Start mosquitto as a background process
-        process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform.startswith('win') else 0
-        )
-        
-        # Give it a moment to start
-        time.sleep(2)
-        
-        # Check if it's actually running
-        if process.poll() is None and is_port_in_use(MQTT_HOST, MQTT_PORT):
-            logger.info(f"Successfully started mosquitto broker on {MQTT_HOST}:{MQTT_PORT}")
-            return process
-        else:
-            logger.error("Failed to start mosquitto broker")
-            try:
-                process.terminate()
-            except:
-                pass
+        mosquitto_path = _resolve_mosquitto_executable()
+        if mosquitto_path is None:
+            logger.warning("mosquitto executable not found. Please install mosquitto or ensure it is in PATH")
             return None
-            
+
+        process = subprocess.Popen(
+            [mosquitto_path, '-c', config_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform.startswith('win') else 0,
+        )
+
+        # Give the broker a moment to bind the listener.
+        time.sleep(2)
+
+        if process.poll() is None and is_port_in_use(MQTT_BIND_HOST, MQTT_PORT):
+            logger.info("Successfully started mosquitto broker on %s:%s", MQTT_BIND_HOST, MQTT_PORT)
+            return process
+
+        stderr = ""
+        if process.stderr is not None:
+            stderr = process.stderr.read().decode(errors="replace").strip()
+        logger.info("Failed to start mosquitto broker%s", f": {stderr}" if stderr else "")
+        try:
+            process.terminate()
+        except Exception:
+            pass
+        return None
+
     except FileNotFoundError:
-        logger.warning("mosquitto executable not found. Please install mosquitto or ensure it's in PATH")
+        logger.warning("mosquitto executable not found. Please install mosquitto or ensure it is in PATH")
         return None
     except Exception as e:
-        logger.error(f"Error starting mosquitto: {e}")
+        logger.error("Error starting mosquitto: %s", e)
+        if process is not None:
+            try:
+                process.terminate()
+            except Exception:
+                pass
         return None
+    finally:
+        if config_path is not None:
+            try:
+                os.remove(config_path)
+            except OSError:
+                pass
 
 
 def stop_mosquitto_broker(process: subprocess.Popen):
-    """Stop the mosquitto broker process"""
+    """Stop the mosquitto broker process."""
     if process and process.poll() is None:
         try:
             process.terminate()
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             process.kill()
-            process.wait() 
+            process.wait()
+
 
 def __main__():
-    """Main function to test the mosquitto broker"""
-
+    """Main function to test the mosquitto broker."""
     start_mosquitto_broker()

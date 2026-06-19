@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import glob
 import functools
+import math
 import os
 import re
 import sys
@@ -34,6 +35,61 @@ DefaultExcludeList = frozenset(
 class FileTimeComparison(IntEnum):
     MODIFIED = auto()
     CREATION = auto()
+
+
+def file_mtime_ns(path: str, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> int:
+    """Return the file modified or creation time in nanoseconds since the Unix epoch."""
+    if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
+        raise ValueError('Unknown comparison')
+
+    stats = os.stat(path)
+    if comparison == FileTimeComparison.MODIFIED:
+        return stats.st_mtime_ns
+    return stats.st_ctime_ns
+
+
+def path_list_to_mtime_ns_map(paths: Sequence[str],
+                              comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> dict[str, int]:
+    """Map each path to its modified or creation time in nanoseconds."""
+    return {file_path: file_mtime_ns(file_path, comparison=comparison) for file_path in paths}
+
+
+def format_mtime_ns(mtime_ns: int) -> str:
+    """Format a nanosecond mtime for log and assertion messages."""
+    seconds, remainder_ns = divmod(mtime_ns, 1_000_000_000)
+    timestamp = datetime.datetime.fromtimestamp(seconds)
+    return f"{timestamp.isoformat(sep=' ')} ({mtime_ns} ns, +{remainder_ns} ns within second)"
+
+
+def _reference_timestamp_to_ns(
+        date_time: str | float | int | datetime.datetime | datetime.date | time.struct_time,
+        date_time_format: str | None = None) -> int:
+    """Convert a reference date/time value to nanoseconds since the Unix epoch."""
+    if isinstance(date_time, float):
+        timestamp = date_time
+    elif isinstance(date_time, int):
+        timestamp = float(date_time)
+    elif isinstance(date_time, str):
+        if date_time_format is None:
+            date_time_format = "%d %b %Y %H:%M:%S"
+        timestamp = datetime.datetime.strptime(date_time, date_time_format).timestamp()
+    elif isinstance(date_time, datetime.datetime):
+        timestamp = date_time.timestamp()
+    elif isinstance(date_time, datetime.date):
+        timestamp = datetime.datetime.fromordinal(date_time.toordinal()).timestamp()
+    elif isinstance(date_time, time.struct_time):
+        timestamp = time.mktime(date_time)
+    else:
+        raise TypeError("Expected a string or numeric time value, got %s" % str(date_time))
+
+    return _float_timestamp_to_ns(timestamp)
+
+
+def _float_timestamp_to_ns(timestamp: float) -> int:
+    """Convert a floating-point Unix timestamp to integer nanoseconds."""
+    seconds = math.floor(timestamp)
+    remainder_ns = int(round((timestamp - seconds) * 1_000_000_000))
+    return (seconds * 1_000_000_000) + remainder_ns
 
 
 class FindFileResult(typing.NamedTuple):
@@ -220,27 +276,9 @@ def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime |
     if comparison != FileTimeComparison.MODIFIED and comparison != FileTimeComparison.CREATION:
         raise ValueError('Unknown comparison')
 
-    if DateTimeFormat is None:
-        DateTimeFormat = "%d %b %Y %H:%M:%S"
-
-    if isinstance(DateTime, float):
-        DateTime = DateTime
-    elif isinstance(DateTime, int):
-        DateTime = float(DateTime)
-    elif isinstance(DateTime, str):
-        DateTime = datetime.datetime.strptime(DateTime, DateTimeFormat).timestamp()
-    elif isinstance(DateTime, datetime.datetime):
-        DateTime = DateTime.timestamp()
-    elif isinstance(DateTime, datetime.date):
-        DateTime = datetime.datetime.fromordinal(DateTime.toordinal()).timestamp()
-    elif isinstance(DateTime, time.struct_time):
-        DateTime = time.mktime(DateTime)
-    else:
-        raise TypeError("IsOlderThan expects a string or floating parameter to compare against, got %s" % str(DateTime))
-
-    # modified_time = datetime.datetime.fromtimestamp()
-    file_time = os.path.getmtime(TestPath) if comparison == FileTimeComparison.MODIFIED else os.path.getctime(TestPath)
-    return file_time < DateTime
+    reference_ns = _reference_timestamp_to_ns(DateTime, DateTimeFormat)
+    file_time_ns = file_mtime_ns(TestPath, comparison=comparison)
+    return file_time_ns < reference_ns
 
 
 def OutdatedFile(ReferenceFilename: str, TestFilename: str,

@@ -16,8 +16,8 @@ try:
     import paho.mqtt.enums as mqtt_enum
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
-    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, start_mosquitto_broker, \
-        stop_mosquitto_broker
+    from nornir_shared.mqtt_config import MQTT_CONNECT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
+        start_mosquitto_broker, stop_mosquitto_broker
 
     MQTT_AVAILABLE = True
 except ImportError:
@@ -57,20 +57,21 @@ __IndentLevel = 0
 
 
 def _initialize_mqtt():
-    """Initialize MQTT client and start mosquitto broker if needed"""
+    """Initialize MQTT client and start mosquitto broker if needed."""
     global _mqtt_client, _mosquitto_process, _mqtt_initialized
 
     if not MQTT_AVAILABLE or _mqtt_initialized:
         return
 
+    # Mark initialized before attempting startup so worker log calls do not retry
+    # broker startup on every message when mosquitto is unavailable or misconfigured.
+    _mqtt_initialized = True
+
     try:
-        # Try to start mosquitto broker
         _mosquitto_process = start_mosquitto_broker()
 
-        # Create MQTT client (using compatible API)
         _mqtt_client = mqtt.Client(callback_api_version=mqtt_enum.CallbackAPIVersion.VERSION2)
 
-        # Set up callbacks
         def on_connect(client: mqtt.Client,
                        userdata: Any,
                        connect_flags: mqtt.ConnectFlags,
@@ -91,17 +92,14 @@ def _initialize_mqtt():
         _mqtt_client.on_connect = on_connect
         _mqtt_client.on_disconnect = on_disconnect
 
-        # Connect to broker
-        _mqtt_client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE)
+        _mqtt_client.connect(MQTT_CONNECT_HOST, MQTT_PORT, MQTT_KEEPALIVE)
         _mqtt_client.loop_start()
 
-        # Register cleanup function
         atexit.register(_cleanup_mqtt)
 
-        _mqtt_initialized = True
-
     except Exception as e:
-        logging.getLogger(__name__).warning(f"Failed to initialize MQTT: {e}")
+        logging.getLogger(__name__).info(f"Failed to initialize MQTT: {e}")
+        _mqtt_client = None
 
 
 def _cleanup_mqtt():

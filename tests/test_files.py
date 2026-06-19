@@ -6,11 +6,10 @@ Created on Oct 21, 2013
 import datetime
 import os
 import shutil
-import time
 import unittest
 
 import nornir_shared.files
-from nornir_shared.files import RecurseSubdirectories, IsOlderThan
+from nornir_shared.files import RecurseSubdirectories, IsOlderThan, file_mtime_ns, format_mtime_ns, path_list_to_mtime_ns_map
 
 
 def CreateDirTree(path, dictSubTrees):
@@ -124,39 +123,74 @@ class TestFiles(unittest.TestCase):
         self.IsSubset(dirs, expectedVals)
 
     def test_IsOlderThan(self):
-
-        older = datetime.datetime.now()
-        older_date = datetime.date.today()
         testPath = os.path.join(self.TestOutputPath, "IsOlderThanTest.tmp")
+        newer_date = datetime.date.today() + datetime.timedelta(days=1)
 
-        time.sleep(0.01)
         try:
-            with open(testPath, 'w') as f:
-                f.close()
+            with open(testPath, 'w') as file_handle:
+                file_handle.close()
 
-            time.sleep(0.01)
-            newer = datetime.datetime.now()
-            newer_date = datetime.date.today() + datetime.timedelta(days=1)
+            file_ns = file_mtime_ns(testPath)
+            reference_before_file = (file_ns - 1_000_000) / 1_000_000_000.0
+            reference_after_file = (file_ns + 1_000_000) / 1_000_000_000.0
+            reference_before_file_dt = datetime.datetime.fromtimestamp(reference_before_file)
+            reference_after_file_dt = datetime.datetime.fromtimestamp(reference_after_file)
 
-            self.assertFalse(IsOlderThan(testPath, DateTime=older))
-            self.assertFalse(IsOlderThan(testPath, DateTime=older_date))
-            self.assertTrue(IsOlderThan(testPath, DateTime=newer))
+            self.assertFalse(IsOlderThan(testPath, DateTime=reference_before_file))
+            self.assertFalse(IsOlderThan(testPath, DateTime=reference_before_file_dt))
+            self.assertTrue(IsOlderThan(testPath, DateTime=reference_after_file))
+            self.assertTrue(IsOlderThan(testPath, DateTime=reference_after_file_dt))
             self.assertTrue(IsOlderThan(testPath, DateTime=newer_date))
 
             self.assertFalse(IsOlderThan(testPath, DateTime=0))
-            self.assertTrue(IsOlderThan(testPath, DateTime=newer.timestamp()))
+            self.assertTrue(IsOlderThan(testPath, DateTime=reference_after_file))
 
-            self.assertFalse(IsOlderThan(testPath, DateTime=int(older.timestamp())))
-            self.assertTrue(IsOlderThan(testPath, DateTime=int((newer + datetime.timedelta(seconds=60)).timestamp())))
+            self.assertFalse(IsOlderThan(testPath, DateTime=int(reference_before_file)))
+            self.assertTrue(IsOlderThan(testPath, DateTime=int(reference_after_file + 60)))
 
-            DateTimeFormat = '%Y-%m-%d %H:%M:%S.%f'
+            date_time_format = '%Y-%m-%d %H:%M:%S.%f'
             self.assertFalse(
-                IsOlderThan(testPath, DateTime=older.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+                IsOlderThan(testPath, DateTime=reference_before_file_dt.strftime(date_time_format),
+                            DateTimeFormat=date_time_format))
             self.assertTrue(
-                IsOlderThan(testPath, DateTime=newer.strftime(DateTimeFormat), DateTimeFormat=DateTimeFormat))
+                IsOlderThan(testPath, DateTime=reference_after_file_dt.strftime(date_time_format),
+                            DateTimeFormat=date_time_format))
 
         finally:
-            os.remove(testPath)
+            if os.path.exists(testPath):
+                os.remove(testPath)
+
+    def test_file_mtime_ns_helpers(self):
+        test_path = os.path.join(self.TestOutputPath, "mtime_ns_helpers.tmp")
+        with open(test_path, 'w') as file_handle:
+            file_handle.write("mtime test")
+
+        mtime_ns = file_mtime_ns(test_path)
+        self.assertEqual(mtime_ns, os.stat(test_path).st_mtime_ns)
+
+        mtime_map = path_list_to_mtime_ns_map([test_path])
+        self.assertEqual(mtime_map, {test_path: mtime_ns})
+
+        formatted = format_mtime_ns(mtime_ns)
+        self.assertIn(str(mtime_ns), formatted)
+
+        os.remove(test_path)
+
+    def test_IsOlderThan_subsecond_reference(self):
+        """Reference timestamps with sub-second precision must not truncate to whole seconds."""
+        test_path = os.path.join(self.TestOutputPath, "IsOlderThanSubsecond.tmp")
+        try:
+            with open(test_path, 'w') as file_handle:
+                file_handle.close()
+
+            file_ns = file_mtime_ns(test_path)
+            reference_after_file = (file_ns + 1_000) / 1_000_000_000.0
+            reference_before_file = (file_ns - 1_000) / 1_000_000_000.0
+
+            self.assertTrue(IsOlderThan(test_path, DateTime=reference_after_file))
+            self.assertFalse(IsOlderThan(test_path, DateTime=reference_before_file))
+        finally:
+            os.remove(test_path)
 
 
 if __name__ == "__main__":
