@@ -73,6 +73,19 @@ def GetUnifiedSessionPaths() -> tuple[str, str, str] | None:
     return (log_dir, session_log_path, error_log_path)
 
 
+def _directory_is_writable(path: str) -> bool:
+    """Return True if log files can be created under ``path``."""
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe_path = os.path.join(path, f'.nornir-write-probe-{os.getpid()}')
+        with open(probe_path, 'w', encoding='utf-8') as probe_file:
+            probe_file.write('')
+        os.remove(probe_path)
+        return True
+    except OSError:
+        return False
+
+
 def GetUnifiedConsoleLogPath() -> str | None:
     """Returns a unified console tee path for the active session, if configured."""
     session_paths = GetUnifiedSessionPaths()
@@ -177,6 +190,16 @@ def StopMultiprocessLoggingListener():
     _multiprocess_logging_owner_pid = None
 
 
+def _suppress_noisy_libraries() -> None:
+    """Raise the log level of chatty third-party libraries to WARNING.
+
+    Called from both SetupLogging and ConfigureWorkerQueueLogging so that the
+    suppression is applied in every process — parent, forked worker, and
+    spawned/forkserver worker alike.
+    """
+    logging.getLogger('PIL').setLevel(logging.WARNING)
+
+
 def ConfigureWorkerQueueLogging(log_queue=None, level=None):
     """Configure this process to emit logs via QueueHandler."""
     global logging_setup
@@ -194,6 +217,7 @@ def ConfigureWorkerQueueLogging(log_queue=None, level=None):
     root_logger = logging.getLogger()
     root_logger.addHandler(logging.handlers.QueueHandler(queue_to_use))
     root_logger.setLevel(level)
+    _suppress_noisy_libraries()
     logging_setup = True
     return True
 
@@ -246,6 +270,8 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
     if Level is None:
         Level = logging.INFO
 
+    _suppress_noisy_libraries()
+
     if ConfigureWorkerQueueLogging(level=Level):
         atexit.register(logging.shutdown)
         return
@@ -286,6 +312,17 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
                     LogPath = os.path.join(BaseLoggingDir, OutputPath)
                 else:
                     LogPath = BaseLoggingDir
+
+        if LogPath is not None and not _directory_is_writable(LogPath):
+            rejected_path = LogPath
+            fallback_paths = GetUnifiedSessionPaths()
+            if fallback_paths is not None:
+                LogPath, logFileName, errlogFileName = fallback_paths
+            else:
+                LogPath = os.environ.get('TESTOUTPUTPATH', os.getcwd())
+                logFileName = None
+                errlogFileName = None
+            print(f"Log path not writable ({rejected_path}); using {LogPath}")
 
         if LogPath is not None:
             try:

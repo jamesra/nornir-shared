@@ -43,6 +43,11 @@ class TaskTimer:
         if print_elapsed:
             prettyoutput.Log(self.ElapsedString(task))
 
+    @property
+    def ElapsedTimes(self) -> dict[str, float]:
+        """Return a copy of recorded task wall times in seconds."""
+        return dict(self._TaskDeltaTime)
+
     def ElapsedString(self, task):
         if task in self._TaskDeltaTime:
             tdelta = self._TaskDeltaTime[task]

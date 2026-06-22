@@ -7,6 +7,7 @@ from typing import Any, Optional
 # MQTT imports
 try:
     import paho.mqtt.client as mqtt
+    import paho.mqtt.enums as mqtt_enum
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
@@ -80,7 +81,7 @@ class ConsoleWindow(object):
 
         try:
             # Create MQTT client
-            self._mqtt_client = mqtt.Client()
+            self._mqtt_client = mqtt.Client(callback_api_version=mqtt_enum.CallbackAPIVersion.VERSION2)
 
             # Set up callbacks
             def on_connectclient(client: mqtt.Client,
