@@ -14,16 +14,38 @@ The nornir-shared project has been modified to use MQTT messaging instead of soc
 - **console.py**: Updated to work as an MQTT subscriber console
 - **mqtt_config.py**: New module for MQTT configuration and mosquitto broker management
 
-### 2. MQTT Topics by Severity
+### 2. Run-scoped MQTT topics
 
-Messages are published to different MQTT topics based on their severity:
+Each `nornir-build` invocation is assigned a unique **run id** (see below) and
+publishes to run-scoped topics so multiple concurrent and past runs can be told
+apart:
 
-- `nornir/log/info` - General log messages (from `Log()` function)
-- `nornir/log/error` - Error messages (from `LogErr()` and `error()` functions)
-- `nornir/log/warning` - Warning messages
-- `nornir/log/debug` - Debug messages
-- `nornir/log/progress` - Progress updates (from `CurseProgress()` function)
-- `nornir/log/status` - Status updates (from `CurseString()` function)
+- `nornir/run/{run_id}/meta` - retained run metadata and status
+- `nornir/run/{run_id}/log/info`
+- `nornir/run/{run_id}/log/warning`
+- `nornir/run/{run_id}/log/error`
+- `nornir/run/{run_id}/log/debug`
+- `nornir/run/{run_id}/progress` - progress updates (from `CurseProgress()`)
+- `nornir/run/{run_id}/status` - status updates (from `CurseString()`)
+- `nornir/run/{run_id}/event` - structured pipeline events (stage start/end,
+  iterate progress) emitted by `nornir-buildmanager`
+
+Info messages are published by `prettyoutput.Log()`. Warning, error, and debug
+records are forwarded centrally by `nornir_shared.misc.MQTTLogHandler`, which is
+attached to the logging setup so records from worker processes (routed through
+the parent `QueueListener`) are published exactly once.
+
+#### Run id
+
+The run id is derived from the unified logging session id plus a short random
+suffix (for example `20260626-182015-6679edd7`) and is exported in the
+`NORNIR_RUN_ID` environment variable so worker processes inherit it.
+
+#### Legacy flat topics (back-compat)
+
+The original flat topics (`nornir/log/info`, `nornir/log/error`, ...) are still
+defined for the curses console subscriber. They are **off by default**; set
+`NORNIR_MQTT_LEGACY_TOPICS=1` to also mirror messages to them.
 
 ### 3. Automatic Mosquitto Broker Management
 
@@ -84,11 +106,11 @@ pretty.CurseString("Stage", "Data Loading")
 Start the MQTT console subscriber in a separate terminal:
 
 ```bash
-# Basic console
+# Basic console (curses interface by default on a TTY)
 python -m nornir_shared.console
 
-# Console with curses interface
-python -m nornir_shared.console -usecurses
+# Console without the curses interface (plain output)
+python -m nornir_shared.console -nocurses
 
 # Console with debug output
 python -m nornir_shared.console -debug
@@ -103,8 +125,10 @@ MQTT messages are published as JSON with the following structure:
 
 ```json
 {
+    "run_id": "20260626-182015-6679edd7",
     "message": "The actual log message",
     "timestamp": 1234567890.123,
+    "ts": 1234567890.123,
     "severity": "info",
     "logger_name": "module.function_name"
 }
@@ -126,23 +150,42 @@ Progress messages include additional metadata:
 
 ## Configuration
 
-### MQTT Broker Settings
+### Environment variables
 
-Default settings in `mqtt_config.py`:
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NORNIR_MQTT_HOST` | `127.0.0.1` | Broker host clients connect to |
+| `NORNIR_MQTT_BIND` | `127.0.0.1` | Bind address when auto-starting mosquitto |
+| `NORNIR_MQTT_PORT` | `1883` | Broker port |
+| `NORNIR_MQTT_ENABLE` | `1` | Set to `0` to disable all MQTT publishing |
+| `NORNIR_MQTT_LEGACY_TOPICS` | `0` | Set to `1` to also publish flat `nornir/log/*` topics |
+| `NORNIR_RUN_ID` | derived | Unique id for the run (auto-set; inherited by workers) |
 
-```python
-MQTT_HOST = "localhost"
-MQTT_PORT = 1883
-MQTT_KEEPALIVE = 60
+When `NORNIR_MQTT_HOST` points at a non-local host (for example a central
+`mosquitto` compose service), the embedded broker is **not** auto-started; the
+process simply connects to the configured broker.
+
+### Publishing from remote machines to a central broker
+
+To collect runs from several machines on one dashboard, expose the central
+broker's `1883` port (see `nornir-docker/compose.dashboard.yaml`, published on
+`NORNIR_MQTT_BIND_HOST`, default `0.0.0.0`) and point each build at it:
+
+```bash
+export NORNIR_MQTT_HOST=<central-host-ip-or-hostname>
+export NORNIR_MQTT_PORT=1883
 ```
 
-### Mosquitto Configuration
+No code changes are needed - publishers read these variables and skip the
+embedded broker for a remote host. The broker is anonymous and unencrypted, so
+only expose it on a trusted network (scope `1883` with a host firewall).
 
-The system automatically creates a mosquitto configuration:
+### Mosquitto Configuration (embedded broker)
+
+When pointed at localhost, the system auto-creates a mosquitto configuration:
 
 ```
-listener 1883
-bind_address localhost
+listener 1883 127.0.0.1
 allow_anonymous true
 persistence false
 ```
@@ -228,11 +271,29 @@ You can run multiple console windows with different configurations:
 # Terminal 1: General console
 python -m nornir_shared.console -title "General Log"
 
-# Terminal 2: Curses interface  
-python -m nornir_shared.console -usecurses -title "Status Monitor"
+# Terminal 2: Plain (non-curses) interface
+python -m nornir_shared.console -nocurses -title "Status Monitor"
 
 # Terminal 3: Debug console
 python -m nornir_shared.console -debug -title "Debug Output"
 ```
 
-All will receive the same MQTT messages but can display them differently. 
+All will receive the same MQTT messages but can display them differently.
+
+## Web build dashboard
+
+For a birds-eye view of one or many runs (live and historical) in a browser,
+use the `nornir-dashboard` service. It subscribes to the run-scoped topics,
+persists run/event history to SQLite, and serves a web UI showing the current
+pipeline, current stage/command, current section, percent complete, and a
+filterable log of errors and warnings per run.
+
+Run the broker + dashboard together with Docker:
+
+```bash
+docker compose -f nornir-docker/compose.dashboard.yaml up -d mosquitto nornir-dashboard
+# then run builds pointed at the shared broker (NORNIR_MQTT_HOST=mosquitto)
+# and open http://127.0.0.1:8087
+```
+
+See `nornir-dashboard/README.md` and `nornir-docker/README.md` for details.

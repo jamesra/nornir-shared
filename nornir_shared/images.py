@@ -164,14 +164,14 @@ def _is_numpy_extension(filename: str):
 
 def IsValidImage(filename: str) -> bool:
     """:return: true/false if passed a single image."""
+    if not os.path.exists(filename):
+        return False
+
     try:
         with Image.open(filename) as im:
             im.verify()
     except OSError as os_e:
         prettyoutput.Log("{0} -> {1}".format(filename, os_e.strerror))
-        return False
-    except Exception as e:
-        prettyoutput.Log("{0} -> {1}".format(filename, str(e)))
         return False
 
     return True

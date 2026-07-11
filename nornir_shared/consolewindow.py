@@ -10,7 +10,8 @@ try:
     import paho.mqtt.enums as mqtt_enum
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
-    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
+    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
+        MQTT_RUN_TOPIC_ROOT
 
     MQTT_AVAILABLE = True
 except ImportError:
@@ -91,7 +92,12 @@ class ConsoleWindow(object):
                                  properties: Properties | None = None):
                 if reason_code == 0:
                     print(f"Console '{self.title}' connected to MQTT broker")
-                    # Subscribe to all log topics
+                    # Subscribe to the run-scoped topic tree (current scheme) so the
+                    # console works regardless of the legacy-topics flag.
+                    run_topics = f"{MQTT_RUN_TOPIC_ROOT}/#"
+                    client.subscribe(run_topics)
+                    print(f"Subscribed to {run_topics}")
+                    # Also subscribe to the legacy flat topics for back-compat.
                     for topic in MQTT_TOPICS.values():
                         client.subscribe(topic)
                         print(f"Subscribed to {topic}")
