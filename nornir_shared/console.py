@@ -19,7 +19,8 @@ try:
     import paho.mqtt.client as mqtt
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
-    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS
+    from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
+        MQTT_RUN_TOPIC_ROOT
 
     MQTT_AVAILABLE = True
 except ImportError:
@@ -161,7 +162,10 @@ def MQTTConsoleLoop(HOST: str, PORT: int, title: str, handler_func):
                        properties: Properties | None = None):
             if reason_code == 0:  # SUCCESS
                 print(f"MQTT Console '{title}' connected to broker at {HOST}:{PORT}")
-                # Subscribe to all log topics
+                run_topics = f"{MQTT_RUN_TOPIC_ROOT}/#"
+                client.subscribe(run_topics)
+                print(f"Subscribed to {run_topics}")
+                # Also subscribe to legacy flat topics for back-compat.
                 for topic_name, topic in MQTT_TOPICS.items():
                     client.subscribe(topic)
                     print(f"Subscribed to {topic} ({topic_name})")

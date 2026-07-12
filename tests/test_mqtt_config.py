@@ -9,6 +9,23 @@ from nornir_shared import mqtt_config
 class TestMqttConfig(unittest.TestCase):
     """Tests for mosquitto configuration and broker startup helpers."""
 
+    def test_run_topic_root_and_helpers(self) -> None:
+        """Run-scoped topic helpers must resolve under MQTT_RUN_TOPIC_ROOT."""
+        self.assertEqual(mqtt_config.MQTT_RUN_TOPIC_ROOT, "nornir/run")
+        self.assertTrue(mqtt_config.is_local_mqtt_host("127.0.0.1"))
+        self.assertFalse(mqtt_config.is_local_mqtt_host("10.0.0.5"))
+
+        with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "test-run-id"}, clear=False):
+            self.assertEqual(mqtt_config.get_or_create_run_id(), "test-run-id")
+            self.assertEqual(
+                mqtt_config.run_topic_for_key("info"),
+                "nornir/run/test-run-id/log/info",
+            )
+            self.assertEqual(
+                mqtt_config.run_topic_for_key("meta"),
+                "nornir/run/test-run-id/meta",
+            )
+
     def test_create_mosquitto_config_uses_single_listener(self) -> None:
         """Ensure Mosquitto 2.x receives one listener directive, not listener plus bind_address."""
         config_path = mqtt_config.create_mosquitto_config(bind_host="127.0.0.1", port=1883)
@@ -78,6 +95,41 @@ class TestPrettyOutputMqttInit(unittest.TestCase):
 
         self.assertEqual(start_mock.call_count, 1)
         self.assertTrue(prettyoutput._mqtt_initialized)
+
+    def test_publish_uses_run_scoped_topic(self) -> None:
+        """Default publishes go to nornir/run/{run_id}/… not legacy flat topics."""
+        prettyoutput._mqtt_initialized = True
+        client = mock.Mock()
+        prettyoutput._mqtt_client = client
+
+        with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
+            with mock.patch("nornir_shared.prettyoutput.MQTT_LEGACY_TOPICS", False):
+                with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):
+                    with mock.patch("nornir_shared.prettyoutput.MQTT_AVAILABLE", True):
+                        prettyoutput._publish_mqtt_message("info", "hello")
+
+        client.publish.assert_called_once()
+        topic, body = client.publish.call_args[0][:2]
+        self.assertEqual(topic, "nornir/run/unit-run/log/info")
+        self.assertIn("hello", body)
+
+    def test_publish_early_run_meta_retains_meta_topic(self) -> None:
+        """Early meta must land on the retained run meta topic."""
+        prettyoutput._mqtt_initialized = True
+        client = mock.Mock()
+        prettyoutput._mqtt_client = client
+
+        with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
+            with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):
+                with mock.patch("nornir_shared.prettyoutput.MQTT_AVAILABLE", True):
+                    prettyoutput.publish_early_run_meta(
+                        pipeline="Assemble", volumepath="/data/vol")
+
+        client.publish.assert_called()
+        topic = client.publish.call_args[0][0]
+        kwargs = client.publish.call_args.kwargs
+        self.assertEqual(topic, "nornir/run/unit-run/meta")
+        self.assertTrue(kwargs.get("retain"))
 
 
 if __name__ == "__main__":

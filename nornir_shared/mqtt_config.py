@@ -3,6 +3,7 @@ MQTT configuration and mosquitto broker management for nornir_shared
 """
 import logging
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -21,7 +22,20 @@ MQTT_KEEPALIVE = 60
 # Backward-compatible alias used by subscribers and CLI defaults.
 MQTT_HOST = MQTT_CONNECT_HOST
 
-# MQTT Topics based on log severity
+# Run-scoped topic namespace (dashboard + console subscribers).
+MQTT_RUN_TOPIC_ROOT = os.environ.get("NORNIR_MQTT_RUN_TOPIC_ROOT", "nornir/run").rstrip("/")
+
+# When false, publishers skip MQTT entirely.
+MQTT_ENABLE = os.environ.get("NORNIR_MQTT_ENABLE", "1").strip().lower() not in ("0", "false", "no")
+
+# When true, also mirror messages to the legacy flat nornir/log/* topics.
+MQTT_LEGACY_TOPICS = os.environ.get("NORNIR_MQTT_LEGACY_TOPICS", "0").strip().lower() in (
+    "1", "true", "yes")
+
+NORNIR_RUN_ID_ENV = "NORNIR_RUN_ID"
+NORNIR_LOG_SESSION_ENV = "NORNIR_LOG_SESSION_ID"
+
+# Legacy flat topics (back-compat; off by default for publishing).
 MQTT_TOPICS = {
     'info': 'nornir/log/info',
     'error': 'nornir/log/error',
@@ -30,6 +44,61 @@ MQTT_TOPICS = {
     'progress': 'nornir/log/progress',
     'status': 'nornir/log/status'
 }
+
+# Map severity/topic keys to run-scoped suffixes under MQTT_RUN_TOPIC_ROOT/{run_id}/.
+_RUN_TOPIC_SUFFIXES = {
+    'info': 'log/info',
+    'warning': 'log/warning',
+    'error': 'log/error',
+    'debug': 'log/debug',
+    'progress': 'progress',
+    'status': 'status',
+    'meta': 'meta',
+    'event': 'event',
+}
+
+
+def is_local_mqtt_host(host: str | None = None) -> bool:
+    """Return True when *host* is a loopback address suitable for embedded broker startup."""
+    resolved = (MQTT_CONNECT_HOST if host is None else host).strip().lower()
+    return resolved in ("127.0.0.1", "localhost", "::1")
+
+
+def get_or_create_run_id() -> str:
+    """Return the process run id, creating and exporting NORNIR_RUN_ID if needed.
+
+    Derived from the unified logging session id plus a short random suffix so
+    concurrent builds sharing a session stamp remain distinguishable.
+    """
+    existing = os.environ.get(NORNIR_RUN_ID_ENV)
+    if existing is not None:
+        stripped = existing.strip()
+        if stripped:
+            return stripped
+
+    session = os.environ.get(NORNIR_LOG_SESSION_ENV)
+    if session is not None:
+        session = session.strip()
+    if not session:
+        session = time.strftime('%Y%m%d-%H%M%S', time.localtime())
+        os.environ[NORNIR_LOG_SESSION_ENV] = session
+
+    run_id = f"{session}-{secrets.token_hex(4)}"
+    os.environ[NORNIR_RUN_ID_ENV] = run_id
+    return run_id
+
+
+def run_topic(suffix: str, run_id: str | None = None) -> str:
+    """Build ``{MQTT_RUN_TOPIC_ROOT}/{run_id}/{suffix}`` for a run-scoped publish/subscribe."""
+    rid = get_or_create_run_id() if run_id is None else run_id
+    clean_suffix = suffix.lstrip("/")
+    return f"{MQTT_RUN_TOPIC_ROOT}/{rid}/{clean_suffix}"
+
+
+def run_topic_for_key(topic_key: str, run_id: str | None = None) -> str:
+    """Map a severity/topic key (info, progress, meta, …) to its run-scoped MQTT topic."""
+    suffix = _RUN_TOPIC_SUFFIXES.get(topic_key, f"log/{topic_key}")
+    return run_topic(suffix, run_id=run_id)
 
 
 def is_port_in_use(host: str, port: int) -> bool:

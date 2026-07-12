@@ -16,12 +16,25 @@ try:
     import paho.mqtt.enums as mqtt_enum
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
-    from nornir_shared.mqtt_config import MQTT_CONNECT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
-        start_mosquitto_broker, stop_mosquitto_broker
+    from nornir_shared.mqtt_config import (
+        MQTT_CONNECT_HOST,
+        MQTT_ENABLE,
+        MQTT_KEEPALIVE,
+        MQTT_LEGACY_TOPICS,
+        MQTT_PORT,
+        MQTT_TOPICS,
+        get_or_create_run_id,
+        is_local_mqtt_host,
+        run_topic_for_key,
+        start_mosquitto_broker,
+        stop_mosquitto_broker,
+    )
 
     MQTT_AVAILABLE = True
 except ImportError:
     MQTT_AVAILABLE = False
+    MQTT_ENABLE = False
+    MQTT_LEGACY_TOPICS = False
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = False
@@ -60,7 +73,7 @@ def _initialize_mqtt():
     """Initialize MQTT client and start mosquitto broker if needed."""
     global _mqtt_client, _mosquitto_process, _mqtt_initialized
 
-    if not MQTT_AVAILABLE or _mqtt_initialized:
+    if not MQTT_AVAILABLE or not MQTT_ENABLE or _mqtt_initialized:
         return
 
     # Mark initialized before attempting startup so worker log calls do not retry
@@ -68,7 +81,11 @@ def _initialize_mqtt():
     _mqtt_initialized = True
 
     try:
-        _mosquitto_process = start_mosquitto_broker()
+        # Only auto-start an embedded broker for loopback; remote hosts are external.
+        if is_local_mqtt_host(MQTT_CONNECT_HOST):
+            _mosquitto_process = start_mosquitto_broker()
+        else:
+            _mosquitto_process = None
 
         _mqtt_client = mqtt.Client(callback_api_version=mqtt_enum.CallbackAPIVersion.VERSION2)
 
@@ -122,34 +139,64 @@ def _cleanup_mqtt():
         _mosquitto_process = None
 
 
-def _publish_mqtt_message(topic_key: str, message: str, metadata: dict | None = None):
-    """Publish a message to MQTT topic"""
+def _publish_mqtt_message(topic_key: str, message: str, metadata: dict | None = None,
+                          *, retain: bool = False):
+    """Publish a message to the run-scoped MQTT topic (and legacy flat topics if enabled)."""
     global _mqtt_client
+
+    if not MQTT_AVAILABLE or not MQTT_ENABLE:
+        return
 
     if not _mqtt_initialized:
         _initialize_mqtt()
 
-    if not _mqtt_client or not MQTT_AVAILABLE:
+    if not _mqtt_client:
         return
 
     try:
-        topic = MQTT_TOPICS.get(topic_key, MQTT_TOPICS['info'])
-
-        # Create message payload
+        run_id = get_or_create_run_id()
+        now = time.time()
         payload = {
+            'run_id': run_id,
             'message': message,
-            'timestamp': time.time(),
-            'severity': topic_key
+            'timestamp': now,
+            'ts': now,
+            'severity': topic_key,
         }
 
         if metadata is not None:
             payload.update(metadata)
 
-        # Publish message
-        _mqtt_client.publish(topic, json.dumps(payload))
+        body = json.dumps(payload)
+        _mqtt_client.publish(run_topic_for_key(topic_key, run_id=run_id), body, retain=retain)
+
+        if MQTT_LEGACY_TOPICS and topic_key in MQTT_TOPICS:
+            _mqtt_client.publish(MQTT_TOPICS[topic_key], body, retain=False)
 
     except Exception as e:
         logging.getLogger(__name__).warning(f"Failed to publish MQTT message: {e}")
+
+
+def publish_early_run_meta(*, pipeline: str, volumepath: str,
+                           status: str = "running") -> None:
+    """Publish retained run metadata so the dashboard can list the build immediately.
+
+    :param pipeline: Pipeline or utility command name for this invocation.
+    :param volumepath: Volume root path being processed.
+    :param status: Initial run status (default ``running``).
+    """
+    run_id = get_or_create_run_id() if MQTT_AVAILABLE else os.environ.get("NORNIR_RUN_ID", "")
+    _publish_mqtt_message(
+        'meta',
+        f"{pipeline} {volumepath}",
+        {
+            'pipeline': pipeline,
+            'volumepath': volumepath,
+            'status': status,
+            'run_id': run_id,
+        },
+        retain=True,
+    )
 
 
 def IncreaseIndent():
