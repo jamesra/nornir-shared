@@ -178,25 +178,27 @@ def _publish_mqtt_message(topic_key: str, message: str, metadata: dict | None = 
 
 
 def publish_early_run_meta(*, pipeline: str, volumepath: str,
-                           status: str = "running") -> None:
+                           status: str = "running", **fields) -> None:
     """Publish retained run metadata so the dashboard can list the build immediately.
 
-    :param pipeline: Pipeline or utility command name for this invocation.
-    :param volumepath: Volume root path being processed.
-    :param status: Initial run status (default ``running``).
+    Delegates to :func:`nornir_shared.mqtt_telemetry.publish_early_run_meta` so
+    host, pid, session, start time, and compute are filled automatically.
     """
-    run_id = get_or_create_run_id() if MQTT_AVAILABLE else os.environ.get("NORNIR_RUN_ID", "")
-    _publish_mqtt_message(
-        'meta',
-        f"{pipeline} {volumepath}",
-        {
-            'pipeline': pipeline,
-            'volumepath': volumepath,
-            'status': status,
-            'run_id': run_id,
-        },
-        retain=True,
-    )
+    from nornir_shared import mqtt_telemetry
+    mqtt_telemetry.publish_early_run_meta(
+        pipeline=pipeline, volumepath=volumepath, status=status, **fields)
+
+
+def publish_run_meta(*, status: str | None = None, retain: bool = True, **fields) -> None:
+    """Thin wrapper for :func:`nornir_shared.mqtt_telemetry.publish_run_meta`."""
+    from nornir_shared import mqtt_telemetry
+    mqtt_telemetry.publish_run_meta(status=status, retain=retain, **fields)
+
+
+def publish_run_event(event: str, **fields) -> None:
+    """Thin wrapper for :func:`nornir_shared.mqtt_telemetry.publish_run_event`."""
+    from nornir_shared import mqtt_telemetry
+    mqtt_telemetry.publish_run_event(event, **fields)
 
 
 def IncreaseIndent():
@@ -269,6 +271,10 @@ if CURSES:
 
 
 def CurseString(topic: str, text: str):
+    output_message = topic + ": " + text
+    # Always publish status to MQTT so the dashboard sees TTY and non-TTY builds.
+    _publish_mqtt_message('status', output_message, {'topic': topic})
+
     if CURSES:
         y = 0
         x = 0
@@ -285,12 +291,7 @@ def CurseString(topic: str, text: str):
         statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
         statusWindow.refresh()  # type: ignore[union-attr]
     else:
-        output_message = topic + ": " + text
         print(output_message)
-
-        # Also publish status messages to MQTT
-        _publish_mqtt_message('status', output_message, {'topic': topic})
-        return
 
 
 def CurseProgress(text: str, Progress: float, Total: float | None = None):
@@ -336,7 +337,8 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
         'progress': Progress,
         'total': Total,
         'fraction': fraction,
-        'eta_string': ETAString
+        'eta_string': ETAString,
+        'label': text,
     }
 
     progress_message = text if text is not None else ""
@@ -463,7 +465,7 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
     # logger_name = get_calling_func_name()
 
     logger = logging.getLogger(logger_name)
-    logger.info(output)
+    logger.info(output, extra={'mqtt_published': True})
 
     # Publish to MQTT
     _publish_mqtt_message('info', output, {'logger_name': logger_name})
@@ -515,7 +517,7 @@ def LogErr(error_message: str | None = None, calling_func_name: str | None = Non
         calling_func_name = get_calling_func_name()
 
     logger = logging.getLogger(calling_func_name)
-    logger.error(error_output)
+    logger.error(error_output, extra={'mqtt_published': True})
 
     # Publish to MQTT
     _publish_mqtt_message('error', error_output, {'logger_name': calling_func_name})

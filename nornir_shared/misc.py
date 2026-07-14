@@ -22,6 +22,61 @@ _multiprocess_logging_owner_pid: int | None = None
 NORNIR_LOG_ROOT_ENV = 'NORNIR_LOG_ROOT'
 NORNIR_LOG_SESSION_ENV = 'NORNIR_LOG_SESSION_ID'
 
+MQTT_LOG_HANDLER_NAME = 'nornir_mqtt_log_handler'
+
+
+class MQTTLogHandler(logging.Handler):
+    """Forward warning/error/debug logging records to run-scoped MQTT topics.
+
+    Info records are published by :func:`nornir_shared.prettyoutput.Log`. Records
+    already marked with ``mqtt_published=True`` (set via ``extra=`` from
+    prettyoutput) are skipped to avoid duplicate MQTT publishes.
+    """
+
+    def __init__(self, level: int = logging.DEBUG) -> None:
+        super().__init__(level=level)
+        self.name = MQTT_LOG_HANDLER_NAME
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Publish a single logging record to the matching MQTT log topic."""
+        if getattr(record, 'mqtt_published', False):
+            return
+
+        topic_key: str | None = None
+        if record.levelno >= logging.ERROR:
+            topic_key = 'error'
+        elif record.levelno >= logging.WARNING:
+            topic_key = 'warning'
+        elif record.levelno >= logging.DEBUG and record.levelno < logging.INFO:
+            topic_key = 'debug'
+        else:
+            return
+
+        try:
+            from nornir_shared import prettyoutput
+            message = self.format(record) if self.formatter else record.getMessage()
+            prettyoutput._publish_mqtt_message(
+                topic_key,
+                message,
+                {'logger_name': record.name},
+            )
+        except Exception:
+            self.handleError(record)
+
+
+def _ensure_mqtt_log_handler(handlers: list[logging.Handler] | None = None) -> MQTTLogHandler:
+    """Return an MQTTLogHandler, adding it to *handlers* when provided and missing."""
+    if handlers is not None:
+        for handler in handlers:
+            if getattr(handler, 'name', None) == MQTT_LOG_HANDLER_NAME:
+                return handler  # type: ignore[return-value]
+
+    mqtt_handler = MQTTLogHandler()
+    mqtt_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
+    if handlers is not None:
+        handlers.append(mqtt_handler)
+    return mqtt_handler
+
 
 def _resolve_unified_log_root() -> str | None:
     env_value = os.environ.get(NORNIR_LOG_ROOT_ENV)
@@ -158,6 +213,8 @@ def StartMultiprocessLoggingListener(level=None):
     handlers = _build_standard_handlers(level)
     if len(handlers) == 0:
         return None
+
+    _ensure_mqtt_log_handler(handlers)
 
     _multiprocess_logging_queue = multiprocessing.Queue(-1)
     _multiprocess_logging_listener = logging.handlers.QueueListener(_multiprocess_logging_queue, *handlers)
@@ -356,6 +413,11 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
 
         logger = logging.getLogger()
         logger.addHandler(ch)
+
+    # Central MQTT forwarding for warning/error/debug (parent process only).
+    root_logger = logging.getLogger()
+    if not any(getattr(h, 'name', None) == MQTT_LOG_HANDLER_NAME for h in root_logger.handlers):
+        root_logger.addHandler(_ensure_mqtt_log_handler())
 
     # Automatically shutdown logging when our process ends
     atexit.register(logging.shutdown)

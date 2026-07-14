@@ -32,8 +32,10 @@ apart:
 
 Info messages are published by `prettyoutput.Log()`. Warning, error, and debug
 records are forwarded centrally by `nornir_shared.misc.MQTTLogHandler`, which is
-attached to the logging setup so records from worker processes (routed through
-the parent `QueueListener`) are published exactly once.
+attached during `SetupLogging` (and to the multiprocess `QueueListener`) so
+records from worker processes are published exactly once. Structured pipeline
+events (`stage_start`, `iterate_progress`, …) are published by
+`nornir_shared.mqtt_telemetry.publish_run_event` from `PipelineManager`.
 
 #### Run id
 
@@ -296,4 +298,4 @@ docker compose -f nornir-docker/compose.dashboard.yaml up -d mosquitto nornir-da
 # and open http://127.0.0.1:8087
 ```
 
-See `nornir-dashboard/README.md` and `nornir-docker/README.md` for details.
+See `nornir-builddashboard/README.md` and `nornir-docker/README.md` for details.
