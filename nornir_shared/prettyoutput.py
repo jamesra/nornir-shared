@@ -46,14 +46,25 @@ _mqtt_client = None
 _mosquitto_process = None
 _mqtt_initialized = False
 
+def _stream_is_tty(stream) -> bool:
+    """Return whether *stream* is a TTY; False when missing or not a TTY."""
+    if stream is None:
+        return False
+    try:
+        return stream.isatty()
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
 if not ECLIPSE:
     try:
         # Jan 30 2024
         # Curses is causing trouble on Linux installs, so removing it for now
-        stdin_is_tty = sys.stdin.isatty()
-        stdout_is_tty = sys.stdout.isatty()
-        stderr_is_tty = sys.stderr.isatty()
-        streams_tty_ok = stdin_is_tty and stdout_is_tty and stderr_is_tty
+        streams_tty_ok = (
+            _stream_is_tty(sys.stdin)
+            and _stream_is_tty(sys.stdout)
+            and _stream_is_tty(sys.stderr)
+        )
         if streams_tty_ok:
             import curses
             CURSES = True
