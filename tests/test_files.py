@@ -6,10 +6,12 @@ Created on Oct 21, 2013
 import datetime
 import os
 import shutil
+import tempfile
 import unittest
+import unittest.mock
 
 import nornir_shared.files
-from nornir_shared.files import RecurseSubdirectories, IsOlderThan, file_mtime_ns, format_mtime_ns, path_list_to_mtime_ns_map
+from nornir_shared.files import RecurseSubdirectories, IsOlderThan, file_mtime_ns, format_mtime_ns, path_list_to_mtime_ns_map, ensure_directory
 
 
 def CreateDirTree(path, dictSubTrees):
@@ -191,6 +193,37 @@ class TestFiles(unittest.TestCase):
             self.assertFalse(IsOlderThan(test_path, DateTime=reference_before_file))
         finally:
             os.remove(test_path)
+
+
+class TestEnsureDirectory(unittest.TestCase):
+    """CIFS-tolerant directory creation helper."""
+
+    def test_ensure_directory_creates_nested_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = os.path.join(temp_dir, "a", "b", "c")
+            self.assertEqual(ensure_directory(target), os.path.abspath(target))
+            self.assertTrue(os.path.isdir(target))
+
+    def test_ensure_directory_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.assertEqual(ensure_directory(temp_dir), os.path.abspath(temp_dir))
+
+    def test_ensure_directory_retries_file_not_found(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = os.path.join(temp_dir, "child")
+            original_mkdir = os.mkdir
+            calls = {"count": 0}
+
+            def mkdir_side_effect(path: str, *args, **kwargs):
+                calls["count"] += 1
+                if calls["count"] == 1 and path == target:
+                    raise FileNotFoundError(path)
+                return original_mkdir(path, *args, **kwargs)
+
+            with unittest.mock.patch("os.mkdir", side_effect=mkdir_side_effect):
+                self.assertEqual(ensure_directory(target), os.path.abspath(target))
+            self.assertTrue(os.path.isdir(target))
+            self.assertGreater(calls["count"], 1)
 
 
 if __name__ == "__main__":

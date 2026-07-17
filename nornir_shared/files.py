@@ -61,6 +61,66 @@ def format_mtime_ns(mtime_ns: int) -> str:
     return f"{timestamp.isoformat(sep=' ')} ({mtime_ns} ns, +{remainder_ns} ns within second)"
 
 
+def ensure_directory(path: str, *, retries: int = 8, base_delay_s: float = 0.05) -> str:
+    """Create *path* (and parents), blocking until visible; tolerant of CIFS/NFS races.
+
+    ``os.makedirs`` can fail with ``FileNotFoundError`` on network shares when a parent
+    is briefly missing from the client cache. Walk and create each path component with
+    retries instead of assuming ``makedirs`` visibility is immediate.
+    """
+    path = os.path.abspath(path)
+    if os.path.isdir(path):
+        return path
+
+    parts: list[str] = []
+    cur = path
+    while True:
+        parts.append(cur)
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    parts.reverse()
+
+    last_error: OSError | None = None
+    for attempt in range(retries):
+        try:
+            for component in parts:
+                if os.path.isdir(component):
+                    continue
+                if os.path.exists(component) and not os.path.isdir(component):
+                    raise ValueError(
+                        f"Cannot create directory {path}: {component} exists and is not a directory")
+                try:
+                    os.mkdir(component)
+                except FileExistsError:
+                    if not os.path.isdir(component):
+                        raise
+                except FileNotFoundError as e:
+                    last_error = e
+                    parent = os.path.dirname(component)
+                    if parent and os.path.isdir(parent):
+                        try:
+                            os.listdir(parent)
+                        except OSError:
+                            pass
+                    break
+            else:
+                if os.path.isdir(path):
+                    return path
+        except OSError as e:
+            last_error = e
+
+        time.sleep(base_delay_s * (attempt + 1))
+
+    if os.path.isdir(path):
+        return path
+
+    detail = f"\n{last_error}" if last_error is not None else ""
+    raise FileNotFoundError(
+        f"Unable to create directory after {retries} attempts: {path}{detail}")
+
+
 def _reference_timestamp_to_ns(
         date_time: str | float | int | datetime.datetime | datetime.date | time.struct_time,
         date_time_format: str | None = None) -> int:
