@@ -8,6 +8,7 @@ import collections.abc
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
+import errno
 import glob
 import functools
 import math
@@ -18,6 +19,7 @@ import time
 import typing
 import shutil
 import logging
+import tempfile
 from enum import IntEnum, auto
 from typing import Any, Sequence, cast
 
@@ -61,19 +63,34 @@ def format_mtime_ns(mtime_ns: int) -> str:
     return f"{timestamp.isoformat(sep=' ')} ({mtime_ns} ns, +{remainder_ns} ns within second)"
 
 
-def ensure_directory(path: str, *, retries: int = 8, base_delay_s: float = 0.05) -> str:
-    """Create *path* (and parents), blocking until visible; tolerant of CIFS/NFS races.
+def _directory_listable(path: str) -> bool:
+    """Return True when *path* is a directory the client can list (CIFS cache refresh)."""
+    if not os.path.isdir(path):
+        return False
+    try:
+        os.listdir(path)
+        return True
+    except OSError:
+        return False
 
-    ``os.makedirs`` can fail with ``FileNotFoundError`` on network shares when a parent
-    is briefly missing from the client cache. Walk and create each path component with
-    retries instead of assuming ``makedirs`` visibility is immediate.
-    """
-    path = os.path.abspath(path)
-    if os.path.isdir(path):
-        return path
 
+def _directory_writable(path: str) -> bool:
+    """Return True when *path* accepts a create-and-delete probe file."""
+    if not _directory_listable(path):
+        return False
+    try:
+        with tempfile.NamedTemporaryFile(dir=path, prefix='.nornir_probe_', delete=True):
+            pass
+        return True
+    except OSError:
+        return False
+
+
+def _path_components(path: str) -> list[str]:
+    """Return absolute path components from root to leaf."""
+    abspath = os.path.abspath(path)
     parts: list[str] = []
-    cur = path
+    cur = abspath
     while True:
         parts.append(cur)
         parent = os.path.dirname(cur)
@@ -81,12 +98,31 @@ def ensure_directory(path: str, *, retries: int = 8, base_delay_s: float = 0.05)
             break
         cur = parent
     parts.reverse()
+    return parts
+
+
+def ensure_directory(path: str, *, retries: int = 8, base_delay_s: float = 0.05) -> str:
+    """Create *path* (and parents), blocking until visible; tolerant of CIFS/NFS races.
+
+    ``os.makedirs`` can fail with ``FileNotFoundError`` on network shares when a parent
+    is briefly missing from the client cache. Walk and create each path component with
+    retries instead of assuming ``makedirs`` visibility is immediate.
+
+    Success requires the final directory to be listable and accept a short-lived probe
+    file so callers do not proceed while the share still rejects writes.
+    """
+    path = os.path.abspath(path)
+    if _directory_writable(path):
+        _flush_directory_tree_visibility(_path_components(path))
+        return path
+
+    parts: list[str] = _path_components(path)
 
     last_error: OSError | None = None
     for attempt in range(retries):
         try:
             for component in parts:
-                if os.path.isdir(component):
+                if _directory_listable(component):
                     continue
                 if os.path.exists(component) and not os.path.isdir(component):
                     raise ValueError(
@@ -106,19 +142,106 @@ def ensure_directory(path: str, *, retries: int = 8, base_delay_s: float = 0.05)
                             pass
                     break
             else:
-                if os.path.isdir(path):
+                if _directory_writable(path):
+                    _flush_directory_tree_visibility(parts)
                     return path
         except OSError as e:
             last_error = e
 
         time.sleep(base_delay_s * (attempt + 1))
 
-    if os.path.isdir(path):
+    if _directory_writable(path):
+        _flush_directory_tree_visibility(parts)
         return path
 
     detail = f"\n{last_error}" if last_error is not None else ""
     raise FileNotFoundError(
         f"Unable to create directory after {retries} attempts: {path}{detail}")
+
+
+def _flush_directory_tree_visibility(parts: Sequence[str]) -> None:
+    """Require every component in *parts* to be listable in the calling thread."""
+    for component in parts:
+        if not _directory_listable(component):
+            raise FileNotFoundError(f"Directory not visible after creation: {component}")
+
+
+def pin_directory_for_worker(path: str) -> None:
+    """Make *path* visible in the current thread after stage-level ``ensure_directory``."""
+    abspath = os.path.abspath(path)
+    if _directory_listable(abspath):
+        return
+
+    parts = _path_components(abspath)
+
+    for component in parts:
+        try:
+            os.listdir(component)
+        except OSError:
+            pass
+
+    if not _directory_listable(abspath):
+        ensure_directory(abspath)
+
+
+def copy_file(
+    src: str,
+    dst: str,
+    *,
+    retries: int = 16,
+    base_delay_s: float = 0.1,
+) -> None:
+    """Copy *src* to *dst* with CIFS/NFS retries (atomic replace in dest dir).
+
+    Stage-level ``ensure_directory`` should create *parent* once.  On failure this
+    re-pins directory visibility in the worker thread and retries with backoff.
+    """
+    src = os.path.abspath(src)
+    dst = os.path.abspath(dst)
+    parent = os.path.dirname(dst) or None
+    if parent:
+        parent = os.path.abspath(parent)
+
+    last_error: OSError | None = None
+    for attempt in range(retries):
+        try:
+            if not os.path.isfile(src):
+                raise FileNotFoundError(f"Source file does not exist: {src}")
+            if parent is None:
+                shutil.copyfile(src, dst)
+            else:
+                _copy_file_atomic(src, dst, parent)
+            return
+        except FileNotFoundError as e:
+            last_error = e
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            last_error = e
+
+        if parent:
+            pin_directory_for_worker(parent)
+        time.sleep(base_delay_s * (attempt + 1))
+
+    if last_error is not None:
+        raise last_error
+    raise FileNotFoundError(f"Unable to copy {src!r} to {dst!r}")
+
+
+def _copy_file_atomic(src: str, dst: str, parent: str) -> None:
+    """Write via a temp file in *parent* and atomically replace *dst*."""
+    fd, tmp_path = tempfile.mkstemp(prefix='.nornir_copy_', dir=parent)
+    try:
+        with os.fdopen(fd, 'wb') as out_f:
+            with open(src, 'rb') as in_f:
+                shutil.copyfileobj(in_f, out_f)
+        os.replace(tmp_path, dst)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def _reference_timestamp_to_ns(

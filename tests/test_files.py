@@ -225,6 +225,67 @@ class TestEnsureDirectory(unittest.TestCase):
             self.assertTrue(os.path.isdir(target))
             self.assertGreater(calls["count"], 1)
 
+    def test_ensure_directory_waits_until_directory_is_writable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = os.path.join(temp_dir, "child")
+            original_writable = nornir_shared.files._directory_writable
+            calls = {"count": 0}
+
+            def writable_side_effect(path: str) -> bool:
+                calls["count"] += 1
+                if path == os.path.abspath(target) and calls["count"] < 3:
+                    return False
+                return original_writable(path)
+
+            with unittest.mock.patch(
+                "nornir_shared.files._directory_writable",
+                side_effect=writable_side_effect,
+            ):
+                self.assertEqual(ensure_directory(target, retries=6), os.path.abspath(target))
+            self.assertTrue(os.path.isdir(target))
+            self.assertGreaterEqual(calls["count"], 3)
+
+    def test_copy_file_retries_when_dest_open_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = os.path.join(temp_dir, "src.png")
+            dest_dir = os.path.join(temp_dir, "dest")
+            os.makedirs(dest_dir, exist_ok=True)
+            with open(src, "wb") as handle:
+                handle.write(b"png")
+            dst = os.path.join(dest_dir, "tile.png")
+
+            original_atomic = nornir_shared.files._copy_file_atomic
+            calls = {"count": 0}
+
+            def atomic_side_effect(src_path: str, dst_path: str, parent: str) -> None:
+                calls["count"] += 1
+                if calls["count"] == 1:
+                    raise FileNotFoundError(dst_path)
+                return original_atomic(src_path, dst_path, parent)
+
+            with unittest.mock.patch.object(
+                nornir_shared.files,
+                "_copy_file_atomic",
+                side_effect=atomic_side_effect,
+            ):
+                nornir_shared.files.copy_file(src, dst, retries=4, base_delay_s=0.0)
+
+            self.assertTrue(os.path.isfile(dst))
+            self.assertGreater(calls["count"], 1)
+
+    def test_copy_file_creates_missing_dest_parent_on_enoent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = os.path.join(temp_dir, "src.png")
+            with open(src, "wb") as handle:
+                handle.write(b"png")
+            dest_dir = os.path.join(temp_dir, "missing_dest")
+            dst = os.path.join(dest_dir, "tile.png")
+
+            nornir_shared.files.copy_file(src, dst, retries=4, base_delay_s=0.0)
+
+            self.assertTrue(os.path.isdir(dest_dir))
+            self.assertTrue(os.path.isfile(dst))
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
