@@ -4,6 +4,7 @@ MQTT configuration and mosquitto broker management for nornir_shared
 import logging
 import os
 import secrets
+import shutil
 import socket
 import subprocess
 import sys
@@ -150,13 +151,16 @@ websockets_log_level 0
 
 def _resolve_mosquitto_executable() -> str | None:
     """Return the mosquitto executable path when available on this platform."""
+    which_path = shutil.which('mosquitto')
+    if which_path:
+        return which_path
+
     if not sys.platform.startswith('win'):
-        return 'mosquitto'
+        return None
 
     possible_paths = [
-        'mosquitto',
         'C:/Program Files/mosquitto/mosquitto.exe',
-        'C:/Program Files (x86)/mosquitto/mosquitto.exe'
+        'C:/Program Files (x86)/mosquitto/mosquitto.exe',
     ]
 
     for path in possible_paths:
