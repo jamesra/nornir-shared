@@ -38,6 +38,12 @@ except ImportError:
 
 ECLIPSE = 'ECLIPSE' in os.environ
 CURSES = False
+LogStartY = 16  # Status panel ends above this row; log pad is drawn from here down.
+
+try:
+    import curses as _curses_module
+except ImportError:
+    _curses_module = None  # type: ignore[assignment]
 
 ProgressStartTime = None
 
@@ -65,7 +71,7 @@ if not ECLIPSE:
             and _stream_is_tty(sys.stdout)
             and _stream_is_tty(sys.stderr)
         )
-        if streams_tty_ok:
+        if streams_tty_ok and _curses_module is not None:
             import curses
             CURSES = True
         else:
@@ -286,6 +292,13 @@ if CURSES:
         logging.getLogger(__name__).debug("Curses initialization failed, falling back to plain output: %s", e)
 
 
+def _curses_error_type() -> type[BaseException]:
+    """Return ``curses.error`` when available, else ``Exception``."""
+    if _curses_module is not None:
+        return _curses_module.error
+    return Exception
+
+
 def _disable_curses(reason: BaseException | str | None = None) -> None:
     """Turn off curses UI after a runtime failure (e.g. prefresh ERR on resize)."""
     global CURSES, stdscr, statusWindow, logWindow
@@ -293,7 +306,8 @@ def _disable_curses(reason: BaseException | str | None = None) -> None:
         return
     CURSES = False
     try:
-        curses.endwin()
+        if _curses_module is not None:
+            _curses_module.endwin()
     except Exception:
         pass
     stdscr = None
@@ -309,7 +323,7 @@ def _safe_status_refresh() -> None:
         return
     try:
         statusWindow.refresh()  # type: ignore[union-attr]
-    except curses.error as e:
+    except _curses_error_type() as e:
         _disable_curses(e)
 
 
@@ -318,13 +332,14 @@ def _safe_log_pad_refresh(y_max: int, x_max: int) -> bool:
     if not CURSES:
         return False
     # Pad refresh rectangle must be non-empty and on-screen.
+    # smaxcol / smaxrow are inclusive; getmaxyx returns height/width, so subtract 1.
     if y_max <= LogStartY or x_max <= 0:
         _disable_curses(f"invalid log refresh region y={y_max} x={x_max} LogStartY={LogStartY}")
         return False
     try:
         logWindow.refresh(0, 0, LogStartY, 0, y_max - 1, x_max - 1)  # type: ignore[union-attr]
         return True
-    except curses.error as e:
+    except _curses_error_type() as e:
         _disable_curses(e)
         return False
 
@@ -350,7 +365,7 @@ def CurseString(topic: str, text: str):
             statusWindow.clrtoeol()  # type: ignore[union-attr]
             statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
             _safe_status_refresh()
-        except curses.error as e:
+        except _curses_error_type() as e:
             _disable_curses(e)
             print(output_message)
     else:
@@ -556,7 +571,7 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
                 statusWindow.clrtoeol()  # type: ignore[union-attr]
                 statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
                 _safe_status_refresh()
-        except curses.error as e:
+        except _curses_error_type() as e:
             _disable_curses(e)
     else:
         output_str = text
@@ -676,7 +691,7 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
             logWindow.clrtoeol()  # type: ignore[union-attr]
             if not _safe_log_pad_refresh(yMax, xMax):
                 print(output)
-        except curses.error as e:
+        except _curses_error_type() as e:
             _disable_curses(e)
             print(output)
     elif ECLIPSE:
