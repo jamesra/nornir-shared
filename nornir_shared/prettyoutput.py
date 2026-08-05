@@ -259,6 +259,11 @@ if CURSES:
         if maxX == 0 or maxY == 0:
             raise RuntimeError(f"Terminal reported zero dimensions ({maxY}x{maxX}); curses unavailable")
         LogStartY = 16
+        # Status occupies rows 0..14; log pad is drawn from LogStartY downward.
+        # prefresh() returns ERR when smaxrow < sminrow (terminal shorter than layout).
+        if maxY <= LogStartY:
+            raise RuntimeError(
+                f"Terminal too short for curses layout ({maxY} rows; need > {LogStartY})")
         ScreenWidth = maxX
 
         statusWindow = curses.newwin(15, maxX, 0, 0)
@@ -281,6 +286,49 @@ if CURSES:
         logging.getLogger(__name__).debug("Curses initialization failed, falling back to plain output: %s", e)
 
 
+def _disable_curses(reason: BaseException | str | None = None) -> None:
+    """Turn off curses UI after a runtime failure (e.g. prefresh ERR on resize)."""
+    global CURSES, stdscr, statusWindow, logWindow
+    if not CURSES:
+        return
+    CURSES = False
+    try:
+        curses.endwin()
+    except Exception:
+        pass
+    stdscr = None
+    statusWindow = []
+    logWindow = []
+    if reason is not None:
+        logging.getLogger(__name__).debug("Curses disabled, falling back to plain output: %s", reason)
+
+
+def _safe_status_refresh() -> None:
+    """Refresh the status window; disable curses on terminal geometry errors."""
+    if not CURSES:
+        return
+    try:
+        statusWindow.refresh()  # type: ignore[union-attr]
+    except curses.error as e:
+        _disable_curses(e)
+
+
+def _safe_log_pad_refresh(y_max: int, x_max: int) -> bool:
+    """Refresh the log pad into the lower screen; return False if curses is unusable."""
+    if not CURSES:
+        return False
+    # Pad refresh rectangle must be non-empty and on-screen.
+    if y_max <= LogStartY or x_max <= 0:
+        _disable_curses(f"invalid log refresh region y={y_max} x={x_max} LogStartY={LogStartY}")
+        return False
+    try:
+        logWindow.refresh(0, 0, LogStartY, 0, y_max - 1, x_max - 1)  # type: ignore[union-attr]
+        return True
+    except curses.error as e:
+        _disable_curses(e)
+        return False
+
+
 def CurseString(topic: str, text: str):
     output_message = topic + ": " + text
     # Always publish status to MQTT so the dashboard sees TTY and non-TTY builds.
@@ -293,14 +341,18 @@ def CurseString(topic: str, text: str):
         if topic in cursesCoords:
             y = cursesCoords[topic]
 
-        (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
+        try:
+            (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
 
-        outStr = topic + " : " + text
-        # Log(outStr)
-        statusWindow.addstr(y, x, outStr)  # type: ignore[union-attr]
-        statusWindow.clrtoeol()  # type: ignore[union-attr]
-        statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
-        statusWindow.refresh()  # type: ignore[union-attr]
+            outStr = topic + " : " + text
+            # Log(outStr)
+            statusWindow.addstr(y, x, outStr)  # type: ignore[union-attr]
+            statusWindow.clrtoeol()  # type: ignore[union-attr]
+            statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
+            _safe_status_refresh()
+        except curses.error as e:
+            _disable_curses(e)
+            print(output_message)
     else:
         print(output_message)
 
@@ -478,31 +530,34 @@ def CurseProgress(text: str, Progress: float, Total: float | None = None):
     _publish_mqtt_message('progress', progress_message, progress_info)
 
     if CURSES:
-        (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
+        try:
+            (yMax, xMax) = statusWindow.getmaxyx()  # type: ignore[union-attr]
 
-        if "Task" in cursesCoords:
-            TaskY = cursesCoords["Task"]
+            if "Task" in cursesCoords:
+                TaskY = cursesCoords["Task"]
 
-        if "Progress" in cursesCoords:
-            ProgressY = cursesCoords["Progress"]
+            if "Progress" in cursesCoords:
+                ProgressY = cursesCoords["Progress"]
 
-        if text is not None:
-            # TaskStr = "Task: " + text
-            # Log(TaskStr)
-            statusWindow.addnstr(TaskY, TaskX, "Task: " + text, console_width)  # type: ignore[union-attr]
-            statusWindow.clrtoeol()  # type: ignore[union-attr]
+            if text is not None:
+                # TaskStr = "Task: " + text
+                # Log(TaskStr)
+                statusWindow.addnstr(TaskY, TaskX, "Task: " + text, console_width)  # type: ignore[union-attr]
+                statusWindow.clrtoeol()  # type: ignore[union-attr]
 
-        if Total is not None:
-            progress_str = "Progress : %4.2f%%" % (fraction * 100.0)  # type: ignore[operator]
-            if tstruct is not None:
-                progress_str = progress_str + "        " + ETAString
+            if Total is not None:
+                progress_str = "Progress : %4.2f%%" % (fraction * 100.0)  # type: ignore[operator]
+                if tstruct is not None:
+                    progress_str = progress_str + "        " + ETAString
 
-            # Log(ProgressStr)
+                # Log(ProgressStr)
 
-            statusWindow.addnstr(ProgressY, ProgressX, progress_str, console_width)  # type: ignore[union-attr]
-            statusWindow.clrtoeol()  # type: ignore[union-attr]
-            statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
-            statusWindow.refresh()  # type: ignore[union-attr]
+                statusWindow.addnstr(ProgressY, ProgressX, progress_str, console_width)  # type: ignore[union-attr]
+                statusWindow.clrtoeol()  # type: ignore[union-attr]
+                statusWindow.move(yMax - 1, 0)  # type: ignore[union-attr]
+                _safe_status_refresh()
+        except curses.error as e:
+            _disable_curses(e)
     else:
         output_str = text
         if output_str is None:
@@ -603,22 +658,27 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
         sys.stdout.write(output)
         sys.stdout.flush()
 
-        numChars = len(output)
+        try:
+            numChars = len(output)
 
-        (yMax, xMax) = stdscr.getmaxyx()  # type: ignore[union-attr]
+            (yMax, xMax) = stdscr.getmaxyx()  # type: ignore[union-attr]
 
-        numLines = int(numChars / xMax)
-        if numChars % xMax != 0:
-            numLines += 1
+            numLines = int(numChars / xMax) if xMax > 0 else 1
+            if xMax > 0 and numChars % xMax != 0:
+                numLines += 1
 
-        logWindow.move(0, 0)  # type: ignore[union-attr]
+            logWindow.move(0, 0)  # type: ignore[union-attr]
 
-        for i in range(numLines):
-            logWindow.insertln()  # type: ignore[union-attr]
+            for i in range(numLines):
+                logWindow.insertln()  # type: ignore[union-attr]
 
-        logWindow.addstr(0, 0, output)  # type: ignore[union-attr]
-        logWindow.clrtoeol()  # type: ignore[union-attr]
-        logWindow.refresh(0, 0, LogStartY, 0, yMax - 1, xMax)  # type: ignore[union-attr]
+            logWindow.addstr(0, 0, output)  # type: ignore[union-attr]
+            logWindow.clrtoeol()  # type: ignore[union-attr]
+            if not _safe_log_pad_refresh(yMax, xMax):
+                print(output)
+        except curses.error as e:
+            _disable_curses(e)
+            print(output)
     elif ECLIPSE:
         output = output.replace('\b', '')
         print(output)
