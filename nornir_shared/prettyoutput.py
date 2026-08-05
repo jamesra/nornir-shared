@@ -305,6 +305,122 @@ def CurseString(topic: str, text: str):
         print(output_message)
 
 
+def publish_task_progress(task_key: str, current: int, total: int,
+                          name: str | None = None,
+                          element: str | None = None,
+                          path: str | None = None,
+                          section: int | str | None = None) -> None:
+    """Publish a nested ``iterate_progress`` track for long tile/file tasks.
+
+    Used by :class:`TaskProgressReporter` (e.g. ``ConvertImagesInDict``).
+    Lazy-imports telemetry to avoid import cycles.
+    """
+    if total <= 0:
+        return
+    from nornir_shared.mqtt_telemetry import publish_run_event
+
+    fields: dict = {
+        "current": int(current),
+        "total": int(total),
+        "depth": 1,
+        "track_id": str(task_key),
+        "label": name or str(task_key),
+    }
+    if element is not None:
+        fields["element"] = element
+    if path is not None:
+        fields["path"] = path
+    if section is not None:
+        fields["section"] = section
+    publish_run_event("iterate_progress", **fields)
+
+
+def publish_task_complete(task_key: str, total: int) -> None:
+    """Publish ``iterate_progress_complete`` so the dashboard removes the track."""
+    from nornir_shared.mqtt_telemetry import publish_run_event
+
+    publish_run_event(
+        "iterate_progress_complete",
+        track_id=str(task_key),
+        total=int(total),
+    )
+
+
+class TaskProgressReporter:
+    """Throttled secondary dashboard bar via ``publish_task_progress``."""
+
+    _task_key: str
+    _total: int
+    _name: str | None
+    _min_interval_s: float
+    _step: int
+    _last_published: int
+    _last_time: float
+    _started: bool
+    _completed: bool
+    _last_element: str | None
+    _last_path: str | None
+    _section: int | str | None
+
+    def __init__(self, task_key: str, total: int, *, name: str | None = None,
+                 min_interval_s: float = 0.25,
+                 section: int | str | None = None) -> None:
+        self._task_key = task_key
+        self._total = max(0, int(total))
+        self._name = name
+        self._min_interval_s = min_interval_s
+        self._step = max(1, self._total // 100) if self._total else 1
+        self._last_published = -1
+        self._last_time = 0.0
+        self._started = False
+        self._completed = False
+        self._last_element = None
+        self._last_path = None
+        self._section = section
+
+    def start(self) -> None:
+        """Publish the initial 0/N progress event."""
+        if self._total <= 0 or self._started:
+            return
+        self._started = True
+        self._publish(0)
+
+    def update(self, current: int, *, element: str | None = None,
+               path: str | None = None) -> None:
+        """Publish progress when enough items or time have elapsed."""
+        if self._total <= 0 or self._completed:
+            return
+        if not self._started:
+            self.start()
+        if element is not None:
+            self._last_element = element
+        if path is not None:
+            self._last_path = path
+        current = min(max(0, int(current)), self._total)
+        now = time.time()
+        if (current >= self._total
+                or self._last_published < 0
+                or current - self._last_published >= self._step
+                or now - self._last_time >= self._min_interval_s):
+            self._publish(current)
+
+    def complete(self) -> None:
+        """Publish final progress then remove the nested track."""
+        if self._completed or self._total <= 0 or not self._started:
+            return
+        self._completed = True
+        self._publish(self._total)
+        publish_task_complete(self._task_key, self._total)
+
+    def _publish(self, current: int) -> None:
+        self._last_published = current
+        self._last_time = time.time()
+        publish_task_progress(
+            self._task_key, current, self._total, name=self._name,
+            element=self._last_element, path=self._last_path,
+            section=self._section)
+
+
 def CurseProgress(text: str, Progress: float, Total: float | None = None):
     """If Total is specified we display a percentage, otherwise
        a number"""

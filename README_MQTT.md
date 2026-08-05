@@ -35,7 +35,14 @@ records are forwarded centrally by `nornir_shared.misc.MQTTLogHandler`, which is
 attached during `SetupLogging` (and to the multiprocess `QueueListener`) so
 records from worker processes are published exactly once. Structured pipeline
 events (`stage_start`, `iterate_progress`, …) are published by
-`nornir_shared.mqtt_telemetry.publish_run_event` from `PipelineManager`.
+`nornir_shared.mqtt_telemetry.publish_run_event` from `PipelineManager` and from
+stage code via `nornir_buildmanager.progress.report_iterate`. Tile converters in
+`nornir_imageregistration` report nested bars through
+`prettyoutput.publish_task_progress` (wired to `iterate_progress`).
+
+TEMBuild/TEMAlign track ids (ImportIDoc sections/tiles, AssembleStosOverlays,
+SliceToVolume, MosaicToVolume, etc.) are listed in
+`nornir-buildmanager/README.md`.
 
 #### Run id
 
