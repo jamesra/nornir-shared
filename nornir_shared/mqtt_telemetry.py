@@ -17,6 +17,24 @@ from nornir_shared.mqtt_config import (
     get_or_create_run_id,
 )
 
+# Identity fields preserved across retained meta publishes so completion meta
+# (status + end_ts only) does not wipe pipeline/volumepath on Mosquitto retain.
+_IDENTITY_KEYS = (
+    "pipeline",
+    "volumepath",
+    "host",
+    "pid",
+    "session_id",
+    "compute",
+    "start_ts",
+)
+_retained_identity: dict[str, Any] = {}
+
+
+def clear_retained_identity_cache() -> None:
+    """Clear the process-local retained meta identity cache (for tests)."""
+    _retained_identity.clear()
+
 
 def publish_run_meta(*, status: str | None = None, retain: bool = True,
                      **fields: Any) -> None:
@@ -25,6 +43,11 @@ def publish_run_meta(*, status: str | None = None, retain: bool = True,
     Known fields include ``pipeline``, ``volumepath``, ``host``, ``pid``,
     ``session_id``, ``start_ts``, ``end_ts``, ``compute``, and ``status``.
     Only provided keys are sent; the dashboard merges them into the run row.
+
+    When ``retain`` is True, previously published identity fields are merged
+    into the payload so a completion-only meta publish still retains
+    ``pipeline`` / ``volumepath`` (Mosquitto replace-on-retain). Explicit
+    keyword values always win over the cache.
     """
     run_id = get_or_create_run_id() if prettyoutput.MQTT_AVAILABLE else os.environ.get("NORNIR_RUN_ID", "")
     metadata: dict[str, Any] = {"run_id": run_id}
@@ -33,6 +56,14 @@ def publish_run_meta(*, status: str | None = None, retain: bool = True,
     for key, value in fields.items():
         if value is not None:
             metadata[key] = value
+
+    if retain:
+        for key in _IDENTITY_KEYS:
+            if key not in metadata and key in _retained_identity:
+                metadata[key] = _retained_identity[key]
+        for key in _IDENTITY_KEYS:
+            if key in metadata and metadata[key] is not None:
+                _retained_identity[key] = metadata[key]
 
     pipeline = metadata.get("pipeline", "")
     volumepath = metadata.get("volumepath", "")

@@ -16,10 +16,12 @@ class TestMqttTelemetry(unittest.TestCase):
         prettyoutput._mqtt_initialized = True
         self.client = mock.Mock()
         prettyoutput._mqtt_client = self.client
+        mqtt_telemetry.clear_retained_identity_cache()
 
     def tearDown(self) -> None:
         prettyoutput._mqtt_initialized = self._original_initialized
         prettyoutput._mqtt_client = self._original_client
+        mqtt_telemetry.clear_retained_identity_cache()
 
     def test_publish_run_event_uses_event_topic(self) -> None:
         with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
@@ -79,6 +81,29 @@ class TestMqttTelemetry(unittest.TestCase):
         self.assertIn('"compute": "cupy"', body)
         self.assertIn('"status": "running"', body)
         self.assertIn("start_ts", body)
+
+    def test_retained_completion_meta_merges_cached_identity(self) -> None:
+        env = {"NORNIR_RUN_ID": "unit-run"}
+        with mock.patch.dict(os.environ, env, clear=False):
+            with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):
+                with mock.patch("nornir_shared.prettyoutput.MQTT_AVAILABLE", True):
+                    mqtt_telemetry.publish_run_meta(
+                        status="running",
+                        pipeline="AdjustContrast",
+                        volumepath="/storage4/Wohl",
+                        start_ts=100.0,
+                    )
+                    mqtt_telemetry.publish_run_meta(
+                        status="completed",
+                        end_ts=200.0,
+                    )
+
+        body = self.client.publish.call_args[0][1]
+        self.assertIn('"status": "completed"', body)
+        self.assertIn('"pipeline": "AdjustContrast"', body)
+        self.assertIn('"volumepath": "/storage4/Wohl"', body)
+        self.assertIn('"start_ts": 100.0', body)
+        self.assertIn('"end_ts": 200.0', body)
 
 
 class TestMqttLogHandler(unittest.TestCase):
