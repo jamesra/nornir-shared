@@ -58,33 +58,38 @@ def TryEnterLockFile(LockFile):
     # Read the file and see if it is ours, just in case it was recreated
     if os.path.exists(LockFile):
         try:
-            hLockFile = open(LockFile, 'r')
-            LockingParty = hLockFile.readline().rstrip('\n')
+            with open(LockFile, 'r') as hLockFile:
+                LockingParty = hLockFile.readline().rstrip('\n')
             print(LockFile + " locked by: " + LockingParty + " I am: " + MyID)
             if LockingParty == MyID:
                 return True
             else:
                 return False
-        except:
+        except OSError:
             return False
 
-    # Try to create the file
+    # Try to create the file atomically (O_EXCL) so two hosts cannot both win.
     try:
-        hLockFile = open(LockFile, 'w+')
-        hLockFile.write(MyID)
-        hLockFile.write('\n')
-        hLockFile.write(time.ctime(time.time()))
-        hLockFile.close()
-
-    except:
+        fd = os.open(LockFile, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(fd, 'w') as hLockFile:
+            hLockFile.write(MyID)
+            hLockFile.write('\n')
+            hLockFile.write(time.ctime(time.time()))
+    except FileExistsError:
+        print("Could not create lock file (already exists): " + LockFile)
+        return False
+    except OSError:
         print("Could not create lock file: " + LockFile)
+        try:
+            os.remove(LockFile)
+        except OSError:
+            pass
         return False
 
     # Try to open the file we just created, if it has our ID we got the lock
     try:
-        hLockFile = open(LockFile, 'r')
-        LockingParty = hLockFile.readline().rstrip('\n')
-        hLockFile.close()
+        with open(LockFile, 'r') as hLockFile:
+            LockingParty = hLockFile.readline().rstrip('\n')
 
         if LockingParty == MyID:
             print("Successful lock")
@@ -92,7 +97,7 @@ def TryEnterLockFile(LockFile):
         else:
             print("Failed Lock: " + LockingParty + " got the lock on: " + LockFile)
             return False
-    except:
+    except OSError:
         print("Exception opening lock file we just created")
         return False
 

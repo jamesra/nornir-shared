@@ -300,7 +300,7 @@ def path_entry_count(directory: str, max_count: int = 1000) -> int:
 
         except OSError as e:
             prettyoutput.error(f"Error reading directory {directory}: {e}")
-            return False
+            return max_count + 1
 
     return count
 
@@ -346,12 +346,11 @@ def rmtree(directory: str, ignore_errors: bool = False, executor: concurrent.fut
         folder_futures = []
         files_futures = []
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            for folder in folders:
-                folder_futures.append(executor.submit(directory_remover, os.path.join(directory, folder)))
+        for folder in folders:
+            folder_futures.append(executor.submit(directory_remover, folder))
 
-            for file in files:
-                files_futures.append(executor.submit(os.remove, os.path.join(directory, file)))
+        for file in files:
+            files_futures.append(executor.submit(os.remove, file))
 
         for f in as_completed(folder_futures):
             try:
@@ -442,7 +441,7 @@ def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison =
     """
     :return: True if TestFilename is older than ReferenceFilename
     """
-    newestFile = NewestFile(ReferenceFilename, TestFilename)
+    newestFile = NewestFile(ReferenceFilename, TestFilename, comparison=comparison)
 
     return newestFile is None or newestFile == ReferenceFilename
 
@@ -536,7 +535,7 @@ def RemoveInvalidImageFile(TestFilename: str) -> bool:
             return True
         except Exception as e:
             prettyoutput.Log(f'Exception removing invalid image file: {TestFilename}\n{e}')
-            return True
+            return False
 
     #   [name, ext] = os.path.splitext(TestFilename)
     return False
@@ -738,7 +737,7 @@ def _RecurseSubdirectoriesGeneratorTask(
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(dirs), 8),
                                                        thread_name_prefix=Path + '_') as executor:
                 for d in dirs:
-                    fullpath = os.path.join(Path, d.path)
+                    fullpath = d.path
                     if check_if_str_matches(d.name, MatchNames, caseInsensitive):
                         yield FindFileResult(path=fullpath, matched_files=[])
                         continue  # We do not iterate the subdirectories of MatchNames
@@ -780,7 +779,7 @@ def _RecurseSubdirectoriesGeneratorTask(
         else:
             # Do not create threads, just run the IO on this thread
             for d in dirs:
-                fullpath = os.path.join(Path, d.path)
+                fullpath = d.path
                 if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
                     yield FindFileResult(path=fullpath, matched_files=[])
                     continue  # We do not iterate the subdirectories of MatchNames
@@ -871,7 +870,7 @@ def RemoveDirectorySpaces(path: str):
     try:
         #    prettyoutput.Log( os.path.join(Path, '*[!png]'))
         dirs = glob.glob(os.path.join(path, '*'))
-    except:
+    except OSError:
         prettyoutput.Log("RecurseSubdirectories could not enumerate " + path)
         return []
 
@@ -925,7 +924,7 @@ def RemoveFilenameSpaces(path: str, ext: str):
         shutil.move(f, filePathNoSpaces)
 
 
-def try_locate_file(self, ImageFullPath: str, listAltDirs: list[str]):
+def try_locate_file(ImageFullPath: str, listAltDirs: list[str]):
     """
     Identify the path a file exists at.  If the path is absolute that will be
     returned.  If the path is relative it will be combined with the list of
