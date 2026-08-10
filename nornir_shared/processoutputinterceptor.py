@@ -62,6 +62,18 @@ class ProcessOutputInterceptor(object):
 
             # Break the loop if the process already terminated
 
+        # Drain stderr if piped so a full buffer cannot deadlock wait().
+        if proc.stderr is not None:
+            try:
+                proc.stderr.read()
+            except OSError:
+                pass
+
+        try:
+            proc.wait()
+        except OSError:
+            pass
+
         # This makes sure we call the lineparsefunc at least once
         lineparseobj.Parse(None)
 
