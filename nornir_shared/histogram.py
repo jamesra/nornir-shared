@@ -221,13 +221,13 @@ class Histogram(object):
         :returns: The index of the highest valued bin that contains a non-zero value, or None if all bins are empty
         '''
         # Remove empty buckets from the high-end of the histogram
-        for i in range(len(self.Bins) - 2, -1, -1):
+        for i in range(len(self.Bins) - 1, -1, -1):
             if self.Bins[i] > 0:
                 return i
 
         return None
 
-    def Mean(self, minVal=None, maxVal=None) -> float:
+    def Mean(self, minVal=None, maxVal=None) -> float | None:
 
         iBin = 0
         maxBin = 0
@@ -240,6 +240,9 @@ class Histogram(object):
             bincount = self.Bins[ibin]
             _sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
             totalcount += bincount
+
+        if totalcount == 0:
+            return None  # type: ignore[return-value]
 
         return float(_sum) / float(totalcount)
 
@@ -417,29 +420,33 @@ class Histogram(object):
         outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
         if outlier_cutoff < 2:
             outlier_cutoff = 2
-        HasOutlier = ((0 < hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
-        Trimmable = hObj.Bins[-1] == 0
 
+        def _max_outlier_flags(hist) -> tuple[bool, bool]:
+            if len(hist.Bins) < 2:
+                return False, False
+            has_outlier = ((0 < hist.Bins[-1] < outlier_cutoff) and hist.Bins[-2] == 0) and not TrimOnly
+            trimmable = hist.Bins[-1] == 0
+            return has_outlier, trimmable
+
+        HasOutlier, Trimmable = _max_outlier_flags(hObj)
         if not HasOutlier and not Trimmable:
             return hObj
 
         while HasOutlier or Trimmable:
-
-            # Remove empty buckets from the high-end of the histogram
+            # Last non-zero bin at or before index len-2 (we always drop the trailing empty/outlier).
+            trim_to: int | None = None
             for i in range(len(hObj.Bins) - 2, -1, -1):
                 if hObj.Bins[i] > 0:
+                    trim_to = i
                     break
 
-            # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
-            if len(hObj.Bins) - 2 <= 0:
+            if trim_to is None:
+                # No positive mass remains below the last bin — stop to avoid an infinite loop.
                 return hObj
 
-            newBins = hObj.Bins[0:i + 1]
-
+            newBins = hObj.Bins[0:trim_to + 1]
             hObj = Histogram.FromArray(newBins, hObj.MinValue, hObj.BinWidth)
-            HasOutlier = ((0 < hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[
-                -2] == 0) and not TrimOnly
-            Trimmable = hObj.Bins[-1] == 0
+            HasOutlier, Trimmable = _max_outlier_flags(hObj)
 
         return hObj
 
@@ -455,32 +462,35 @@ class Histogram(object):
         outlier_cutoff = math.ceil(hObj.NumSamples / 100000.0)
         if outlier_cutoff < 2:
             outlier_cutoff = 2
-        HasOutlier = ((0 < hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
-        Trimmable = hObj.Bins[0] == 0
 
+        def _min_outlier_flags(hist) -> tuple[bool, bool]:
+            if len(hist.Bins) < 2:
+                return False, False
+            has_outlier = ((0 < hist.Bins[0] < outlier_cutoff) and hist.Bins[1] == 0) and not TrimOnly
+            trimmable = hist.Bins[0] == 0
+            return has_outlier, trimmable
+
+        HasOutlier, Trimmable = _min_outlier_flags(hObj)
         if not HasOutlier and not Trimmable:
             return hObj
 
         while HasOutlier or Trimmable:
-
-            # Remove empty buckets from the low-end of the histogram
-            for i, count in enumerate(hObj.Bins):
-                if i == 0:
-                    continue  # Skip the first bucket since we know we need to trim
+            # First non-zero bin after index 0 (we always drop the leading bucket when trimming).
+            trim_at: int | None = None
+            for idx, count in enumerate(hObj.Bins):
+                if idx == 0:
+                    continue
                 if count > 0:
+                    trim_at = idx
                     break
 
-            try:
-                _ = i  # Reference to ensure loop set i; NameError if no break
-            except NameError:
-                # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
+            if trim_at is None:
+                # Only zeros remain after the first bin — stop to avoid an infinite loop.
                 return hObj
 
-            newBins = hObj.Bins[i:]
-
-            hObj = Histogram.FromArray(newBins, hObj.BinValue(i), hObj.BinWidth)
-            HasOutlier = ((0 < hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
-            Trimmable = hObj.Bins[0] == 0
+            newBins = hObj.Bins[trim_at:]
+            hObj = Histogram.FromArray(newBins, hObj.BinValue(trim_at), hObj.BinWidth)
+            HasOutlier, Trimmable = _min_outlier_flags(hObj)
 
         return hObj
 
@@ -505,7 +515,7 @@ class Histogram(object):
                 break
 
         min_x = self.BinValue(min_index)
-        max_x = self.BinValue(self.NumBins - 1, 1.0)
+        max_x = self.BinValue(max_index, 1.0)
 
         return min_x, max_x
 
