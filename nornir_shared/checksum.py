@@ -37,7 +37,10 @@ def DataChecksum(data: str | list | bytes | None) -> str | None:
         m.update(data.encode())
     elif isinstance(data, list):
         for item in data:
-            m.update(str(item).encode())
+            # Length-prefix each item so ["ab","c"] and ["a","bc"] do not collide.
+            encoded = str(item).encode()
+            m.update(len(encoded).to_bytes(4, byteorder='big', signed=False))
+            m.update(encoded)
     elif isinstance(data, bytes):
         m.update(data)
     else:
@@ -49,19 +52,16 @@ def DataChecksum(data: str | list | bytes | None) -> str | None:
 
 def FileChecksum(filename: str) -> str | None:
     '''
-    Return the md5 hash of a file read in txt mode
-    
+    Return the md5 hash of a file's raw bytes.
+
     :param str filename: path to file
     :return: md5 checksum
-    :rtype str: 
+    :rtype str:
     :raises FileNotFoundError: If the file does not exist
     '''
     try:
-        with open(filename) as f:
-            data = f.read()
-            f.close()
-            dataStr = data.encode('utf-8')
-            return DataChecksum(dataStr)
+        with open(filename, 'rb') as f:
+            return DataChecksum(f.read())
 
     except FileNotFoundError:
         prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
