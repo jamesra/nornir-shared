@@ -205,7 +205,7 @@ def start_mosquitto_broker() -> Optional[subprocess.Popen]:
 
         process = subprocess.Popen(
             [mosquitto_path, '-c', config_path],
-            stdout=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform.startswith('win') else 0,
         )
@@ -215,14 +215,21 @@ def start_mosquitto_broker() -> Optional[subprocess.Popen]:
 
         if process.poll() is None and is_port_in_use(MQTT_BIND_HOST, MQTT_PORT):
             logger.info("Successfully started mosquitto broker on %s:%s", MQTT_BIND_HOST, MQTT_PORT)
+            # Keep config alive while the broker runs; stop_mosquitto_broker removes it.
+            setattr(process, '_nornir_mosquitto_config', config_path)
+            config_path = None
             return process
 
         stderr = ""
         if process.stderr is not None:
-            stderr = process.stderr.read().decode(errors="replace").strip()
+            try:
+                stderr = process.stderr.read().decode(errors="replace").strip()
+            except OSError:
+                pass
         logger.info("Failed to start mosquitto broker%s", f": {stderr}" if stderr else "")
         try:
             process.terminate()
+            process.wait(timeout=5)
         except Exception:
             pass
         return None
@@ -255,6 +262,17 @@ def stop_mosquitto_broker(process: subprocess.Popen):
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait()
+
+    config_path = getattr(process, '_nornir_mosquitto_config', None) if process else None
+    if config_path:
+        try:
+            os.remove(config_path)
+        except OSError:
+            pass
+        try:
+            delattr(process, '_nornir_mosquitto_config')
+        except AttributeError:
+            pass
 
 
 def __main__():

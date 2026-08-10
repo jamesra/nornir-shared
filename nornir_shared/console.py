@@ -104,10 +104,19 @@ def ConsoleModulePath() -> str:
 
 
 def CreateDebugInfoFile(filename: str | None = None):
+    """Open a debug log under NORNIR_LOG_ROOT (or the system temp dir), not the CWD."""
     if filename is None:
         filename = 'MQTT_Console_Debug_Output.txt'
 
-    return open(os.path.join(os.getcwd(), filename), mode='w')
+    log_root = os.environ.get('NORNIR_LOG_ROOT')
+    if log_root:
+        out_dir = os.path.join(log_root, time.strftime('%Y-%m-%d', time.localtime()))
+        os.makedirs(out_dir, exist_ok=True)
+    else:
+        import tempfile
+        out_dir = tempfile.gettempdir()
+
+    return open(os.path.join(out_dir, filename), mode='w', encoding='utf-8')
 
 
 def setup_signal_handlers():
