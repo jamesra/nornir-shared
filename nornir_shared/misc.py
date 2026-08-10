@@ -478,9 +478,12 @@ def ArgumentsFromDict(dictObj):
     return outstr
 
 
-def GenNameFromDict(dictObj):
-    '''Creates a mangled name unique to the contents of a dictionary.
-       Take the first three letters from each entry name, append the value, and build a mangled name'''
+def GenNameFromDict(dictObj: dict) -> str:
+    """Create a mangled name unique to the contents of a dictionary.
+
+    Uses the first three letters of each key plus a string form of the value.
+    List values are joined with ``x`` (e.g. ``[1, 2, 3]`` → ``1x2x3``).
+    """
     outstr = ""
 
     sorted_keys = sorted(dictObj.keys())
@@ -496,9 +499,9 @@ def GenNameFromDict(dictObj):
         if value is None:
             ValueStr = "None"
         elif isinstance(value, list):
-            ValueStr = str(value[0])
-            for e in value[1:-1]:
-                ValueStr = 'x' + str(e)
+            # Join all elements; previous code used value[1:-1] and overwrote
+            # ValueStr each iteration, dropping the first/last entries.
+            ValueStr = 'x'.join(str(e) for e in value)
         else:
             ValueStr = str(value)
 
@@ -507,13 +510,13 @@ def GenNameFromDict(dictObj):
     return outstr
 
 
-def ListFromDelimited(value, delimiter=None):
+def ListFromDelimited(value, delimiter: str | None = None) -> list:
+    """Split a delimited string into ints/floats/strings, or wrap a scalar in a list."""
     if delimiter is None:
         delimiter = ','
 
     ValueList = value
     if isinstance(value, str):
-        ValueList = []
         Values = str(value).strip().split(delimiter)
         ValueList = list()
         for Value in Values:
@@ -522,9 +525,9 @@ def ListFromDelimited(value, delimiter=None):
                 try:
                     intVal = int(Value)
                     ValueList.append(intVal)
-                except:
+                except ValueError:
                     ValueList.append(floatVal)
-            except:
+            except ValueError:
                 if len(Value) > 0:
                     ValueList.append(Value)
 
@@ -545,10 +548,8 @@ def ListFromAttribute(attrib):
 
 
 def IsSequence(arg):
-    '''Return true if arg is iterable and not a string'''
-    return (not hasattr(arg, "strip") and
-            hasattr(arg, "__getitem__") or
-            hasattr(arg, "__iter__"))
+    '''Return true if arg is iterable and not a string or bytes.'''
+    return not isinstance(arg, (str, bytes)) and hasattr(arg, "__iter__")
 
 
 if __name__ == '__main__':
