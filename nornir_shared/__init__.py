@@ -22,7 +22,7 @@ emaillib
 '''
 
 __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'mathhelper', 'misc', 'parallel', 'plot',
-           'processoutputinterceptor', 'reflection', 'prettyoutput', 'tasktimer']
+           'processoutputinterceptor', 'reflection', 'prettyoutput', 'profiling', 'tasktimer']
 
 #
 #
@@ -52,6 +52,7 @@ import nornir_shared.plot as plot
 import nornir_shared.prettyoutput as prettyoutput
 import nornir_shared.processoutputinterceptor as processoutputinterceptor
 import nornir_shared.reflection as reflection
+import nornir_shared.profiling as profiling
 import nornir_shared.tasktimer as tasktimer
 import nornir_shared.images as images
 from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision

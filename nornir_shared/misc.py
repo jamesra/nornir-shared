@@ -10,11 +10,8 @@ import logging
 import logging.handlers
 import multiprocessing
 import os
-import shlex
-import subprocess
 import sys
 import time
-from collections.abc import Sequence
 
 logging_setup = False
 _active_log_session_id: str | None = None
@@ -319,40 +316,6 @@ def RunWithProfiler(functionStr, outputpath=None):
     pr.print_callers(.1)
 
 
-def format_startup_command_line(argv: Sequence[str] | None = None) -> str:
-    """Return a shell-quoted command line for the current process.
-
-    Includes ``sys.executable`` when *argv* does not already start with the
-    interpreter path, then the remaining arguments.
-    """
-    parts = [str(part) for part in (sys.argv if argv is None else argv)]
-    executable = sys.executable
-    if not parts:
-        parts = [executable]
-    else:
-        try:
-            same_executable = os.path.normcase(os.path.abspath(parts[0])) == os.path.normcase(
-                os.path.abspath(executable))
-        except (OSError, TypeError, ValueError):
-            same_executable = False
-        if not same_executable:
-            parts = [executable, *parts]
-    if os.name == 'nt':
-        return subprocess.list2cmdline(parts)
-    return shlex.join(parts)
-
-
-def _log_startup_command_line(configured_level: int) -> None:
-    """Record the process command line after logging handlers are attached.
-
-    Emits INFO when that level is enabled; otherwise uses *configured_level* so
-    WARNING-only setups such as Pyre still persist the line.
-    """
-    emit_level = logging.INFO if configured_level <= logging.INFO else configured_level
-    logging.getLogger(__name__).log(
-        emit_level, "Command line: %s", format_startup_command_line())
-
-
 def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=None):
     '''
     :param bool LogToFile: True if logs should be saved to a file.  Automatically set to true if OutputPath is not None
@@ -462,7 +425,6 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
 
     # Automatically shutdown logging when our process ends
     atexit.register(logging.shutdown)
-    _log_startup_command_line(Level)
 
 
 def lowpriority():
