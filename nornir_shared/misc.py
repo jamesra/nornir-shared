@@ -392,13 +392,23 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
                 print("Could not create logging output directory: " + LogPath)
                 pass
 
+            # Named from the shared session ID rather than a fresh local
+            # timestamp.  The old format was 'log-%M.%d.%y_%H.%M.txt', where the
+            # month position held %M (minutes): logs recorded the minute twice
+            # and the month never. It also collided whenever two runs started in
+            # the same minute of the same day, and basicConfig appends, so
+            # unrelated runs merged into one file.
+            #
+            # The session ID carries seconds and is inherited through the
+            # environment, so every process in a run shares one file instead of
+            # each child opening its own.
+            session_id = _get_or_create_session_id()
+
             if logFileName is None:
-                logFileName = time.strftime('log-%M.%d.%y_%H.%M.txt', time.localtime())
-                logFileName = os.path.join(LogPath, logFileName)
+                logFileName = os.path.join(LogPath, f'log-{session_id}.txt')
 
             if errlogFileName is None:
-                errlogFileName = time.strftime('log-%M.%d.%y_%H.%M-Errors.txt', time.localtime())
-                errlogFileName = os.path.join(LogPath, errlogFileName)
+                errlogFileName = os.path.join(LogPath, f'log-{session_id}-Errors.txt')
 
             logging.basicConfig(filename=logFileName, level=Level, format='%(levelname)s - %(name)s - %(message)s')
 
