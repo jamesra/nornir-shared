@@ -44,6 +44,13 @@ class Histogram(object):
         self.NumBins = 0
         self.NumSamples = 0
 
+        # True when the binned samples are integers, as all Nornir image
+        # intensities are.  A bin then holds the integers
+        # [start, start + BinWidth - 1], whose representative value is
+        # start + (BinWidth-1)/2, not the continuous midpoint start + BinWidth/2.
+        # Statistics use the continuous midpoint when this is False.
+        self.IntegerValues = True
+
         self.Bins = list()
         pass
 
@@ -58,15 +65,19 @@ class Histogram(object):
 
     def __getstate__(self):
         save = {'MinValue': self.MinValue, 'MaxValue': self.MaxValue, 'NumBins': self.NumBins,
-                'NumSamples': self.NumSamples, 'Bins': self.Bins}
+                'NumSamples': self.NumSamples, 'Bins': self.Bins,
+                'IntegerValues': self.IntegerValues}
         return save
 
     def __setstate__(self, state):
+        # Pickles written before IntegerValues existed hold integer samples.
+        self.IntegerValues = True
         self.__dict__.update(state)
 
     @classmethod
-    def Init(cls, minVal, maxVal, numBins=None, binVals=None):
+    def Init(cls, minVal, maxVal, numBins=None, binVals=None, integerValues: bool = True):
         obj = Histogram()
+        obj.IntegerValues = integerValues
 
         if numBins is None:
             # Add one for being zero based
@@ -93,8 +104,10 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def FromArray(hist_array: typing.Sequence[float], minValue: float, binSize: float) -> Histogram:
+    def FromArray(hist_array: typing.Sequence[float], minValue: float, binSize: float,
+                  integerValues: bool = True) -> Histogram:
         obj = Histogram()
+        obj.IntegerValues = integerValues
 
         obj.NumBins = len(hist_array)
         obj.Bins = list(hist_array)
@@ -132,6 +145,11 @@ class Histogram(object):
 
         if HistogramElem.hasAttribute('MaxValue'):
             obj.MaxValue = float(HistogramElem.getAttribute('MaxValue'))
+
+        # Absent in histograms written before this attribute existed; those hold
+        # integer image intensities.
+        if HistogramElem.hasAttribute('IntegerValues'):
+            obj.IntegerValues = HistogramElem.getAttribute('IntegerValues').lower() == 'true'
 
         ChannelElems = HistogramElem.getElementsByTagName('Channel')
 
@@ -173,7 +191,18 @@ class Histogram(object):
         return float((self.MaxValue + 1) - self.MinValue) / float(self.NumBins)
 
     def _MinMaxBinIndicies(self, minVal: float | None = None, maxVal: float | None = None) -> tuple[int, int, float]:
-        '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals'''
+        '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals.
+
+        iMax is an **exclusive** upper bound, matching how every caller uses it
+        (``Bins[iMin:iMax]`` and ``range(iMin, iMax)``).
+
+        This previously returned ``NumBins - 1`` by default and
+        ``MapIntensityToBin(maxVal)`` when given a maximum, so the top bin -- and
+        the bin holding maxVal -- were silently dropped from every statistic.
+        With saturated data that is severe: 100k counts in the top bin against
+        150 elsewhere reported a mean of 120 instead of 248, and PeakValue missed
+        the peak entirely.
+        '''
 
         AdjustedMin = self.MinValue
 
@@ -182,13 +211,37 @@ class Histogram(object):
             iMin = self.MapIntensityToBin(minVal)
             AdjustedMin = minVal
 
-        iMax = self.NumBins - 1
+        iMax = self.NumBins
         if maxVal is not None:
-            iMax = self.MapIntensityToBin(maxVal)
+            # +1 so the bin containing maxVal is included in the range.
+            iMax = self.MapIntensityToBin(maxVal) + 1
 
         return iMin, iMax, AdjustedMin
 
+    def BinRepresentativeValue(self, iBin: int) -> float:
+        '''The value standing in for every sample in a bin, for statistics.
+
+        For integer samples the bin holds [start, start + BinWidth - 1], whose
+        mean is ``start + (BinWidth-1)/2``.  Using the continuous midpoint
+        ``start + BinWidth/2`` instead biases every statistic half a gray level
+        high, which for the common BinWidth of 1 means reporting 64.5 for a bin
+        that can only ever contain the value 64.
+        '''
+        if self.IntegerValues and self.BinWidth >= 1:
+            return self.BinValue(iBin) + ((self.BinWidth - 1.0) / 2.0)
+
+        return self.BinValue(iBin, fraction=0.5)
+
     def Median(self, minVal: float | None = None, maxVal: float | None = None) -> float:
+        '''The value at the 50th percentile.
+
+        Unlike :meth:`Mean` and :meth:`PeakValue`, this interpolates continuously
+        within the bin holding the percentile and so is not integer-aware: for
+        uniform integer samples it can land on a bin boundary and sit half a bin
+        above the true discrete median.  The interpolation is shared with
+        :meth:`AutoLevel`, so it is left alone deliberately rather than made
+        integer-aware here.
+        '''
 
         (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
@@ -238,7 +291,7 @@ class Histogram(object):
 
         for ibin in range(iMin, iMax):
             bincount = self.Bins[ibin]
-            _sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
+            _sum += Decimal(bincount * self.BinRepresentativeValue(ibin))
             totalcount += bincount
 
         if totalcount == 0:
@@ -257,9 +310,9 @@ class Histogram(object):
             bincount = self.Bins[ibin]
             if maxBin < bincount:
                 maxBin = bincount
-                PeakList = [self.BinValue(ibin, fraction=0.5)]
+                PeakList = [self.BinRepresentativeValue(ibin)]
             elif maxBin == bincount:
-                PeakList.append(self.BinValue(ibin, fraction=0.5))
+                PeakList.append(self.BinRepresentativeValue(ibin))
 
         if len(PeakList) == 0:
             return None
@@ -534,6 +587,7 @@ class Histogram(object):
         HistogramElem.setAttribute('NumSamples', str(int(self.NumSamples)))
         HistogramElem.setAttribute('MinValue', str(self.MinValue))
         HistogramElem.setAttribute('MaxValue', str(self.MaxValue))
+        HistogramElem.setAttribute('IntegerValues', str(bool(self.IntegerValues)))
 
         ChannelElem = xmlDoc.createElement('Channel')
         binsString = self.BinsToString()

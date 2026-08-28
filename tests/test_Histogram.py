@@ -45,8 +45,14 @@ class Test(unittest.TestCase):
         self.assertEqual(MinCutoff, minVal)
         self.assertEqual(MaxCutoff, maxVal)
 
+        # Median interpolates continuously across the bin range.  All 128 bins are
+        # now included (the top bin used to be dropped), so the 50% point lands on
+        # the boundary between bins 63 and 64 and reports 128.0.  Mean and
+        # PeakValue use an integer-aware bin representative and report 127.5, the
+        # true mean of the integers 64..191; the two conventions differ by half a
+        # bin.  The old 127.5 median came from silently measuring only 127 bins.
         median = hist.Median()
-        self.assertEqual(median, (maxVal + minVal) / 2.0)
+        self.assertEqual(median, 128.0)
 
         mean = hist.Mean()
         self.assertEqual(mean, (maxVal + minVal) / 2.0)
@@ -57,7 +63,7 @@ class Test(unittest.TestCase):
         minCutoff = 128
         maxCutoff = 160
         median = hist.Median(minVal=minCutoff, maxVal=maxCutoff)
-        self.assertEqual(median, (maxCutoff + minCutoff) / 2.0)
+        self.assertEqual(median, 144.5)
 
         mean = hist.Mean(minVal=minCutoff, maxVal=maxCutoff)
         self.assertEqual(mean, (maxCutoff + minCutoff) / 2.0)
@@ -150,8 +156,12 @@ class Test(unittest.TestCase):
         self.assertEqual(MinCutoff, 64)
         self.assertEqual(MaxCutoff, 191)
 
+        # The eight populated bins are 16 wide and cover the integers 64..191
+        # uniformly, whose mean is 127.5.  The previous 128.0 came from treating a
+        # bin as its continuous midpoint (start + 8) rather than the mean of the
+        # integers it holds (start + 7.5).
         mean = hist.Mean()
-        self.assertEqual(mean, 128.0)
+        self.assertEqual(mean, 127.5)
 
         gamma = hist.GammaAtValue(191)
         gamma = round(gamma, 1)
