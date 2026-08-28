@@ -10,11 +10,25 @@ from nornir_shared import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
-    Count = 0
-    iCutoffBin = 0
+    '''The value at a percentile, interpolating within the bin it falls in.
+
+    Returns BinMinValue when there is nothing to measure.  Callers use this to
+    mean "no information": AutoLevel then reports the full intensity range,
+    which is the safe leveling for a blank tile.
+    '''
+    if len(Bins) == 0:
+        return BinMinValue
 
     NumValues = sum(Bins)
+    if NumValues <= 0:
+        # A blank tile (every bin empty) used to divide by the empty cutoff bin
+        # and raise ZeroDivisionError out of AutoLevel and Median.
+        return BinMinValue
+
     CutoffCount = float(NumValues) * Percentile
+
+    Count = 0
+    iCutoffBin = 0
 
     # OK, find the index where the cutoff occurs
     for i in range(0, len(Bins)):
@@ -22,6 +36,17 @@ def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
         iCutoffBin = i
         if Count > CutoffCount:
             break
+
+    if Bins[iCutoffBin] <= 0:
+        # The loop ran off the end without passing the cutoff, so the percentile
+        # sits beyond the last sample -- Percentile=1.0, or any percentile when
+        # the histogram has trailing empty bins.  Report the top of the last
+        # populated bin instead of dividing by this empty one.
+        for i in range(len(Bins) - 1, -1, -1):
+            if Bins[i] > 0:
+                return (i * BinWidth) + BinWidth + BinMinValue
+
+        return BinMinValue
 
     # OK, find where inside the bin the cutoff occurs
     StartingCount = Count - Bins[iCutoffBin]
@@ -314,6 +339,12 @@ class Histogram(object):
             elif maxBin == bincount:
                 PeakList.append(self.BinRepresentativeValue(ibin))
 
+        if maxBin <= 0:
+            # Every bin in range is empty, so they all tie at zero and PeakList
+            # collects the whole range -- which reported a confident midpoint
+            # intensity for a blank tile.  Mean already returns None here.
+            return None
+
         if len(PeakList) == 0:
             return None
 
@@ -388,6 +419,16 @@ class Histogram(object):
 
         # prettyoutput.Log("MinValue: " + str(self.MinValue) + " MaxValue: " + str(self.MaxValue) + " StepSize: " + str(self.BinWidth()))
         # prettyoutput.Log("iBins: " + str(iMinBin) + " " + str(iMaxBin))
+
+        # An intensity outside the histogram's own range is not a meaningful
+        # cutoff.  Extreme percentiles can produce one -- MaxCutoff=1.0 trims
+        # every sample, and MaxValue - CutoffValue then goes negative.
+        #
+        # Overlapping cutoffs can still return MinCutoffValue > MaxCutoffValue.
+        # That is left alone: it means the caller asked for a window with no
+        # dynamic range left, and hiding it would mask the caller's error.
+        MinCutoffValue = min(max(MinCutoffValue, self.MinValue), self.MaxValue)
+        MaxCutoffValue = min(max(MaxCutoffValue, self.MinValue), self.MaxValue)
 
         return MinCutoffValue, MaxCutoffValue
 
