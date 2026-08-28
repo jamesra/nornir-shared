@@ -725,7 +725,11 @@ def _RecurseSubdirectoriesGeneratorTask(
         # Filter out directories we do not want to recurse into
         dirs = set(dirs)
 
-        dirs_with_dots = list(filter(lambda d: d.path.find('.') > -1, dirs))
+        # Test the directory's own name, not its full path.  Using the path meant
+        # a single dotted ancestor -- a volume directory named RC3.v2, or any
+        # scan rooted under one -- matched every subdirectory and pruned the
+        # entire search after the root.
+        dirs_with_dots = list(filter(lambda d: d.name.find('.') > -1, dirs))
         dirs = dirs.difference(dirs_with_dots)
 
         # Skip if it contains words from the exclude list
@@ -878,12 +882,14 @@ def RemoveDirectorySpaces(path: str):
         if os.path.isfile(d):
             continue
 
-        # Skip if it contains a .
-        if d.find('.') > -1:
+        # Skip if the directory's own name contains a '.'.  d is a full glob
+        # path, so testing it directly skipped every subdirectory whenever the
+        # parent path happened to contain a dot.
+        name = os.path.basename(d)
+        if name.find('.') > -1:
             continue
 
         # Skip if it contains words from the exclude list
-        name = os.path.basename(d)
         parentDir = os.path.dirname(d)
         nameNoSpaces = name.replace(' ', '_')
         if name != nameNoSpaces:
