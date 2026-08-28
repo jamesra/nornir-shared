@@ -61,7 +61,13 @@ def FileChecksum(filename: str) -> str | None:
     '''
     try:
         with open(filename, 'rb') as f:
-            return DataChecksum(f.read())
+            # Streamed rather than read whole: a checksum of a multi-gigabyte
+            # volume or .mrc used to allocate the entire file in memory. md5 is
+            # incremental, so the digest is identical to hashing one buffer --
+            # which matters because these checksums are persisted in XML and
+            # drive staleness decisions, so any change would invalidate every
+            # cached artifact.
+            return hashlib.file_digest(f, 'md5').hexdigest()
 
     except FileNotFoundError:
         prettyoutput.LogErr("Could not compute checksum for non-existant file: " + filename + "\n")
