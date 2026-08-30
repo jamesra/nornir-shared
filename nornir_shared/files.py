@@ -34,6 +34,27 @@ DefaultExcludeList = frozenset(
      "registered"])
 
 
+def format_downsample_level(level: int | str) -> str:
+    """Render a downsample level as a directory name, accepting int or numeric string.
+
+    ``DownsampleFormat % level`` alone raises ``TypeError: %d format: a real number is
+    required, not str`` for string levels. That mattered because callers are documented to
+    pass ``frozenset[str]``, and ``ensure_string_set`` does not coerce -- it returns a set
+    unchanged and only lowercases items that are already strings. Even this module's own
+    ``DefaultLevelStrings`` was an invalid argument.
+
+    Numeric strings are accepted in either spelling, so ``1``, ``'1'`` and ``'001'`` all
+    render as ``'001'``.
+    """
+    try:
+        return DownsampleFormat % int(level)
+    except (TypeError, ValueError) as e:
+        raise ValueError(
+            f"Downsample level {level!r} is not a number. Levels name pyramid "
+            f"directories such as '001', so they must be integers or numeric strings."
+        ) from e
+
+
 class FileTimeComparison(IntEnum):
     MODIFIED = auto()
     CREATION = auto()
@@ -674,9 +695,11 @@ def _RecurseSubdirectoriesGeneratorTask(
             ExcludedDownsampleLevels, caseInsensitive=caseInsensitive))
 
     if ExcludeNames_set is not None and ExcludedDownsampleLevels_set is not None:
-        ExcludeNames_set = ExcludeNames_set.union([DownsampleFormat % level for level in ExcludedDownsampleLevels_set])
+        ExcludeNames_set = ExcludeNames_set.union(
+            [format_downsample_level(level) for level in ExcludedDownsampleLevels_set])
     elif ExcludedDownsampleLevels_set is not None:
-        ExcludeNames_set = frozenset([DownsampleFormat % level for level in ExcludedDownsampleLevels_set])
+        ExcludeNames_set = frozenset(
+            [format_downsample_level(level) for level in ExcludedDownsampleLevels_set])
 
     # If we made it this far we did not match either Required or Excluded Files
 
