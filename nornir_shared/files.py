@@ -765,7 +765,7 @@ def _RecurseSubdirectoriesGeneratorTask(
                                                        thread_name_prefix=Path + '_') as executor:
                 for d in dirs:
                     fullpath = d.path
-                    if check_if_str_matches(d.name, MatchNames, caseInsensitive):
+                    if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
                         yield FindFileResult(path=fullpath, matched_files=[])
                         continue  # We do not iterate the subdirectories of MatchNames
 
@@ -782,13 +782,20 @@ def _RecurseSubdirectoriesGeneratorTask(
                     #                        ExcludeNames=ExcludeNames,
                     #                        ExcludedDownsampleLevels=ExcludedDownsampleLevels)
 
+                    # caseInsensitive must be forwarded here. Both recursion helpers
+                    # default it to True, so omitting it silently restored
+                    # case-insensitive matching for every directory below this one, and
+                    # only in trees wide enough to take the threaded branch. A search
+                    # with caseInsensitive=False returned different results depending on
+                    # how many subdirectories the parent happened to have.
                     task = executor.submit(_RecurseSubdirectoriesListTask,
                                            Path=fullpath,
                                            RequiredFiles=RequiredFiles,
                                            ExcludedFiles=ExcludedFiles,
                                            MatchNames=MatchNames,
                                            ExcludeNames=ExcludeNames_set,
-                                           ExcludedDownsampleLevels=ExcludedDownsampleLevels_set)
+                                           ExcludedDownsampleLevels=ExcludedDownsampleLevels_set,
+                                           caseInsensitive=caseInsensitive)
                     dir_search_tasks.append(task)
 
                     # for subd in RecurseSubdirectoriesGenerator(fullpath,
