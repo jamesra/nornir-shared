@@ -84,6 +84,7 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
               dpi: int | None = None,
               range_is_power_of_two: bool = False,
               axes: matplotlib.axes.Axes | None = None):
+    caller_owns_axes = axes is not None
     if axes is None:
         plt.clf()
         axes = plt.axes()
@@ -226,6 +227,12 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
         # plt.show() 
         plt.savefig(ImageFilename, bbox_inches='tight', dpi=dpi)
         plt.close()
+    elif caller_owns_axes:
+        # The caller passed its own axes, so it is composing a larger figure and decides
+        # how the result is presented. Showing here stole that decision and, on a GUI
+        # backend, blocked until someone closed a window the caller never asked for --
+        # before the caller's own savefig ever ran.
+        pass
     else:
         plt.show()
 
