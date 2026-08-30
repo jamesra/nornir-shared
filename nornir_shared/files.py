@@ -750,6 +750,106 @@ def RecurseSubdirectoriesGenerator(Path: str,
         caseInsensitive=caseInsensitive)
 
 
+#: Workers overlapping directory scans for the whole of one
+#: :func:`RecurseSubdirectoriesGenerator` call. This used to be a fresh
+#: ``min(len(dirs), 8)`` pool per recursion level, which compounded: a 780-directory
+#: tree five wide and four deep peaked at 227 live threads.
+_RECURSE_SCAN_WORKERS = 16
+
+#: Directory scans allowed in flight. Bounds how far ahead of the consumer the walk
+#: runs, so a huge tree does not queue a future per directory.
+_RECURSE_MAX_PENDING_SCANS = 64
+
+#: Pending directories at or below which a scan runs on the calling thread instead of
+#: going through the pool. There is nothing to overlap it with at that point, so the
+#: submit would be pure overhead.
+_RECURSE_INLINE_WORKLIST = 1
+
+
+class _DirectoryScan(typing.NamedTuple):
+    results: list[FindFileResult]  # Ready to yield, in order
+    children: list[str]  # Subdirectories still to visit
+
+
+def _scan_one_directory(
+        Path: str,
+        RequiredFiles: re.Pattern | frozenset[str] | None,
+        ExcludedFiles: re.Pattern | frozenset[str] | None,
+        MatchNames: re.Pattern | frozenset[str] | None,
+        ExcludeNames_set: frozenset[str] | None,
+        caseInsensitive: bool,
+) -> _DirectoryScan:
+    """Scan one directory, reporting what to yield and where to go next.
+
+    Runs on a worker thread and deliberately never touches the executor running it, so
+    it cannot wait on the pool it is queued in. The recursive version of this could:
+    each level built its own pool and blocked on it, which is why thread counts
+    multiplied with depth.
+
+    Filters arrive already normalised, so this does no per-level renormalisation.
+    """
+    results: list[FindFileResult] = []
+    children: list[str] = []
+
+    try:
+        with os.scandir(Path) as entries:
+            files, dirs = _SeparateFilesAndDirs(entries)
+    except FileNotFoundError:
+        prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
+        return _DirectoryScan(results, children)
+    except IOError:
+        prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
+        return _DirectoryScan(results, children)
+
+    excluded = False
+    known_required_files: list[str] = []
+
+    no_file_criteria = (not isinstance(RequiredFiles, re.Pattern)
+                       and (RequiredFiles is None or len(RequiredFiles) == 0)
+                       and not isinstance(ExcludedFiles, re.Pattern)
+                       and (ExcludedFiles is None or len(ExcludedFiles) == 0))
+
+    if not no_file_criteria:
+        for file in files:
+            if not excluded and ExcludedFiles is not None:
+                excluded = excluded or check_if_str_matches(file.name, ExcludedFiles)
+                if excluded:
+                    break
+
+            if RequiredFiles is not None and check_if_str_matches(file.name, RequiredFiles):
+                known_required_files.append(file.name)
+
+    # An excluded directory takes its whole subtree with it.
+    if excluded:
+        return _DirectoryScan(results, children)
+
+    if len(known_required_files) > 0:
+        results.append(FindFileResult(path=Path, matched_files=known_required_files))
+    elif (RequiredFiles is None or not RequiredFiles) and \
+            (MatchNames is None or not MatchNames):
+        results.append(FindFileResult(path=Path, matched_files=[]))
+
+    for d in dirs:
+        # Test the directory's own name, not its full path.  Using the path meant
+        # a single dotted ancestor -- a volume directory named RC3.v2, or any
+        # scan rooted under one -- matched every subdirectory and pruned the
+        # entire search after the root.
+        if d.name.find('.') > -1:
+            continue
+
+        # Skip if it contains words from the exclude list
+        if ExcludeNames_set is not None and d.name.lower() in ExcludeNames_set:
+            continue
+
+        if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
+            results.append(FindFileResult(path=d.path, matched_files=[]))
+            continue  # We do not iterate the subdirectories of MatchNames
+
+        children.append(d.path)
+
+    return _DirectoryScan(results, children)
+
+
 def _SeparateFilesAndDirs(entries) -> tuple[list[os.DirEntry], list[os.DirEntry]]:
     files = []
     dirs = []
@@ -780,6 +880,14 @@ def _RecurseSubdirectoriesGeneratorTask(
     :param ExcludedDownsampleLevels: A list of downsample levels which will be excluded from the output
     :param bool caseInsensitive: If true then directory names are compared in a case-insensitive manner
     :return: A tuple with (directory, [files]) where files match the filter criteria if specified, otherwise an empty list
+
+    One executor serves the whole traversal and results stream out as each directory's
+    scan lands. This replaced a recursive walk that built a fresh ``min(len(dirs), 8)``
+    pool at every level and materialised each subtree with ``return list(...)`` before
+    the caller saw any of it. Both were measurable: a 780-directory tree five wide and
+    four deep peaked at 227 live threads, and with ``RequiredFiles`` set -- how the
+    importers call this -- 98% of the total runtime elapsed before the first result was
+    yielded, which is the opposite of what a generator is for.
     """
     RequiredFiles = ensure_regex_or_set(RequiredFiles, caseInsensitive=caseInsensitive)  # type: ignore[reportAssignmentType]
     ExcludedFiles = ensure_regex_or_set(ExcludedFiles, caseInsensitive=caseInsensitive)  # type: ignore[reportAssignmentType]
@@ -800,173 +908,54 @@ def _RecurseSubdirectoriesGeneratorTask(
         ExcludeNames_set = frozenset(
             [format_downsample_level(level) for level in ExcludedDownsampleLevels_set])
 
-    # If we made it this far we did not match either Required or Excluded Files
+    # Directories still to scan, breadth first. Scans are handed to one pool and their
+    # results streamed out in submission order, so a directory's own entry always
+    # precedes its children and the caller sees matches as they are found.
+    worklist: collections.deque[str] = collections.deque([Path])
+    in_flight: collections.deque[concurrent.futures.Future] = collections.deque()
 
-    # Recursively list the subdirectories, catch any exceptions.  This can occur if we don't have permissions
+    executor: concurrent.futures.ThreadPoolExecutor | None = None
     try:
-        with os.scandir(Path) as Path_iter:
-            files, dirs = _SeparateFilesAndDirs(Path_iter)
-        # entries = list(Path_iter)
-        # files = filter(lambda e: e.is_file, entries)
-        # dirs = filter(lambda e: e.is_dir, entries)
+        while len(worklist) > 0 or len(in_flight) > 0:
+            # One pending directory with nothing in flight offers no parallelism to
+            # exploit, so scanning it here beats a submit-and-wait round trip. A tree
+            # one directory wide never builds a pool at all, which is what the old
+            # serial branch was for: measured over a 400-deep chain, always submitting
+            # cost 52 ms against 37 ms inline.
+            if len(in_flight) == 0 and len(worklist) <= _RECURSE_INLINE_WORKLIST:
+                scan = _scan_one_directory(worklist.popleft(),
+                                           RequiredFiles,
+                                           ExcludedFiles,
+                                           MatchNames,
+                                           ExcludeNames_set,
+                                           caseInsensitive)
+                yield from scan.results
+                worklist.extend(scan.children)
+                continue
 
-        excluded = False
-        known_required_files = []
+            if executor is None:
+                executor = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=_RECURSE_SCAN_WORKERS,
+                    thread_name_prefix='RecurseSubdirectories')
 
-        # First, check if our root directory (Path) contains any required or excluded files, and if it meets criteria yield the root directory
-        if not isinstance(RequiredFiles, re.Pattern) and (RequiredFiles is None or len(RequiredFiles) == 0) and \
-                not isinstance(ExcludedFiles, re.Pattern) and (ExcludedFiles is None or len(ExcludedFiles) == 0):
-            # Automatically pass the test of whether the directory contains or does not have certain files
-            excluded = False
-        else:
-            excluded = False
-            for file in files:
-                # Check if the directory is excluded
-                if not excluded and ExcludedFiles is not None:
-                    excluded = excluded or check_if_str_matches(file.name, ExcludedFiles)
-                    if excluded:
-                        break
+            while len(worklist) > 0 and len(in_flight) < _RECURSE_MAX_PENDING_SCANS:
+                in_flight.append(executor.submit(_scan_one_directory,
+                                                 worklist.popleft(),
+                                                 RequiredFiles,
+                                                 ExcludedFiles,
+                                                 MatchNames,
+                                                 ExcludeNames_set,
+                                                 caseInsensitive))
 
-                if RequiredFiles is not None and check_if_str_matches(file.name, RequiredFiles):
-                    known_required_files.append(file.name)
-                    # has_required_files = has_required_files or 
-
-        # Do not yield the directory since it contains an excluded file
-        if excluded:
-            return
-
-        # Yield the directory if it has a required file or if there are no requirements
-        if len(known_required_files) > 0:
-            yield FindFileResult(path=Path, matched_files=known_required_files)
-        elif (RequiredFiles is None or not RequiredFiles) and \
-                (MatchNames is None or not MatchNames):
-            yield FindFileResult(path=Path, matched_files=[])
-
-        dir_search_tasks = []
-
-        # Filter out directories we do not want to recurse into
-        dirs = set(dirs)
-
-        # Test the directory's own name, not its full path.  Using the path meant
-        # a single dotted ancestor -- a volume directory named RC3.v2, or any
-        # scan rooted under one -- matched every subdirectory and pruned the
-        # entire search after the root.
-        dirs_with_dots = list(filter(lambda d: d.name.find('.') > -1, dirs))
-        dirs = dirs.difference(dirs_with_dots)
-
-        # Skip if it contains words from the exclude list
-        if ExcludeNames_set is not None:
-            excluded_dir_names = filter(lambda d: d.name.lower() in ExcludeNames_set, dirs)  # type: ignore[reportArgumentType]
-            dirs = dirs.difference(excluded_dir_names)
-
-        if len(dirs) > 3:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(dirs), 8),
-                                                       thread_name_prefix=Path + '_') as executor:
-                for d in dirs:
-                    fullpath = d.path
-                    if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
-                        yield FindFileResult(path=fullpath, matched_files=[])
-                        continue  # We do not iterate the subdirectories of MatchNames
-
-                    # If we are not matching names or requiring files then return the path
-                    # if MatchNames is None and RequiredFiles is None:
-                    # yield fullpath
-
-                    # Add directory tree to list and keep looking
-
-                    # yield from RecurseSubdirectoriesGenerator(fullpath,
-                    #                        RequiredFiles=RequiredFiles,
-                    #                        ExcludedFiles=ExcludedFiles,
-                    #                        MatchNames=MatchNames,
-                    #                        ExcludeNames=ExcludeNames,
-                    #                        ExcludedDownsampleLevels=ExcludedDownsampleLevels)
-
-                    # caseInsensitive must be forwarded here. Both recursion helpers
-                    # default it to True, so omitting it silently restored
-                    # case-insensitive matching for every directory below this one, and
-                    # only in trees wide enough to take the threaded branch. A search
-                    # with caseInsensitive=False returned different results depending on
-                    # how many subdirectories the parent happened to have.
-                    task = executor.submit(_RecurseSubdirectoriesListTask,
-                                           Path=fullpath,
-                                           RequiredFiles=RequiredFiles,
-                                           ExcludedFiles=ExcludedFiles,
-                                           MatchNames=MatchNames,
-                                           ExcludeNames=ExcludeNames_set,
-                                           ExcludedDownsampleLevels=ExcludedDownsampleLevels_set,
-                                           caseInsensitive=caseInsensitive)
-                    dir_search_tasks.append(task)
-
-                    # for subd in RecurseSubdirectoriesGenerator(fullpath,
-                    #                       RequiredFiles=RequiredFiles,
-                    #                       ExcludedFiles=ExcludedFiles,
-                    #                       MatchNames=MatchNames,
-                    #                       ExcludeNames=ExcludeNames,
-                    #                       ExcludedDownsampleLevels=ExcludedDownsampleLevels):
-                    #     yield subd
-
-                for t in concurrent.futures.as_completed(dir_search_tasks):
-                    output = t.result()
-                    if output is not None:
-                        yield from output
-        else:
-            # Do not create threads, just run the IO on this thread
-            for d in dirs:
-                fullpath = d.path
-                if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
-                    yield FindFileResult(path=fullpath, matched_files=[])
-                    continue  # We do not iterate the subdirectories of MatchNames
-
-                # If we are not matching names or requiring files then return the path
-                # if MatchNames is None and RequiredFiles is None:
-                # yield fullpath
-
-                # Add directory tree to list and keep looking
-
-                yield from _RecurseSubdirectoriesGeneratorTask(fullpath,
-                                                              RequiredFiles=RequiredFiles,
-                                                              ExcludedFiles=ExcludedFiles,
-                                                              MatchNames=MatchNames,
-                                                              ExcludeNames=ExcludeNames_set,
-                                                              ExcludedDownsampleLevels=ExcludedDownsampleLevels_set,
-                                                              caseInsensitive=caseInsensitive)
-
-        # for t in dir_search_tasks:
-        # output = t.result()
-        # if output is not None:
-        #   yield from output
-
-    except FileNotFoundError:
-        prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
-    except IOError:
-        prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
-        pass
-
-    return
-
-
-def _RecurseSubdirectoriesListTask(
-        Path: str,
-        RequiredFiles: str | Sequence[str] | re.Pattern | frozenset[str] | None = None,
-        ExcludedFiles: str | Sequence[str] | re.Pattern | frozenset[str] | None = None,
-        MatchNames: str | Sequence[str] | re.Pattern | frozenset[str] | None = None,
-        ExcludeNames: str | Sequence[str] | frozenset[str] | None = None,
-        ExcludedDownsampleLevels: Sequence[int] | frozenset[str] | None = None,
-        caseInsensitive: bool = True,
-):
-    """
-    This is called on another thread, we force the generator to return its items
-    as a list so we can yield results from the main thread
-    """
-    return list(_RecurseSubdirectoriesGeneratorTask(
-        Path=Path,
-        RequiredFiles=RequiredFiles,
-        ExcludedFiles=ExcludedFiles,
-        MatchNames=MatchNames,
-        ExcludeNames=ExcludeNames,
-        ExcludedDownsampleLevels=ExcludedDownsampleLevels,
-        caseInsensitive=caseInsensitive,
-    ))
+            scan = in_flight.popleft().result()
+            yield from scan.results
+            worklist.extend(scan.children)
+    finally:
+        # Also runs on GeneratorExit, so abandoning the generator part-way tears the
+        # pool down. The old code yielded from inside `with executor`, which left one
+        # executor alive per suspended level for as long as the consumer took.
+        if executor is not None:
+            executor.shutdown(wait=False, cancel_futures=True)
 
 
 def check_if_str_matches(file: str, matchCriteria: re.Pattern | collections.abc.Iterable | None,
