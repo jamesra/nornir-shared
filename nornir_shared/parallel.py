@@ -11,6 +11,33 @@ import os
 import platform
 import time
 
+#: A lock older than this is treated as abandoned and removed. The original comment
+#: here said "eighteen hours" while the code compared against 48; 48 is what shipped,
+#: so that is what is kept.
+STALE_LOCK_HOURS = 48
+
+
+def _LockAgeHours(LockFile, FileTimeString):
+    """Age of a lock in hours, falling back to the file's mtime.
+
+    The creation time is written as the lock's second line, but a process that dies
+    mid-write leaves that line absent or truncated. ``time.strptime`` then raises, and
+    the bare ``except`` this replaced turned that into "cannot lock" permanently: the
+    stale-removal path was never reached, so a zero-byte lock file never cleared.
+    Judging an undatable lock by its mtime lets it age out like any other.
+
+    Returns None only when the age cannot be established at all.
+    """
+    try:
+        return (time.time() - time.mktime(time.strptime(FileTimeString))) / (60 * 60)
+    except (ValueError, OverflowError):
+        pass
+
+    try:
+        return (time.time() - os.path.getmtime(LockFile)) / (60 * 60)
+    except OSError:
+        return None
+
 
 # Attempt to create a file that tells other machines the directory is in use.
 def TryEnterLockPath(Path):
@@ -33,27 +60,32 @@ def TryEnterLockFile(LockFile):
         # CreationTime = os.path.getctime(LockFile);  #For some reason ctime is the creation date of the first lock file ever, misses deletes and recreations
 
         # Read the file and see if it is stale
+        FileTimeString = ''
         try:
-            hLockFile = open(LockFile, 'r')
-            LockingParty = hLockFile.readline().rstrip('\n')
-            FileTimeString = hLockFile.readline()
-            hLockFile.close()  # Could be updated between here and delete
-
-            # Ignore the lock if it has been more than eighteen hours
-            CreationTime = time.strptime(FileTimeString)
-            CreationTimeSec = time.mktime(CreationTime)
-            now = time.time()
-            Elapsed = now - CreationTimeSec
-            print("Elapsed: " + str(Elapsed))
-            print("Elapsed Hours: " + str(Elapsed / (60 * 60)))
-            if (Elapsed / (60 * 60)) > 48:
-                print("Removing stale lock file: " + LockFile)
-                try:
-                    os.remove(LockFile)
-                except:
-                    print("Exception removing: " + LockFile)
-        except:
+            with open(LockFile, 'r') as hLockFile:
+                LockingParty = hLockFile.readline().rstrip('\n')
+                FileTimeString = hLockFile.readline()  # Could be updated before delete
+        except OSError as e:
+            # A genuine I/O failure is not evidence of a stale lock, so do not delete
+            # on a guess. Previously indistinguishable from an unparseable timestamp.
+            print("Could not read lock file " + LockFile + ": " + str(e))
             return False
+        except UnicodeDecodeError:
+            # Corrupt content: there is nothing in it to trust, so let mtime decide.
+            print("Lock file is not readable text, judging age by mtime: " + LockFile)
+
+        ElapsedHours = _LockAgeHours(LockFile, FileTimeString)
+        if ElapsedHours is None:
+            print("Could not determine the age of lock file: " + LockFile)
+            return False
+
+        print("Elapsed Hours: " + str(ElapsedHours))
+        if ElapsedHours > STALE_LOCK_HOURS:
+            print("Removing stale lock file: " + LockFile)
+            try:
+                os.remove(LockFile)
+            except OSError as e:
+                print("Exception removing " + LockFile + ": " + str(e))
 
     # Read the file and see if it is ours, just in case it was recreated
     if os.path.exists(LockFile):
@@ -65,7 +97,10 @@ def TryEnterLockFile(LockFile):
                 return True
             else:
                 return False
-        except OSError:
+        except (OSError, UnicodeDecodeError):
+            # UnicodeDecodeError has to be caught here too. The stale check above used
+            # to swallow it and return, so a lock file holding non-text never reached
+            # this read; now that a corrupt lock is allowed to age out instead, it does.
             return False
 
     # Try to create the file atomically (O_EXCL) so two hosts cannot both win.
@@ -112,15 +147,24 @@ def ReleaseLockFile(LockFile):
     LockFile = LockFile + '.lock'
 
     try:
-        hLockFile = open(LockFile, 'r')
-        LockingParty = hLockFile.readline().rstrip('\n')
-        hLockFile.close()
-        MyID = platform.node()
-        if LockingParty == MyID:
-            print(MyID + " removed lock on " + LockFile)
-            os.remove(LockFile)
-        else:
-            print("Tried to remove another processes lock " + LockFile)
-    except:
-        print("Exception releasing Lock File: " + LockFile)
+        with open(LockFile, 'r') as hLockFile:
+            LockingParty = hLockFile.readline().rstrip('\n')
+    except FileNotFoundError:
+        # Nothing to release, which is not an error: the lock may have aged out as
+        # stale or never been taken. The bare except this replaced reported it with
+        # the same message as a genuine I/O failure.
+        print("No lock file to release: " + LockFile)
         return
+    except (OSError, UnicodeDecodeError) as e:
+        print("Could not read lock file " + LockFile + ": " + str(e))
+        return
+
+    MyID = platform.node()
+    if LockingParty == MyID:
+        print(MyID + " removed lock on " + LockFile)
+        try:
+            os.remove(LockFile)
+        except OSError as e:
+            print("Could not remove our own lock " + LockFile + ": " + str(e))
+    else:
+        print("Tried to remove another processes lock " + LockFile)
