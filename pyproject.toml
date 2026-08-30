@@ -36,3 +36,11 @@ test = ["pydevd>=2.9"]
 [project.urls]
 Homepage = "https://github.com/jamesra/nornir-shared"
 Issues = "https://github.com/jamesra/nornir-shared/issues"
+
+[tool.pytest.ini_options]
+# One stale import in one test module used to abort collection for the entire directory:
+# `Interrupted: 1 error during collection`, zero tests run, 265 of them never attempted.
+# That reads like a broken environment rather than one bad import, which is how it
+# survived (review #220). Collection errors still fail the run -- they just no longer
+# cancel every other test.
+addopts = "--continue-on-collection-errors"
