@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import errno
 import glob
-import functools
 import math
 import os
 import re
@@ -326,9 +325,87 @@ def path_entry_count(directory: str, max_count: int = 1000) -> int:
     return count
 
 
+#: Ceiling on the unlink futures :func:`rmtree` keeps in flight. Bounds memory on trees
+#: holding millions of files while still keeping the executor's queue fed.
+_RMTREE_MAX_PENDING_UNLINKS = 1024
+
+
+#: A subtree with fewer entries than this is handed to a worker whole rather than
+#: walked. Matches the threshold the whole-call shortcut uses.
+_RMTREE_SMALL_SUBTREE_ENTRIES = 50
+
+
+def _entry_is_link(entry: os.DirEntry) -> bool:
+    """True when a scandir entry is a link rather than the thing it points at.
+
+    Reads the DirEntry's cached lstat, so this costs no extra syscalls. That matters:
+    a path-based check using ``os.path.ismount`` is expensive enough on Windows to
+    dominate the whole call when run once per entry.
+
+    Windows junctions need naming explicitly. They report False from ``is_symlink``
+    yet directory walks descend into them, so treating only symlinks as links walks
+    straight out of the tree and deletes the target's contents. ``DirEntry.is_junction``
+    arrived in Python 3.12; on older interpreters a junction is indistinguishable from a
+    directory here, as it is to ``shutil.rmtree``.
+    """
+    if entry.is_symlink():
+        return True
+
+    is_junction = getattr(entry, 'is_junction', None)
+    return False if is_junction is None else is_junction()
+
+
+def _remove_link(path: str):
+    """Remove a link without touching whatever it points at.
+
+    POSIX wants unlink for a directory symlink, Windows wants rmdir for a junction.
+    Neither is portable alone.
+    """
+    try:
+        os.unlink(path)
+    except OSError:
+        os.rmdir(path)
+
+
+def _remove_subtree_if_small(path: str, ignore_errors: bool) -> bool:
+    """Remove path entirely if it is small, reporting whether it was handled.
+
+    Runs on a worker thread and is deliberately self-contained: it never touches the
+    executor that is running it, which is the whole difference from the recursive
+    rmtree this replaced. Counting the entries here rather than on the calling thread
+    keeps that scan parallel, which is where most of the old code's speed on trees of
+    many small directories came from.
+
+    :return: True if the subtree is gone, False if it is too large and the caller
+             should walk it instead.
+    """
+    if path_entry_count(path, max_count=_RMTREE_SMALL_SUBTREE_ENTRIES) < _RMTREE_SMALL_SUBTREE_ENTRIES:
+        shutil.rmtree(path, ignore_errors=ignore_errors)
+        return True
+
+    return False
+
+
 def rmtree(directory: str, ignore_errors: bool = False, executor: concurrent.futures.ThreadPoolExecutor | None = None,
            wait: bool = True):
-    """Recursively remove a directory and all its contents.  Uses multithreading for large directories."""
+    """Recursively remove a directory and all its contents.  Uses multithreading for large directories.
+
+    Everything handed to the executor can finish without the executor: file unlinks,
+    link removals, and small subtrees removed whole by ``shutil.rmtree``. Only
+    directories too large for that are walked, and that happens on the calling thread.
+
+    This function used to submit *itself* into the same executor for each subdirectory
+    and then block on ``as_completed`` for the results, which deadlocks: once every
+    worker holds a directory and waits on a subdirectory queued behind it, no queued
+    work can ever start. Measured on the default 32-worker pool, a tree of 34 top-level
+    directories with substantial subdirectories hung permanently, and a chain of 200
+    nested directories holding one file each hung as well.
+
+    Do not pass an `executor` that the calling thread is itself a worker of. This call
+    blocks until the unlinks it submitted have finished, so a thread waiting on its own
+    pool can still starve it. That hazard belongs to the caller now: nothing inside here
+    submits work that in turn waits on this executor.
+    """
     cleanup_executor = executor is None
 
     if not os.path.exists(directory):
@@ -353,62 +430,84 @@ def rmtree(directory: str, ignore_errors: bool = False, executor: concurrent.fut
 
         executor = concurrent.futures.ThreadPoolExecutor() if executor is None else executor
 
-        folders = []
-        files = []
+        def report_or_raise(exception: BaseException, description: str):
+            if isinstance(exception, FileNotFoundError):
+                return
 
-        directory_remover = functools.partial(rmtree, executor=executor, ignore_errors=ignore_errors, wait=wait)
-
-        for entry in os.scandir(directory):
-            if entry.is_file():
-                files.append(entry.path)
-            elif entry.is_dir():
-                folders.append(entry.path)
-
-        folder_futures = []
-        files_futures = []
-
-        for folder in folders:
-            folder_futures.append(executor.submit(directory_remover, folder))
-
-        for file in files:
-            files_futures.append(executor.submit(os.remove, file))
-
-        for f in as_completed(folder_futures):
-            try:
-                f.result()  # This will raise an exception if the task failed
-            except FileNotFoundError:
-                pass
-            except Exception as e:
-                if ignore_errors is True:
-                    prettyoutput.error(f'Error removing directory entry: {e}')
-                else:
-                    raise
-
-        del folder_futures  # Clear the list to free memory
-
-        for f in as_completed(files_futures):
-            try:
-                f.result()  # This will raise an exception if the task failed
-            except FileNotFoundError:
-                pass
-            except Exception as e:
-                if ignore_errors is True:
-                    prettyoutput.error(f'Error removing file entry: {e}')
-                else:
-                    raise
-
-        del files_futures
-
-        try:
-            os.rmdir(directory)
-        except FileNotFoundError:
-            pass
-        except OSError as e:
             if ignore_errors is True:
-                prettyoutput.error(f'Error removing {directory}: {e}')
-                pass
+                prettyoutput.error(f'Error removing {description}: {exception}')
             else:
-                raise
+                raise exception
+
+        # Directories this thread has to walk itself, parents before children. Walking
+        # them here is what breaks the deadlock: everything submitted to the executor
+        # below is self-contained and never waits on the executor.
+        large_directories = [directory]
+
+        pending: collections.deque[tuple[concurrent.futures.Future, str, str | None]] = collections.deque()
+
+        def drain_one():
+            future, description, subtree = pending.popleft()
+            try:
+                handled = future.result()
+            except Exception as e:
+                report_or_raise(e, description)
+                return
+
+            # A subtree the worker found too large to remove whole comes back here to
+            # be walked. Unlink futures return None, which is not False.
+            if handled is False and subtree is not None:
+                large_directories.append(subtree)
+
+        def track(future: concurrent.futures.Future, description: str,
+                  subtree: str | None = None):
+            if len(pending) >= _RMTREE_MAX_PENDING_UNLINKS:
+                drain_one()
+
+            pending.append((future, description, subtree))
+
+        index = 0
+        while index < len(large_directories):
+            current = large_directories[index]
+            index += 1
+
+            try:
+                entries = list(os.scandir(current))
+            except OSError as e:
+                report_or_raise(e, current)
+                continue
+
+            for entry in entries:
+                # A link is dropped as a link, never followed. shutil.rmtree, which the
+                # branch above delegates to, refuses to follow them, while the code this
+                # replaced used entry.is_dir() and did follow them, so the same tree
+                # deleted data outside itself or not depending only on its entry count.
+                if _entry_is_link(entry):
+                    track(executor.submit(_remove_link, entry.path),
+                          f'link {entry.path}')
+                elif entry.is_dir(follow_symlinks=False):
+                    track(executor.submit(_remove_subtree_if_small, entry.path,
+                                          ignore_errors),
+                          f'directory {entry.path}', entry.path)
+                else:
+                    track(executor.submit(os.remove, entry.path),
+                          f'file entry {entry.path}')
+
+            # Drain before moving on only if nothing is left to walk, so that
+            # subtrees rejected by workers are picked up without idling the pool.
+            while index >= len(large_directories) and len(pending) > 0:
+                drain_one()
+
+        while len(pending) > 0:
+            drain_one()
+
+        # Whatever is left is empty now. Children come after parents in the list, so
+        # reversing removes the deepest first and `directory` last.
+        for current in reversed(large_directories):
+            try:
+                os.rmdir(current)
+            except OSError as e:
+                report_or_raise(e, current)
 
         return
     finally:
