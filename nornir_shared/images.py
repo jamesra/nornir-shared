@@ -187,7 +187,23 @@ def IsValidImageReturnName(filename: str) -> tuple[bool, str]:
 
 
 def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None) -> list[str]:
-    """:return: true/false if passed a single image.  Returns a list of bad images if passed a list.  Return empty list if filename is an empty list"""
+    """Check a list of images and report which ones are *not* valid.
+
+    Despite the name, the return value lists the failures, not the successes, so an empty
+    result means every image was valid.
+
+    Entries are returned exactly as the caller supplied them, whatever they were: bare
+    filenames stay bare, absolute paths stay absolute. ``ImageDir`` is used to locate the
+    files but never appears in the result, so ``os.path.join(ImageDir, entry)`` still
+    reaches the file, and an entry can be compared against or looked up by whatever the
+    caller passed in. This holds for a one-element list as well as a longer one, which it
+    did not before review #230.
+
+    :param filenames: image paths to check, or a single path
+    :param ImageDir: directory to resolve *filenames* against, if they are relative
+    :return: the subset of *filenames* that are not valid images; empty if all are valid,
+        or if *filenames* is empty
+    """
 
     filenamelist = filenames
     if not isinstance(filenames, list):
@@ -233,11 +249,20 @@ def AreValidImages(filenames: list[str], ImageDir: str | None = None, Pool=None)
         image_iterator = executor.map(IsValidImageReturnName, image_full_paths,
                                       chunksize=chunksize)
 
-        for image_task in image_iterator:
-            result, filename = image_task
+        # executor.map preserves input order, so pair each verdict back to the entry the
+        # caller passed. Appending os.path.basename of the *joined* path used to be close
+        # enough whenever ImageDir was supplied and the entries were bare filenames, but it
+        # silently diverged in two ways: with ImageDir=None and absolute paths it stripped
+        # the directory, leaving a result the caller could not resolve, and with entries
+        # containing a subdirectory it dropped that component, so
+        # MosaicFile.RemoveInvalidMosaicImages' `if InvalidImage in
+        # self.ImageToTransformString` stopped matching and quietly kept the bad image.
+        # It also did not match the single-file branch, which returns filenamelist[0]
+        # unchanged. See review #230.
+        for original, (result, _full_path) in zip(testable_image_extensions,
+                                                  image_iterator, strict=True):
             if not result:
-                # Return the original list name (basename), matching the single-file path.
-                InvalidImageList.append(os.path.basename(filename))
+                InvalidImageList.append(original)
         #
         # # while image_task is not None:
         # #     if not image_task:
