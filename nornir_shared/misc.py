@@ -13,6 +13,7 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Sequence
 
@@ -129,6 +130,18 @@ def GetUnifiedSessionPaths() -> tuple[str, str, str] | None:
     session_log_path = os.path.join(log_dir, f'nornir-session-{session_id}.log')
     error_log_path = os.path.join(log_dir, f'nornir-session-{session_id}-errors.log')
     return (log_dir, session_log_path, error_log_path)
+
+
+def _fallback_file_log_dir() -> str:
+    """Directory for file logs when ``NORNIR_LOG_ROOT`` is unset.
+
+    Prefer ``TESTOUTPUTPATH`` for test runs; otherwise the system temp dir.
+    Never the process CWD — that scatters per-run logs into working trees.
+    """
+    test_output = os.environ.get('TESTOUTPUTPATH', '').strip()
+    if test_output:
+        return test_output
+    return tempfile.gettempdir()
 
 
 def _directory_is_writable(path: str) -> bool:
@@ -381,9 +394,8 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
         unified_session_paths = GetUnifiedSessionPaths()
         if unified_session_paths is not None:
             LogToFile = True
-        elif not LogToFile:
-            # Fallback when unified log root is not configured: write to CWD.
-            LogToFile = True
+        # When NORNIR_LOG_ROOT is unset, keep console-only unless the caller
+        # passed LogToFile=True or an OutputPath (do not auto-scatter into CWD).
 
     if OutputPath is not None:
         LogToFile = True
@@ -400,11 +412,7 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
             if OutputPath is not None and os.path.isabs(OutputPath):
                 LogPath = OutputPath
             else:
-                BaseLoggingDir = None
-                if 'TESTOUTPUTPATH' in os.environ:
-                    BaseLoggingDir = os.environ['TESTOUTPUTPATH']
-                else:
-                    BaseLoggingDir = os.getcwd()
+                BaseLoggingDir = _fallback_file_log_dir()
 
                 if OutputPath is not None:
                     LogPath = os.path.join(BaseLoggingDir, OutputPath)
@@ -417,7 +425,7 @@ def SetupLogging(LogToFile: bool = False, OutputPath: str | None = None, Level=N
             if fallback_paths is not None:
                 LogPath, logFileName, errlogFileName = fallback_paths
             else:
-                LogPath = os.environ.get('TESTOUTPUTPATH', os.getcwd())
+                LogPath = _fallback_file_log_dir()
                 logFileName = None
                 errlogFileName = None
             print(f"Log path not writable ({rejected_path}); using {LogPath}")
