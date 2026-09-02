@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import cProfile
 import json
+import logging
 import os
 import pstats
 import threading
@@ -18,20 +19,61 @@ _ENV_LOG_PATH = "NORNIR_PHASE_PROFILE_LOG"
 _ENV_PROFILE_PATH = "NORNIR_PHASE_PROFILE_PSTATS"
 _ENV_SESSION_ID = "NORNIR_PHASE_PROFILE_SESSION"
 _ENV_RUN_ID = "NORNIR_PHASE_PROFILE_RUN_ID"
+_SESSION_LAYOUT_SENTINELS = frozenset({"1", "true", "yes", "on"})
+
+_logger = logging.getLogger(__name__)
+
+
+def _session_phase_profile_path(filename: str) -> Path | None:
+    """Resolve *filename* under the unified ``NORNIR_LOG_ROOT`` session directory."""
+    from nornir_shared import misc as nornir_misc
+
+    session_paths = nornir_misc.GetUnifiedSessionPaths()
+    if session_paths is None:
+        return None
+    log_dir, _, _ = session_paths
+    session_id = nornir_misc._get_or_create_session_id()
+    if filename.lower() in _SESSION_LAYOUT_SENTINELS or not filename:
+        filename = f"nornir-phase-profile-{session_id}.ndjson"
+    return Path(log_dir) / Path(filename).name
 
 
 def _default_log_path() -> Path | None:
     configured = os.environ.get(_ENV_LOG_PATH, "").strip()
     if not configured:
         return None
-    return Path(configured)
+    if configured.lower() in _SESSION_LAYOUT_SENTINELS:
+        return _session_phase_profile_path(configured)
+    path = Path(configured)
+    if path.is_absolute():
+        return path
+    # Relative paths land in the unified session dir when NORNIR_LOG_ROOT is set.
+    under_session = _session_phase_profile_path(configured)
+    return under_session if under_session is not None else path
 
 
 def _default_profile_path() -> Path | None:
     configured = os.environ.get(_ENV_PROFILE_PATH, "").strip()
     if not configured:
         return None
-    return Path(configured)
+    if configured.lower() in _SESSION_LAYOUT_SENTINELS:
+        from nornir_shared import misc as nornir_misc
+
+        session_paths = nornir_misc.GetUnifiedSessionPaths()
+        if session_paths is None:
+            return None
+        log_dir, _, _ = session_paths
+        session_id = nornir_misc._get_or_create_session_id()
+        return Path(log_dir) / f"nornir-phase-profile-{session_id}.pstats"
+    path = Path(configured)
+    if path.is_absolute():
+        return path
+    from nornir_shared.misc import GetUnifiedSessionPaths
+
+    session_paths = GetUnifiedSessionPaths()
+    if session_paths is not None:
+        return Path(session_paths[0]) / path.name
+    return path
 
 
 class PhaseProfiler:
@@ -129,8 +171,9 @@ class PhaseProfiler:
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._log_path, "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, default=str) + "\n")
-        except OSError:
-            pass
+        except OSError as exc:
+            _logger.warning(
+                "PhaseProfiler could not append to %s: %s", self._log_path, exc)
 
     @contextmanager
     def phase(

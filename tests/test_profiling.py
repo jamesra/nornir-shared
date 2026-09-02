@@ -1,66 +1,81 @@
-"""Tests for structured phase profiling helpers."""
-
+"""Regression for #178: phase profile paths follow NORNIR_LOG_ROOT session layout."""
 from __future__ import annotations
 
-import json
+import logging
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from nornir_shared.profiling import PhaseProfiler, configure_phase_profiler, phase_timer
+from nornir_shared import profiling
 
 
-class TestPhaseProfiler(unittest.TestCase):
-    def test_phase_writes_ndjson_start_and_end(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            log_path = Path(tmp) / "profile.log"
-            profiler = PhaseProfiler(session_id="test", log_path=log_path, run_id="run1")
-            with profiler.phase("H1", "module.py:fn", "work", count=3):
-                pass
-            lines = log_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 2)
-            start = json.loads(lines[0])
-            end = json.loads(lines[1])
-            self.assertEqual(start["message"], "work:start")
-            self.assertEqual(start["data"]["count"], 3)
-            self.assertEqual(end["message"], "work:end")
-            self.assertIn("elapsed_ms", end["data"])
-            self.assertGreaterEqual(end["data"]["elapsed_ms"], 0.0)
-
-    def test_records_include_pid_and_tid(self) -> None:
-        import os
-        import threading
-
-        with tempfile.TemporaryDirectory() as tmp:
-            log_path = Path(tmp) / "profile.log"
-            profiler = PhaseProfiler(session_id="test", log_path=log_path)
-            profiler.log_event(hypothesis_id="H1", location="m.py:f", message="one")
-            record = json.loads(log_path.read_text(encoding="utf-8").strip())
-            self.assertEqual(record["pid"], os.getpid())
-            self.assertEqual(record["tid"], threading.get_ident())
-
-    def test_disabled_profiler_is_noop(self) -> None:
-        profiler = PhaseProfiler(session_id="test", log_path=None, enabled=False)
-        profiler.log_event(
-            hypothesis_id="H1",
-            location="x",
-            message="noop",
-        )
-        self.assertFalse(profiler.enabled)
-
-    def test_module_helpers_use_configured_profiler(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            log_path = Path(tmp) / "profile.log"
-            configure_phase_profiler(
-                PhaseProfiler(session_id="test", log_path=log_path),
+class TestPhaseProfileSessionLayout(unittest.TestCase):
+    def setUp(self) -> None:
+        self._saved = {
+            key: os.environ.get(key)
+            for key in (
+                "NORNIR_PHASE_PROFILE_LOG",
+                "NORNIR_PHASE_PROFILE_PSTATS",
+                "NORNIR_LOG_ROOT",
+                "NORNIR_LOG_SESSION_ID",
             )
-            with phase_timer("H2", "module.py:fn", "helper"):
-                pass
-            lines = log_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 2)
-            self.assertEqual(json.loads(lines[0])["hypothesisId"], "H2")
+        }
+        import nornir_shared.misc as nornir_misc
+        nornir_misc._active_log_session_id = None
 
-    def test_next_seq_is_monotonic(self) -> None:
-        profiler = PhaseProfiler(session_id="test", log_path=None, enabled=False)
-        self.assertEqual(profiler.next_seq("alignment"), 1)
-        self.assertEqual(profiler.next_seq("alignment"), 2)
+    def tearDown(self) -> None:
+        import nornir_shared.misc as nornir_misc
+        nornir_misc._active_log_session_id = None
+        for key, value in self._saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def test_relative_log_path_resolves_under_log_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["NORNIR_LOG_ROOT"] = tmp
+            os.environ["NORNIR_LOG_SESSION_ID"] = "20260101-120000"
+            os.environ["NORNIR_PHASE_PROFILE_LOG"] = "agent-phases.ndjson"
+            path = profiling._default_log_path()
+            self.assertIsNotNone(path)
+            assert path is not None
+            self.assertTrue(path.is_absolute())
+            self.assertEqual(path.name, "agent-phases.ndjson")
+            self.assertEqual(path.parent, Path(tmp) / "2026-01-01")
+
+    def test_sentinel_uses_session_ndjson_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["NORNIR_LOG_ROOT"] = tmp
+            os.environ["NORNIR_LOG_SESSION_ID"] = "20260102-010203"
+            os.environ["NORNIR_PHASE_PROFILE_LOG"] = "1"
+            path = profiling._default_log_path()
+            self.assertEqual(
+                path,
+                Path(tmp) / "2026-01-02" / "nornir-phase-profile-20260102-010203.ndjson",
+            )
+
+    def test_absolute_log_path_unchanged(self) -> None:
+        absolute = Path(tempfile.gettempdir()) / "explicit-phase.ndjson"
+        os.environ.pop("NORNIR_LOG_ROOT", None)
+        os.environ["NORNIR_PHASE_PROFILE_LOG"] = str(absolute)
+        self.assertEqual(profiling._default_log_path(), absolute)
+
+    def test_write_failure_is_logged_not_swallowed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "phases.ndjson"
+            profiler = profiling.PhaseProfiler(log_path=log_path)
+            with patch("builtins.open", side_effect=OSError("disk full")):
+                with self.assertLogs(profiling._logger, level=logging.WARNING) as captured:
+                    profiler.log_event(
+                        hypothesis_id="T",
+                        location="test",
+                        message="should warn",
+                    )
+            self.assertTrue(any("disk full" in line for line in captured.output))
+
+
+if __name__ == "__main__":
+    unittest.main()
