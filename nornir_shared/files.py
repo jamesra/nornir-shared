@@ -38,10 +38,8 @@ def format_downsample_level(level: int | str) -> str:
 
     ``DownsampleFormat % level`` alone raises ``TypeError: %d format: a real number is
     required, not str`` for string levels. That mattered because callers are documented to
-    pass ``frozenset[str]``, and ``ensure_string_set`` does not coerce -- it returns a set
-    unchanged and only lowercases items that are already strings. Even this module's own
-    ``DefaultLevelStrings`` was an invalid argument.
-
+    pass ``frozenset[str]``, and ``ensure_string_set`` preserves non-string members
+    (ints stay ints) while lowercasing strings only when ``caseInsensitive`` is true.
     Numeric strings are accepted in either spelling, so ``1``, ``'1'`` and ``'001'`` all
     render as ``'001'``.
     """
@@ -703,7 +701,13 @@ def ensure_regex_or_set(param: str | re.Pattern | Sequence[str] | frozenset[str]
 
 
 def ensure_string_set(param: str | Sequence[Any] | frozenset[Any] | None, caseInsensitive: bool = False) -> frozenset[str] | None:
-    """Ensure the input is a set of lowercase strings.  If input is none use defaultValue if provided"""
+    """Normalize *param* to a ``frozenset`` for name/level matching.
+
+    When ``caseInsensitive`` is true, string members are lowercased. Non-string
+    members (e.g. integer downsample levels) are preserved. A caller ``set`` /
+    ``frozenset`` is rebuilt when lowercasing is required so identity is not
+    relied upon; otherwise an existing ``frozenset`` may be returned unchanged.
+    """
     if param is None:
         return None
 
@@ -711,7 +715,9 @@ def ensure_string_set(param: str | Sequence[Any] | frozenset[Any] | None, caseIn
         return frozenset([param.lower() if caseInsensitive else param])
 
     if isinstance(param, (frozenset, set)):
-        return param  # type: ignore[return-value]
+        if caseInsensitive:
+            return frozenset(n.lower() if isinstance(n, str) else n for n in param)
+        return frozenset(param) if isinstance(param, set) else param  # type: ignore[return-value]
 
     items: list[Any] = list(param) if isinstance(param, collections.abc.Iterable) else [param]
 
@@ -838,8 +844,10 @@ def _scan_one_directory(
             continue
 
         # Skip if it contains words from the exclude list
-        if ExcludeNames_set is not None and d.name.lower() in ExcludeNames_set:
-            continue
+        if ExcludeNames_set is not None:
+            dir_key = d.name.lower() if caseInsensitive else d.name
+            if dir_key in ExcludeNames_set:
+                continue
 
         if MatchNames is not None and check_if_str_matches(d.name, MatchNames, caseInsensitive):
             results.append(FindFileResult(path=d.path, matched_files=[]))

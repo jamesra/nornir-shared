@@ -5,10 +5,9 @@
     ExcludeNames_set.union([DownsampleFormat % level for level in ExcludedDownsampleLevels_set])
 
 where ``DownsampleFormat`` is ``'%03d'``. The set it iterates comes from
-``ensure_string_set``, whose name and docstring ("Ensure the input is a set of lowercase
-strings") both promise coercion it does not perform: a ``frozenset`` is returned unchanged,
-and otherwise only items that are *already* strings get lowercased. Numbers stay numbers
-and strings stay strings.
+    ``ensure_string_set``, which lowercases string members when ``caseInsensitive``
+    is true but leaves non-string members (e.g. integer downsample levels) alone.
+    A caller ``frozenset`` of strings is rebuilt when lowercasing is required.
 
 So ``'%03d' % level`` raised for any string level::
 
@@ -80,18 +79,33 @@ class TestFormatDownsampleLevel(unittest.TestCase):
             files.format_downsample_level(None)  # type: ignore[arg-type]
 
 
-class TestEnsureStringSetDoesNotCoerce(unittest.TestCase):
-    """Pin the behaviour that made the bug: the helper's name overpromises."""
+class TestEnsureStringSetCaseInsensitive(unittest.TestCase):
+    """#177: frozenset/set inputs must honor caseInsensitive like the list path."""
 
-    def test_a_frozenset_passes_through_unchanged(self):
-        original = frozenset({'1', '2'})
+    def test_frozenset_passes_through_when_case_sensitive(self):
+        original = frozenset({'ABC', 'def'})
 
-        self.assertIs(files.ensure_string_set(original), original)
+        self.assertIs(files.ensure_string_set(original, caseInsensitive=False), original)
+
+    def test_frozenset_strings_are_lowercased_when_case_insensitive(self):
+        original = frozenset({'ABC', 'Def'})
+        result = files.ensure_string_set(original, caseInsensitive=True)
+
+        self.assertEqual(result, frozenset({'abc', 'def'}))
+        self.assertIsNot(result, original)
 
     def test_ints_stay_ints(self):
         result = files.ensure_string_set([1, 2], caseInsensitive=True)
 
         assert result is not None
+        self.assertEqual({type(x) for x in result}, {int})
+
+    def test_frozenset_of_ints_stays_ints_when_case_insensitive(self):
+        original = frozenset([1, 2])
+        result = files.ensure_string_set(original, caseInsensitive=True)
+
+        assert result is not None
+        self.assertEqual(result, frozenset([1, 2]))
         self.assertEqual({type(x) for x in result}, {int})
 
 
@@ -153,6 +167,43 @@ class TestExclusionAcceptsEveryDocumentedLevelType(unittest.TestCase):
             self._walked_names(['nonsense'])
 
         self.assertIn('nonsense', str(ctx.exception))
+
+
+class TestExcludeNamesHonorsCaseInsensitive(unittest.TestCase):
+    """#177: ExcludeNames frozenset case must match directory comparison."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = self._tmp.name
+        os.makedirs(os.path.join(self.root, 'ABC'))
+        os.makedirs(os.path.join(self.root, 'Keep'))
+
+    def test_case_insensitive_excludes_mixed_case_frozenset(self):
+        names = sorted(
+            os.path.basename(r[0])
+            for r in files.RecurseSubdirectoriesGenerator(
+                self.root,
+                ExcludeNames=frozenset({'ABC'}),
+                ExcludedDownsampleLevels=[],
+                caseInsensitive=True,
+            )
+        )
+        self.assertNotIn('ABC', names)
+        self.assertIn('Keep', names)
+
+    def test_case_sensitive_keeps_mismatched_case(self):
+        names = sorted(
+            os.path.basename(r[0])
+            for r in files.RecurseSubdirectoriesGenerator(
+                self.root,
+                ExcludeNames=frozenset({'abc'}),
+                ExcludedDownsampleLevels=[],
+                caseInsensitive=False,
+            )
+        )
+        self.assertIn('ABC', names)
+        self.assertIn('Keep', names)
 
 
 if __name__ == '__main__':
