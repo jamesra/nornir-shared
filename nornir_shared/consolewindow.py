@@ -92,8 +92,19 @@ class ConsoleWindow(object):
                                  properties: Properties | None = None):
                 if reason_code == 0:
                     print(f"Console '{self.title}' connected to MQTT broker")
-                    # Subscribe to the run-scoped topic tree (current scheme) so the
-                    # console works regardless of the legacy-topics flag.
+                    # Error Console is an in-process sink for LogErr; only follow
+                    # error topics so build/dev-container INFO traffic does not
+                    # flood the same stdout as the GUI (e.g. Pyre debug terminal).
+                    if self.title == "Error Console":
+                        error_topics = [
+                            f"{MQTT_RUN_TOPIC_ROOT}/+/log/error",
+                            MQTT_TOPICS['error'],
+                        ]
+                        for topic in error_topics:
+                            client.subscribe(topic)
+                            print(f"Subscribed to {topic}")
+                        return
+                    # General consoles subscribe to the full run-scoped tree.
                     run_topics = f"{MQTT_RUN_TOPIC_ROOT}/#"
                     client.subscribe(run_topics)
                     print(f"Subscribed to {run_topics}")
@@ -110,6 +121,10 @@ class ConsoleWindow(object):
                     message = payload.get('message', '')
                     severity = payload.get('severity', 'info')
                     timestamp = payload.get('timestamp', time.time())
+
+                    if self.title == "Error Console" and str(severity).lower() not in (
+                            "error", "err", "critical", "fatal"):
+                        return
 
                     # Format message with timestamp and severity
                     formatted_msg = f"[{time.strftime('%H:%M:%S', time.localtime(timestamp))}] [{severity.upper()}] {message}"

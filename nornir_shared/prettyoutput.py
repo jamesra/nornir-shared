@@ -344,10 +344,15 @@ def _safe_log_pad_refresh(y_max: int, x_max: int) -> bool:
         return False
 
 
-def CurseString(topic: str, text: str):
+def CurseString(topic: str, text: str, *, publish_status: bool = True):
+    """Update the curses Stage line and optionally mirror it to MQTT status.
+
+    ``publish_status=False`` keeps local TTY/console output without flooding the
+    dashboard status topic (used for nested iterate stages that skip quickly).
+    """
     output_message = topic + ": " + text
-    # Always publish status to MQTT so the dashboard sees TTY and non-TTY builds.
-    _publish_mqtt_message('status', output_message, {'topic': topic})
+    if publish_status:
+        _publish_mqtt_message('status', output_message, {'topic': topic})
 
     if CURSES:
         y = 0
@@ -727,18 +732,14 @@ def LogErr(error_message: str | None = None, calling_func_name: str | None = Non
     if not ECLIPSE:
         try:
             global _error_console
-            import multiprocessing
 
-            # Check if we're in a child process
-            is_child_process = multiprocessing.current_process().name != 'MainProcess'
-
-            # Only create a console window in the main process or if one doesn't exist yet
+            # Local error sink only — do not MQTT-subscribe here. A subscriber that
+            # printed nornir/run/# into this process mixed Docker/build INFO into the
+            # same stdout as GUI apps (Pyre debug terminal).
             if _error_console is None:
-                # Create a console window with create_window=True only in the main process
-                # In child processes, set create_window=False to ensure they connect to the parent's console
                 _error_console = nornir_shared.consolewindow.ConsoleWindow(
                     title="Error Console",
-                    create_window=not is_child_process  # Only create a window in the main process
+                    auto_start=False,
                 )
 
             # Send the error message to the console
