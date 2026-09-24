@@ -41,6 +41,9 @@ __all__ = ['argparse_helpers', 'checksum', 'files', 'histogram', 'images', 'math
 # .. automodule:: nornir_shared.argparse_helpers
 
 
+import importlib
+from typing import Any
+
 import nornir_shared.argparse_helpers as argparse_helpers
 import nornir_shared.checksum as checksum
 import nornir_shared.files as files
@@ -48,7 +51,6 @@ import nornir_shared.histogram as histogram
 import nornir_shared.mathhelper as mathhelper
 import nornir_shared.misc as misc
 import nornir_shared.parallel as parallel
-import nornir_shared.plot as plot
 import nornir_shared.prettyoutput as prettyoutput
 import nornir_shared.processoutputinterceptor as processoutputinterceptor
 import nornir_shared.reflection as reflection
@@ -56,6 +58,27 @@ import nornir_shared.profiling as profiling
 import nornir_shared.tasktimer as tasktimer
 import nornir_shared.images as images
 from nornir_shared.mathhelper import NearestPowerOfTwo, ListMedian, RoundingPrecision
+
+# plot imports matplotlib. Load it on first use so MQTT telemetry does not
+# require matplotlib to be installed.
+_LAZY_SUBMODULES = {
+    "plot": "nornir_shared.plot",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Import optional submodules the first time they are accessed."""
+    module_path = _LAZY_SUBMODULES.get(name)
+    if module_path is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = importlib.import_module(module_path)
+    globals()[name] = module
+    return module
+
+
+def __dir__() -> list[str]:
+    """Include lazy submodule names so they remain discoverable."""
+    return sorted(set(globals()) | set(_LAZY_SUBMODULES))
 
 
 def find_first_match(collection, attributes: dict[str, object]) -> object | None:

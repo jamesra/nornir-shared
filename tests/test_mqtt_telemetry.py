@@ -105,6 +105,37 @@ class TestMqttTelemetry(unittest.TestCase):
         self.assertIn('"start_ts": 100.0', body)
         self.assertIn('"end_ts": 200.0', body)
 
+    def test_mqtt_import_does_not_require_matplotlib(self) -> None:
+        """Package import used by the trainer must succeed when matplotlib is absent."""
+        import subprocess
+        import sys
+
+        blocked = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; "
+             "sys.modules['matplotlib'] = None; "
+             "sys.modules['matplotlib.pyplot'] = None; "
+             "sys.modules['matplotlib.axes'] = None; "
+             "sys.modules['matplotlib.collections'] = None; "
+             "import nornir_shared.mqtt_telemetry; "
+             "from nornir_shared.prettyoutput import Log"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(blocked.returncode, 0, blocked.stderr)
+
+        loaded = subprocess.run(
+            [sys.executable, "-c",
+             "from nornir_shared import plot; "
+             "import nornir_shared.plot as direct; "
+             "assert plot is direct"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(loaded.returncode, 0, loaded.stderr)
+
 
 class TestMqttLogHandler(unittest.TestCase):
     """MQTTLogHandler forwards warning/debug without duplicating prettyoutput."""
