@@ -555,13 +555,68 @@ def NewestFile(fileA: str, fileB: str, comparison: FileTimeComparison = FileTime
         return fileB
 
 
+DEFAULT_MTIME_SKEW_TOLERANCE_SEC = 2.0
+MTIME_SKEW_TOLERANCE_ENV = 'NORNIR_MTIME_SKEW_TOLERANCE_SEC'
+
+
+def mtime_skew_tolerance_ns() -> int:
+    """Return the mtime deadband in nanoseconds for freshness comparisons.
+
+    SMB/CIFS clients stamp mtime when a process writes, but the server stamps it when
+    the writeback arrives, so a correct output can look slightly older than its input
+    until attributes refresh. Overridable with ``NORNIR_MTIME_SKEW_TOLERANCE_SEC``;
+    invalid values fall back to the default and negatives clamp to zero.
+    """
+    raw = os.environ.get(MTIME_SKEW_TOLERANCE_ENV)
+    seconds = DEFAULT_MTIME_SKEW_TOLERANCE_SEC
+    if raw is not None and raw.strip() != '':
+        try:
+            seconds = float(raw)
+        except ValueError:
+            seconds = DEFAULT_MTIME_SKEW_TOLERANCE_SEC
+        if not math.isfinite(seconds):
+            seconds = DEFAULT_MTIME_SKEW_TOLERANCE_SEC
+    return int(max(0.0, seconds) * 1_000_000_000)
+
+
+def is_significantly_newer(mtime_ns_a: int, mtime_ns_b: int, *, tolerance_ns: int | None = None) -> bool:
+    """Return True when *a* is newer than *b* by more than the skew tolerance."""
+    if tolerance_ns is None:
+        tolerance_ns = mtime_skew_tolerance_ns()
+    return mtime_ns_a > mtime_ns_b + tolerance_ns
+
+
+def mtimes_equivalent(mtime_ns_a: int, mtime_ns_b: int, *, tolerance_ns: int | None = None) -> bool:
+    """Return True when two mtimes differ by no more than the skew tolerance."""
+    if tolerance_ns is None:
+        tolerance_ns = mtime_skew_tolerance_ns()
+    return abs(mtime_ns_a - mtime_ns_b) <= tolerance_ns
+
+
+def seconds_to_ns(seconds: float) -> int:
+    """Convert a float epoch-seconds timestamp (``os.path.getmtime``) to integer nanoseconds."""
+    return int(round(seconds * 1_000_000_000))
+
+
+def path_is_significantly_newer(path_a: str, path_b: str,
+                                comparison: FileTimeComparison = FileTimeComparison.MODIFIED,
+                                *, tolerance_ns: int | None = None) -> bool | None:
+    """Return True when *path_a* is significantly newer than *path_b*, or None if either is missing."""
+    try:
+        a_ns = file_mtime_ns(path_a, comparison=comparison)
+        b_ns = file_mtime_ns(path_b, comparison=comparison)
+    except FileNotFoundError:
+        return None
+    return is_significantly_newer(a_ns, b_ns, tolerance_ns=tolerance_ns)
+
+
 def IsOutdated(ReferenceFilename, TestFilename, comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     """
-    :return: True if TestFilename is older than ReferenceFilename
+    :return: True if TestFilename is older than ReferenceFilename by more than the mtime skew
+        tolerance, or if either file is missing
     """
-    newestFile = NewestFile(ReferenceFilename, TestFilename, comparison=comparison)
-
-    return newestFile is None or newestFile == ReferenceFilename
+    result = path_is_significantly_newer(ReferenceFilename, TestFilename, comparison)
+    return result is None or result
 
 
 def IsOlderThan(TestPath: str, DateTime: str | float | int | datetime.datetime | datetime.date | time.struct_time,
@@ -588,16 +643,21 @@ def OutdatedFile(ReferenceFilename: str, TestFilename: str,
     :param ReferenceFilename: File to compare against
     :param TestFilename: File to compare
     :param comparison: Which timestamp to use for comparison. Defaults to FileTimeComparison.MODIFIED
-    :return: True if TestFilename is older than ReferenceFilename, None if one of the files did not exist"""
-    result = NewestFile(ReferenceFilename, TestFilename, comparison)
-    return None if result is None else result == ReferenceFilename
+    :return: True if TestFilename is older than ReferenceFilename by more than the mtime skew
+        tolerance, None if one of the files did not exist"""
+    if ReferenceFilename is None:
+        raise ValueError("ReferenceFilename should not be None")
+    if TestFilename is None:
+        raise ValueError("TestFilename should not be None")
+    return path_is_significantly_newer(ReferenceFilename, TestFilename, comparison)
 
 
 def RemoveOutdatedFile(ReferenceFilename: str,
                        remove_if_outdated: str | datetime.datetime | datetime.date | time.struct_time | float | int,
                        comparison: FileTimeComparison = FileTimeComparison.MODIFIED) -> bool:
     """
-    Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is newer than the reference
+    Takes a ReferenceFilename and TestFilename.  Removes TestFilename if it is outdated, meaning older than
+    the reference by more than the mtime skew tolerance.
     :return: True if the input parameter is outdated
     """
     needs_removing = False

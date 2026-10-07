@@ -1,4 +1,4 @@
-'''
+﻿'''
 Created on Oct 21, 2013
 
 @author: u0490822
@@ -285,6 +285,103 @@ class TestEnsureDirectory(unittest.TestCase):
 
             self.assertTrue(os.path.isdir(dest_dir))
             self.assertTrue(os.path.isfile(dst))
+
+
+class TestMtimeSkewTolerance(unittest.TestCase):
+    """Freshness gates absorb SMB client/server mtime skew; ordering helpers stay strict."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp.cleanup)
+        self.reference = os.path.join(self._temp.name, "reference.tmp")
+        self.test = os.path.join(self._temp.name, "test.tmp")
+        for path in (self.reference, self.test):
+            with open(path, 'w') as f:
+                f.write("x")
+        self._base_ns = file_mtime_ns(self.test)
+        self.addCleanup(os.environ.pop, nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV, None)
+        os.environ.pop(nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV, None)
+
+    def _set_reference_offset(self, offset_ns: int) -> None:
+        """Set test mtime to the base and reference mtime to base + offset."""
+        os.utime(self.test, ns=(self._base_ns, self._base_ns))
+        ref_ns = self._base_ns + offset_ns
+        os.utime(self.reference, ns=(ref_ns, ref_ns))
+
+    def test_default_tolerance_is_two_seconds(self) -> None:
+        self.assertEqual(nornir_shared.files.mtime_skew_tolerance_ns(), 2_000_000_000)
+
+    def test_within_tolerance_is_not_outdated(self) -> None:
+        self._set_reference_offset(1_000_000_000)
+        self.assertFalse(nornir_shared.files.IsOutdated(self.reference, self.test))
+        self.assertFalse(nornir_shared.files.OutdatedFile(self.reference, self.test))
+
+    def test_exactly_at_tolerance_is_not_outdated(self) -> None:
+        self._set_reference_offset(2_000_000_000)
+        self.assertFalse(nornir_shared.files.IsOutdated(self.reference, self.test))
+
+    def test_beyond_tolerance_is_outdated(self) -> None:
+        self._set_reference_offset(2_000_001_000)
+        self.assertTrue(nornir_shared.files.IsOutdated(self.reference, self.test))
+        self.assertTrue(nornir_shared.files.OutdatedFile(self.reference, self.test))
+
+    def test_older_reference_is_not_outdated(self) -> None:
+        self._set_reference_offset(-10_000_000_000)
+        self.assertFalse(nornir_shared.files.IsOutdated(self.reference, self.test))
+
+    def test_missing_file_semantics_unchanged(self) -> None:
+        missing = os.path.join(self._temp.name, "missing.tmp")
+        self.assertTrue(nornir_shared.files.IsOutdated(self.reference, missing))
+        self.assertTrue(nornir_shared.files.IsOutdated(missing, self.test))
+        self.assertIsNone(nornir_shared.files.OutdatedFile(self.reference, missing))
+
+    def test_env_override_changes_tolerance(self) -> None:
+        self._set_reference_offset(1_000_000_000)
+        os.environ[nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV] = '0.5'
+        self.assertEqual(nornir_shared.files.mtime_skew_tolerance_ns(), 500_000_000)
+        self.assertTrue(nornir_shared.files.IsOutdated(self.reference, self.test))
+
+    def test_env_override_zero_restores_strict_compare(self) -> None:
+        self._set_reference_offset(1_000)
+        os.environ[nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV] = '0'
+        self.assertTrue(nornir_shared.files.IsOutdated(self.reference, self.test))
+
+    def test_invalid_and_negative_env_values(self) -> None:
+        os.environ[nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV] = 'banana'
+        self.assertEqual(nornir_shared.files.mtime_skew_tolerance_ns(), 2_000_000_000)
+        os.environ[nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV] = 'nan'
+        self.assertEqual(nornir_shared.files.mtime_skew_tolerance_ns(), 2_000_000_000)
+        os.environ[nornir_shared.files.MTIME_SKEW_TOLERANCE_ENV] = '-5'
+        self.assertEqual(nornir_shared.files.mtime_skew_tolerance_ns(), 0)
+
+    def test_significantly_newer_and_equivalent_boundaries(self) -> None:
+        tol = 1_000
+        self.assertFalse(nornir_shared.files.is_significantly_newer(1_000, 0, tolerance_ns=tol))
+        self.assertTrue(nornir_shared.files.is_significantly_newer(1_001, 0, tolerance_ns=tol))
+        self.assertFalse(nornir_shared.files.is_significantly_newer(0, 5_000, tolerance_ns=tol))
+        self.assertTrue(nornir_shared.files.mtimes_equivalent(0, 1_000, tolerance_ns=tol))
+        self.assertTrue(nornir_shared.files.mtimes_equivalent(1_000, 0, tolerance_ns=tol))
+        self.assertFalse(nornir_shared.files.mtimes_equivalent(0, 1_001, tolerance_ns=tol))
+
+    def test_newest_file_stays_strict(self) -> None:
+        self._set_reference_offset(1_000)
+        self.assertEqual(nornir_shared.files.NewestFile(self.reference, self.test), self.reference)
+        self._set_reference_offset(-1_000)
+        self.assertEqual(nornir_shared.files.NewestFile(self.reference, self.test), self.test)
+        self._set_reference_offset(0)
+        self.assertEqual(nornir_shared.files.NewestFile(self.reference, self.test), self.test)
+
+    def test_is_older_than_stays_strict(self) -> None:
+        reference_ns = self._base_ns + 1_000
+        self.assertTrue(IsOlderThan(self.test, DateTime=reference_ns / 1_000_000_000.0 + 1e-3))
+
+    def test_remove_outdated_file_respects_tolerance(self) -> None:
+        self._set_reference_offset(1_000_000_000)
+        self.assertFalse(nornir_shared.files.RemoveOutdatedFile(self.reference, self.test))
+        self.assertTrue(os.path.exists(self.test))
+        self._set_reference_offset(10_000_000_000)
+        self.assertTrue(nornir_shared.files.RemoveOutdatedFile(self.reference, self.test))
+        self.assertFalse(os.path.exists(self.test))
 
 
 if __name__ == "__main__":
