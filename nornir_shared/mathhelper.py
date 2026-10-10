@@ -3,6 +3,8 @@ Created on Jul 11, 2012
 
 @author: Jamesan
 '''
+from collections.abc import Sequence
+
 import numpy as np
 from numpy.typing import NDArray, DTypeLike
 
@@ -44,14 +46,17 @@ def RoundingPrecision(dtype: DTypeLike) -> int:
     return int(np.abs(np.log10(np.finfo(np_dtype).eps)))  # type: ignore[call-overload]
 
 
-def max_shape(shapes: list[np.integer]) -> NDArray[np.integer]:
-    """A function that returns the maximum value for each shape in the array"""
+def max_shape(shapes: Sequence[Sequence[int] | NDArray[np.integer]]) -> NDArray[np.integer]:
+    """Return the elementwise maximum of shapes that share one number of dimensions.
+
+    Callers pass array ``.shape`` tuples (or integer arrays); an empty sequence returns an
+    empty integer array.
+    """
     if len(shapes) == 0:
         return np.zeros(0, dtype=int)
 
-    shapes = np.vstack(shapes)  # type: ignore[assignment]
-    max_shape = np.max(shapes, axis=0)
-    return max_shape
+    stacked: NDArray[np.integer] = np.vstack(shapes)
+    return np.max(stacked, axis=0)
 
 
 if __name__ == '__main__':
