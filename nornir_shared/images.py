@@ -27,17 +27,33 @@ from . import prettyoutput
 from . import processoutputinterceptor
 
 
+def _magick_identify_shell_command(path: str, format_options: str) -> str:
+    """Build a ``magick identify`` shell command with ``path`` quoted."""
+
+    return f'magick identify {format_options} "{path}"'
+
+
+def _magick_identify_stdout(path: str, format_options: str) -> bytes:
+    """Run ``magick identify`` with ``format_options`` and return raw stdout."""
+
+    # Use communicate() only — wait() before reading stdout can deadlock on a full pipe.
+    proc = subprocess.Popen(
+        _magick_identify_shell_command(path, format_options) + " && exit",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdoutdata, _stderrdata = proc.communicate()
+    return stdoutdata
+
+
 def GetImageBpp(path: str) -> int | None:
     """Return bits-per-pixel for the image at ``path`` via ImageMagick identify."""
 
     if not os.path.exists(path):
         raise ValueError('GetImageBpp File not found ' + path)
 
-    # Quote the path so spaces/special chars do not break the shell command.
-    cmd = f'magick identify -format "%z" -verbose "{path}"'
-    # Use communicate() only — wait() before reading stdout can deadlock on a full pipe.
-    proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdoutdata, _stderrdata = proc.communicate()
+    stdoutdata = _magick_identify_stdout(path, '-format "%z" -verbose')
 
     bppStr = stdoutdata.strip()
     if len(bppStr) <= 0:
@@ -52,11 +68,11 @@ def GetImageBpp(path: str) -> int | None:
 
 def GetImageColorspace(path: str) -> str | None:
     """Return ImageMagick colorspace name for ``path``, or None on failure."""
-    cmd = f'magick identify -verbose -format "colorspace:%[colorspace]\\n" "{path}"'
     colorspace = None
     try:
-        proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdoutdata, _stderrdata = proc.communicate()
+        stdoutdata = _magick_identify_stdout(
+            path, '-verbose -format "colorspace:%[colorspace]\\n"'
+        )
 
         lines = stdoutdata.decode('utf-8').splitlines()
         for line in lines:
@@ -74,10 +90,9 @@ def GetImageColorspace(path: str) -> str | None:
 def GetImageStats(path: str) -> tuple[float | None, float | None, float | None, float | None]:
     """Return (Min, Mean, Max, StdDev) of an image via ImageMagick, or Nones on failure."""
 
-    cmd = (
-        f'magick identify -verbose -format '
-        f'"min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n" '
-        f'"{path}"'
+    format_options = (
+        '-verbose -format '
+        '"min:%[min]\\nmean:%[mean]\\nmax:%[max]\\nstandard deviation:%[standard-deviation]\\n"'
     )
 
     StdDev = None
@@ -86,8 +101,7 @@ def GetImageStats(path: str) -> tuple[float | None, float | None, float | None, 
     Max = None
 
     try:
-        proc = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdoutdata, _stderrdata = proc.communicate()
+        stdoutdata = _magick_identify_stdout(path, format_options)
 
         lines = stdoutdata.decode('utf-8').splitlines()
 
@@ -115,7 +129,7 @@ def GetImageStats(path: str) -> tuple[float | None, float | None, float | None, 
 
 def IdentifyImage(ImageFilePath: str):
     """Run ImageMagick identify and return an IdentifyOutputInterceptor, or None on failure."""
-    cmd = f'magick identify -verbose "{ImageFilePath}"'
+    cmd = _magick_identify_shell_command(ImageFilePath, "-verbose")
     try:
         NewP = subprocess.Popen(cmd + " && exit", shell=True, stdout=subprocess.PIPE)
     except OSError as e:
