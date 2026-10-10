@@ -667,15 +667,7 @@ def RemoveOutdatedFile(ReferenceFilename: str,
 
     if isinstance(remove_if_outdated, str):
         needs_removing = OutdatedFile(ReferenceFilename, remove_if_outdated, comparison=comparison)
-    elif isinstance(remove_if_outdated, datetime.datetime):
-        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
-    elif isinstance(remove_if_outdated, datetime.date):
-        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
-    elif isinstance(remove_if_outdated, time.struct_time):
-        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
-    elif isinstance(remove_if_outdated, float):
-        needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
-    elif isinstance(remove_if_outdated, int):
+    elif isinstance(remove_if_outdated, (datetime.datetime, datetime.date, time.struct_time, float, int)):
         needs_removing = IsOlderThan(ReferenceFilename, remove_if_outdated, comparison=comparison)
     else:
         raise ValueError(f"Unexpected type to compare against {remove_if_outdated.__class__}")

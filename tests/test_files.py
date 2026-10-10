@@ -383,6 +383,43 @@ class TestMtimeSkewTolerance(unittest.TestCase):
         self.assertTrue(nornir_shared.files.RemoveOutdatedFile(self.reference, self.test))
         self.assertFalse(os.path.exists(self.test))
 
+    def test_remove_outdated_file_routes_timestamps_to_is_older_than(self) -> None:
+        """Every non-path timestamp type is compared with IsOlderThan and never deletes anything."""
+        timestamps = [
+            datetime.datetime(2020, 1, 2, 3, 4, 5),
+            datetime.date(2020, 1, 2),
+            datetime.datetime(2020, 1, 2).timetuple(),
+            1_600_000_000.5,
+            1_600_000_000,
+            True,
+        ]
+        for value in timestamps:
+            for older in (True, False):
+                with self.subTest(type=type(value).__name__, older=older):
+                    with unittest.mock.patch.object(nornir_shared.files, 'IsOlderThan',
+                                                    return_value=older) as is_older_than, \
+                            unittest.mock.patch.object(nornir_shared.files, 'OutdatedFile') as outdated_file:
+                        result = nornir_shared.files.RemoveOutdatedFile(
+                            self.reference, value, comparison=nornir_shared.files.FileTimeComparison.CREATION)
+                    self.assertFalse(result)
+                    is_older_than.assert_called_once_with(
+                        self.reference, value, comparison=nornir_shared.files.FileTimeComparison.CREATION)
+                    outdated_file.assert_not_called()
+                    self.assertTrue(os.path.exists(self.reference))
+
+    def test_remove_outdated_file_rejects_unsupported_types(self) -> None:
+        for value in (None, [1.0], b'path', 1 + 2j):
+            with self.subTest(type=type(value).__name__), self.assertRaises(ValueError):
+                nornir_shared.files.RemoveOutdatedFile(self.reference, value)  # type: ignore[arg-type]
+
+    def test_remove_outdated_file_routes_path_to_outdated_file(self) -> None:
+        with unittest.mock.patch.object(nornir_shared.files, 'OutdatedFile', return_value=False) as outdated_file, \
+                unittest.mock.patch.object(nornir_shared.files, 'IsOlderThan') as is_older_than:
+            self.assertFalse(nornir_shared.files.RemoveOutdatedFile(self.reference, self.test))
+        outdated_file.assert_called_once_with(
+            self.reference, self.test, comparison=nornir_shared.files.FileTimeComparison.MODIFIED)
+        is_older_than.assert_not_called()
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
