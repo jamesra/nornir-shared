@@ -1075,63 +1075,6 @@ def RemoveDirectorySpaces(path: str):
             shutil.move(d, fullnameNoSpace)
 
 
-def RemoveFilenameSpaces(path: str, ext: str):
-    """Replaces spaces in filenames with _"""
-    import shutil
-
-    if not os.path.exists(path):
-        prettyoutput.Log("No valid path provided as first argument")
-        return
-
-    if ext[0] != '.':
-        ext = '.' + ext
-
-    globext = '*' + ext
-
-    prettyoutput.Log(os.path.join(path, ext))
-
-    # List all of the .mrc files in the path
-    files = glob.glob(os.path.join(path, globext))
-
-    # We expect .mrc files to be named ####_string.mrc
-    # #### is a section number
-    # string is anything the users chooses to add
-
-    prettyoutput.Log(files)
-    for f in files:
-        filename = os.path.basename(f)
-        dirname = os.path.dirname(f)
-
-        # Remove spaces if they are found
-        filenameNoSpaces = filename.replace(' ', '_')
-        filePathNoSpaces = os.path.join(dirname, filenameNoSpaces)
-        shutil.move(f, filePathNoSpaces)
-
-
-def try_locate_file(ImageFullPath: str, listAltDirs: list[str]):
-    """
-    Identify the path a file exists at.  If the path is absolute that will be
-    returned.  If the path is relative it will be combined with the list of
-    alternative paths to see if it can be found
-    """
-    if os.path.exists(ImageFullPath):
-        return ImageFullPath
-    else:
-
-        filename = ImageFullPath
-
-        # Do not use the base filename if the ImagePath is relative
-        if os.path.isabs(ImageFullPath):
-            filename = os.path.basename(ImageFullPath)
-
-        for dirname in listAltDirs:
-            nextPath = os.path.join(dirname, filename)
-            if os.path.exists(nextPath):
-                return nextPath
-
-    return None
-
-
 if __name__ == '__main__':
     output = RecurseSubdirectoriesGenerator("\\\\OpR-Marc-Syn3\\Data\\RawData\\RC3", RequiredFiles='*.idoc')
     for (path, files) in output:
