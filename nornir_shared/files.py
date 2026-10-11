@@ -851,40 +851,23 @@ def _scan_one_directory(
 
     try:
         with os.scandir(Path) as entries:
-            files, dirs = _SeparateFilesAndDirs(entries)
+            file_names, dirs = _SeparateFilesAndDirs(entries)
     except FileNotFoundError:
         prettyoutput.LogErr("RecurseSubdirectories passed path parameter which does not exist: " + Path)
         return _DirectoryScan(results, children)
-    except IOError:
+    except OSError:
         prettyoutput.LogErr("RecurseSubdirectories could not enumerate " + str(Path))
         return _DirectoryScan(results, children)
 
-    excluded = False
-    known_required_files: list[str] = []
-
-    no_file_criteria = (not isinstance(RequiredFiles, re.Pattern)
-                       and (RequiredFiles is None or len(RequiredFiles) == 0)
-                       and not isinstance(ExcludedFiles, re.Pattern)
-                       and (ExcludedFiles is None or len(ExcludedFiles) == 0))
-
-    if not no_file_criteria:
-        for file in files:
-            if not excluded and ExcludedFiles is not None:
-                excluded = excluded or check_if_str_matches(file.name, ExcludedFiles)
-                if excluded:
-                    break
-
-            if RequiredFiles is not None and check_if_str_matches(file.name, RequiredFiles):
-                known_required_files.append(file.name)
+    known_required_files = _match_required_files(file_names, RequiredFiles, ExcludedFiles)
 
     # An excluded directory takes its whole subtree with it.
-    if excluded:
+    if known_required_files is None:
         return _DirectoryScan(results, children)
 
     if len(known_required_files) > 0:
         results.append(FindFileResult(path=Path, matched_files=known_required_files))
-    elif (RequiredFiles is None or not RequiredFiles) and \
-            (MatchNames is None or not MatchNames):
+    elif not RequiredFiles and not MatchNames:
         results.append(FindFileResult(path=Path, matched_files=[]))
 
     for d in dirs:
@@ -910,16 +893,39 @@ def _scan_one_directory(
     return _DirectoryScan(results, children)
 
 
-def _SeparateFilesAndDirs(entries) -> tuple[list[os.DirEntry], list[os.DirEntry]]:
-    files = []
-    dirs = []
+def _match_required_files(file_names: collections.abc.Iterable[str],
+                          RequiredFiles: re.Pattern | frozenset[str] | None,
+                          ExcludedFiles: re.Pattern | frozenset[str] | None) -> list[str] | None:
+    """Return the file names matching RequiredFiles, or None if any matches ExcludedFiles.
+
+    Names are returned in listing order with their original case. An empty set counts as
+    no criteria, and with no criteria at all the listing is not examined. File names are
+    always compared case-insensitively.
+    """
+    matched: list[str] = []
+    if not RequiredFiles and not ExcludedFiles:
+        return matched
+
+    for name in file_names:
+        if ExcludedFiles and check_if_str_matches(name, ExcludedFiles):
+            return None
+        if RequiredFiles and check_if_str_matches(name, RequiredFiles):
+            matched.append(name)
+
+    return matched
+
+
+def _SeparateFilesAndDirs(entries: collections.abc.Iterable[os.DirEntry]) -> tuple[list[str], list[os.DirEntry]]:
+    """Split directory entries into file names and subdirectory entries, in listing order."""
+    file_names: list[str] = []
+    dirs: list[os.DirEntry] = []
     for e in entries:
         if e.is_file():
-            files.append(e)
+            file_names.append(e.name)
         elif e.is_dir():
             dirs.append(e)
 
-    return files, dirs
+    return file_names, dirs
 
 
 def _RecurseSubdirectoriesGeneratorTask(
