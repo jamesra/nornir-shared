@@ -418,36 +418,36 @@ def publish_task_complete(task_key: str, total: int) -> None:
     )
 
 
-class TaskProgressReporter:
-    """Throttled secondary dashboard bar via ``publish_task_progress``."""
+class ThrottledProgressReporter:
+    """Throttle shared by determinate dashboard progress tracks.
 
-    _task_key: str
+    Publishes 0/N on ``start``, then an ``update`` only when it reaches the
+    total, moves at least ``max(1, total // 100)`` items, or ``min_interval_s``
+    has passed since the last publish. Reporters with ``total <= 0`` publish
+    nothing. ``complete`` on a never-started reporter is a no-op. Subclasses
+    implement :meth:`_emit` and :meth:`_emit_complete`.
+    """
+
+    _track_id: str
     _total: int
-    _name: str | None
     _min_interval_s: float
     _step: int
     _last_published: int
     _last_time: float
     _started: bool
     _completed: bool
-    _last_element: str | None
-    _last_path: str | None
     _section: int | str | None
 
-    def __init__(self, task_key: str, total: int, *, name: str | None = None,
-                 min_interval_s: float = 0.25,
+    def __init__(self, track_id: str, total: int, *, min_interval_s: float = 0.25,
                  section: int | str | None = None) -> None:
-        self._task_key = task_key
+        self._track_id = track_id
         self._total = max(0, int(total))
-        self._name = name
         self._min_interval_s = min_interval_s
         self._step = max(1, self._total // 100) if self._total else 1
         self._last_published = -1
         self._last_time = 0.0
         self._started = False
         self._completed = False
-        self._last_element = None
-        self._last_path = None
         self._section = section
 
     def start(self) -> None:
@@ -457,40 +457,79 @@ class TaskProgressReporter:
         self._started = True
         self._publish(0)
 
-    def update(self, current: int, *, element: str | None = None,
-               path: str | None = None) -> None:
-        """Publish progress when enough items or time have elapsed."""
+    def update(self, current: int, **fields: Any) -> None:
+        """Publish progress when enough items or time have elapsed.
+
+        ``fields`` reach :meth:`_emit` only when this update is published.
+        """
         if self._total <= 0 or self._completed:
             return
         if not self._started:
             self.start()
-        if element is not None:
-            self._last_element = element
-        if path is not None:
-            self._last_path = path
         current = min(max(0, int(current)), self._total)
         now = time.time()
         if (current >= self._total
                 or self._last_published < 0
                 or current - self._last_published >= self._step
                 or now - self._last_time >= self._min_interval_s):
-            self._publish(current)
+            self._publish(current, **fields)
 
     def complete(self) -> None:
-        """Publish final progress then remove the nested track."""
+        """Publish final progress then remove the track."""
         if self._completed or self._total <= 0 or not self._started:
             return
         self._completed = True
         self._publish(self._total)
-        publish_task_complete(self._task_key, self._total)
+        self._emit_complete()
 
-    def _publish(self, current: int) -> None:
+    def _publish(self, current: int, **fields: Any) -> None:
         self._last_published = current
         self._last_time = time.time()
+        self._emit(current, **fields)
+
+    def _emit(self, current: int, **fields: Any) -> None:
+        """Send one progress event for *current* items."""
+        raise NotImplementedError
+
+    def _emit_complete(self) -> None:
+        """Send the event that removes the track."""
+        raise NotImplementedError
+
+
+class TaskProgressReporter(ThrottledProgressReporter):
+    """Throttled secondary dashboard bar via ``publish_task_progress``."""
+
+    _name: str | None
+    _last_element: str | None
+    _last_path: str | None
+
+    def __init__(self, task_key: str, total: int, *, name: str | None = None,
+                 min_interval_s: float = 0.25,
+                 section: int | str | None = None) -> None:
+        super().__init__(task_key, total, min_interval_s=min_interval_s, section=section)
+        self._name = name
+        self._last_element = None
+        self._last_path = None
+
+    def update(self, current: int, *, element: str | None = None,
+               path: str | None = None) -> None:
+        """Publish progress when due; *element* and *path* stick to later events."""
+        # Start first so the initial 0/N event carries the previous element/path.
+        self.start()
+        if element is not None:
+            self._last_element = element
+        if path is not None:
+            self._last_path = path
+        super().update(current)
+
+    def _emit(self, current: int, **fields: Any) -> None:
         publish_task_progress(
-            self._task_key, current, self._total, name=self._name,
+            self._track_id, current, self._total, name=self._name,
             element=self._last_element, path=self._last_path,
             section=self._section)
+
+    def _emit_complete(self) -> None:
+        publish_task_complete(self._track_id, self._total)
 
 
 def CurseProgress(text: str, Progress: float, Total: float | None = None):

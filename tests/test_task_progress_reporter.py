@@ -14,7 +14,6 @@ from unittest import mock
 
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
-
 from nornir_shared import prettyoutput
 
 _TASK_KEY = "unit:task"
