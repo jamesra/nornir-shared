@@ -46,3 +46,6 @@ Logs
 *.py.bak
 /__pycache__/
 __pycache__
+
+# Hypothesis example database
+.hypothesis/
