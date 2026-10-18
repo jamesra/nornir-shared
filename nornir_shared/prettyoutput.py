@@ -8,8 +8,6 @@ from typing import Any
 import atexit
 import json
 
-import nornir_shared.consolewindow
-
 # MQTT imports and setup
 try:
     import paho.mqtt.client as mqtt
@@ -745,9 +743,6 @@ def Log(text: str | list[Any] | Any | None = None, logger_name: str | None = Non
         print(output)
 
 
-_error_console = None  # type: nornir_shared.consolewindow.ConsoleWindow | None
-
-
 def error(error_message: str | None = None):
     LogErr(error_message, calling_func_name=get_calling_func_name())
 
@@ -762,37 +757,14 @@ def LogErr(error_message: str | None = None, calling_func_name: str | None = Non
     if calling_func_name is None:
         calling_func_name = get_calling_func_name()
 
+    # Emit exactly once locally and once to MQTT. The record is marked
+    # mqtt_published so MQTTLogHandler (installed by SetupLogging) does not
+    # publish it a second time. With no handlers configured, logging's
+    # lastResort handler still writes it to stderr.
     logger = logging.getLogger(calling_func_name)
     logger.error(error_output, extra={'mqtt_published': True})
 
-    # Publish to MQTT
     _publish_mqtt_message('error', error_output, {'logger_name': calling_func_name})
-
-    if not ECLIPSE:
-        try:
-            global _error_console
-
-            # Local error sink only — do not MQTT-subscribe here. A subscriber that
-            # printed nornir/run/# into this process mixed Docker/build INFO into the
-            # same stdout as GUI apps (Pyre debug terminal).
-            if _error_console is None:
-                _error_console = nornir_shared.consolewindow.ConsoleWindow(
-                    title="Error Console",
-                    auto_start=False,
-                )
-
-            # Send the error message to the console
-            _error_console.WriteMessage(error_output)
-            logger = logging.getLogger(calling_func_name)
-            logger.error(error_output)
-        except Exception as e:
-            # If there's an error with the console window, log it and continue
-            print(f"Error with console window: {e}")
-            _error_console = None
-            pass
-    else:
-        logger = logging.getLogger(get_calling_func_name())
-        logger.error(error_output)
 
 
 def PrettyOutputModulePath() -> str:
