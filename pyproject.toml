@@ -9,28 +9,38 @@ include = ["nornir_shared"]
 
 [project]
 name = "nornir_shared"
-version = "1.5.0"
+version = "1.5.3"
 authors = [
-  { name="James Anderson", email="James.R.Anderson@utah.edu" },
+    { name = "James Anderson", email = "James.R.Anderson@utah.edu" },
 ]
 description = "Shared routines for Nornir python packages and scripts"
 readme = "README.md"
-license = {file = "LICENSE"}
-requires-python = ">=3.7"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
 dependencies = [
-  "six",
-  "numpy",
-  "matplotlib",
+    "six >= 1.16",
+    "numpy >= 1.26",
+    "matplotlib >= 3.8",
+    "paho-mqtt >= 2.1.0",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering",
 ]
 
 [project.optional-dependencies]
-test = ["curses>=2.2","pydevd>=2.9"]
+curses = ["windows-curses; sys_platform == 'win32'"]
+test = ["pydevd>=2.9"]
 
 [project.urls]
 Homepage = "https://github.com/jamesra/nornir-shared"
 Issues = "https://github.com/jamesra/nornir-shared/issues"
+
+[tool.pytest.ini_options]
+# One stale import in one test module used to abort collection for the entire directory:
+# `Interrupted: 1 error during collection`, zero tests run, 265 of them never attempted.
+# That reads like a broken environment rather than one bad import, which is how it
+# survived (review #220). Collection errors still fail the run -- they just no longer
+# cancel every other test.
+addopts = "--continue-on-collection-errors"

@@ -11,7 +11,6 @@ import nornir_shared.consolewindow
 
 class Test(unittest.TestCase):
 
-
     def testPipes(self):
         p = nornir_shared.consolewindow.ConsoleWindow()
         self.assertIsNotNone(p, "None process for prettyoutput")

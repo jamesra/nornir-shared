@@ -1,20 +1,34 @@
 from __future__ import annotations
-import typing
+
 import copy
-from decimal import *
 import math
-import os
+import typing
 import xml.dom.minidom
+from decimal import Decimal
 
 from nornir_shared import prettyoutput
 
 
 def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
-    Count = 0
-    iCutoffBin = 0
+    '''The value at a percentile, interpolating within the bin it falls in.
+
+    Returns BinMinValue when there is nothing to measure.  Callers use this to
+    mean "no information": AutoLevel then reports the full intensity range,
+    which is the safe leveling for a blank tile.
+    '''
+    if len(Bins) == 0:
+        return BinMinValue
 
     NumValues = sum(Bins)
+    if NumValues <= 0:
+        # A blank tile (every bin empty) used to divide by the empty cutoff bin
+        # and raise ZeroDivisionError out of AutoLevel and Median.
+        return BinMinValue
+
     CutoffCount = float(NumValues) * Percentile
+
+    Count = 0
+    iCutoffBin = 0
 
     # OK, find the index where the cutoff occurs
     for i in range(0, len(Bins)):
@@ -22,6 +36,17 @@ def _FindValueAtPercentile(Bins, Percentile, BinWidth, BinMinValue):
         iCutoffBin = i
         if Count > CutoffCount:
             break
+
+    if Bins[iCutoffBin] <= 0:
+        # The loop ran off the end without passing the cutoff, so the percentile
+        # sits beyond the last sample -- Percentile=1.0, or any percentile when
+        # the histogram has trailing empty bins.  Report the top of the last
+        # populated bin instead of dividing by this empty one.
+        for i in range(len(Bins) - 1, -1, -1):
+            if Bins[i] > 0:
+                return (i * BinWidth) + BinWidth + BinMinValue
+
+        return BinMinValue
 
     # OK, find where inside the bin the cutoff occurs
     StartingCount = Count - Bins[iCutoffBin]
@@ -44,6 +69,13 @@ class Histogram(object):
         self.NumBins = 0
         self.NumSamples = 0
 
+        # True when the binned samples are integers, as all Nornir image
+        # intensities are.  A bin then holds the integers
+        # [start, start + BinWidth - 1], whose representative value is
+        # start + (BinWidth-1)/2, not the continuous midpoint start + BinWidth/2.
+        # Statistics use the continuous midpoint when this is False.
+        self.IntegerValues = True
+
         self.Bins = list()
         pass
 
@@ -58,15 +90,19 @@ class Histogram(object):
 
     def __getstate__(self):
         save = {'MinValue': self.MinValue, 'MaxValue': self.MaxValue, 'NumBins': self.NumBins,
-                'NumSamples': self.NumSamples, 'Bins': self.Bins}
+                'NumSamples': self.NumSamples, 'Bins': self.Bins,
+                'IntegerValues': self.IntegerValues}
         return save
 
     def __setstate__(self, state):
+        # Pickles written before IntegerValues existed hold integer samples.
+        self.IntegerValues = True
         self.__dict__.update(state)
 
     @classmethod
-    def Init(cls, minVal, maxVal, numBins=None, binVals=None):
+    def Init(cls, minVal, maxVal, numBins=None, binVals=None, integerValues: bool = True):
         obj = Histogram()
+        obj.IntegerValues = integerValues
 
         if numBins is None:
             # Add one for being zero based
@@ -93,8 +129,10 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def FromArray(hist_array: typing.Sequence[float], minValue: float, binSize: float) -> Histogram:
+    def FromArray(hist_array: typing.Sequence[float], minValue: float, binSize: float,
+                  integerValues: bool = True) -> Histogram:
         obj = Histogram()
+        obj.IntegerValues = integerValues
 
         obj.NumBins = len(hist_array)
         obj.Bins = list(hist_array)
@@ -104,13 +142,13 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def FromXML(xml: str) -> Histogram | None:
+    def FromXML(xml_input: str | xml.dom.minidom.Document) -> Histogram | None:
         obj = Histogram()
 
-        if isinstance(xml, str):
-            xmlDoc = xml.dom.minidom.parseString(xml)
+        if isinstance(xml_input, str):
+            xmlDoc = xml.dom.minidom.parseString(xml_input)
         else:
-            xmlDoc = xml
+            xmlDoc = xml_input
         # else:
         # raise InvalidOperation("xml parameter was not a string or XML minidom object")
 
@@ -133,6 +171,11 @@ class Histogram(object):
         if HistogramElem.hasAttribute('MaxValue'):
             obj.MaxValue = float(HistogramElem.getAttribute('MaxValue'))
 
+        # Absent in histograms written before this attribute existed; those hold
+        # integer image intensities.
+        if HistogramElem.hasAttribute('IntegerValues'):
+            obj.IntegerValues = HistogramElem.getAttribute('IntegerValues').lower() == 'true'
+
         ChannelElems = HistogramElem.getElementsByTagName('Channel')
 
         if len(ChannelElems) == 0:
@@ -142,7 +185,7 @@ class Histogram(object):
         ChannelElem = ChannelElems[0]
 
         BinNode = ChannelElem.firstChild
-        BinString = BinNode.data
+        BinString = BinNode.data  # type: ignore[union-attr]
 
         BinStrings = BinString.split()
 
@@ -159,14 +202,13 @@ class Histogram(object):
         return obj
 
     @staticmethod
-    def Load(filename: str) -> Histogram | None: 
+    def Load(filename: str) -> Histogram | None:
         try:
             xml_str = xml.dom.minidom.parse(filename)
             return Histogram.FromXML(xml_str)
         except FileNotFoundError:
             prettyoutput.Log(f"Mosaic file not found: {filename}")
             return None
-        
 
     @property
     def BinWidth(self) -> float:
@@ -174,7 +216,18 @@ class Histogram(object):
         return float((self.MaxValue + 1) - self.MinValue) / float(self.NumBins)
 
     def _MinMaxBinIndicies(self, minVal: float | None = None, maxVal: float | None = None) -> tuple[int, int, float]:
-        '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals'''
+        '''Returns (iMin, iMax, MinBinValue) for a pair of minVal, maxVals.
+
+        iMax is an **exclusive** upper bound, matching how every caller uses it
+        (``Bins[iMin:iMax]`` and ``range(iMin, iMax)``).
+
+        This previously returned ``NumBins - 1`` by default and
+        ``MapIntensityToBin(maxVal)`` when given a maximum, so the top bin -- and
+        the bin holding maxVal -- were silently dropped from every statistic.
+        With saturated data that is severe: 100k counts in the top bin against
+        150 elsewhere reported a mean of 120 instead of 248, and PeakValue missed
+        the peak entirely.
+        '''
 
         AdjustedMin = self.MinValue
 
@@ -183,13 +236,37 @@ class Histogram(object):
             iMin = self.MapIntensityToBin(minVal)
             AdjustedMin = minVal
 
-        iMax = self.NumBins - 1
+        iMax = self.NumBins
         if maxVal is not None:
-            iMax = self.MapIntensityToBin(maxVal)
+            # +1 so the bin containing maxVal is included in the range.
+            iMax = self.MapIntensityToBin(maxVal) + 1
 
         return iMin, iMax, AdjustedMin
 
+    def BinRepresentativeValue(self, iBin: int) -> float:
+        '''The value standing in for every sample in a bin, for statistics.
+
+        For integer samples the bin holds [start, start + BinWidth - 1], whose
+        mean is ``start + (BinWidth-1)/2``.  Using the continuous midpoint
+        ``start + BinWidth/2`` instead biases every statistic half a gray level
+        high, which for the common BinWidth of 1 means reporting 64.5 for a bin
+        that can only ever contain the value 64.
+        '''
+        if self.IntegerValues and self.BinWidth >= 1:
+            return self.BinValue(iBin) + ((self.BinWidth - 1.0) / 2.0)
+
+        return self.BinValue(iBin, fraction=0.5)
+
     def Median(self, minVal: float | None = None, maxVal: float | None = None) -> float:
+        '''The value at the 50th percentile.
+
+        Unlike :meth:`Mean` and :meth:`PeakValue`, this interpolates continuously
+        within the bin holding the percentile and so is not integer-aware: for
+        uniform integer samples it can land on a bin boundary and sit half a bin
+        above the true discrete median.  The interpolation is shared with
+        :meth:`AutoLevel`, so it is left alone deliberately rather than made
+        integer-aware here.
+        '''
 
         (iMin, iMax, AdjustedMin) = self._MinMaxBinIndicies(minVal, maxVal)
 
@@ -222,13 +299,13 @@ class Histogram(object):
         :returns: The index of the highest valued bin that contains a non-zero value, or None if all bins are empty
         '''
         # Remove empty buckets from the high-end of the histogram
-        for i in range(len(self.Bins) - 2, -1, -1):
+        for i in range(len(self.Bins) - 1, -1, -1):
             if self.Bins[i] > 0:
                 return i
 
         return None
 
-    def Mean(self, minVal=None, maxVal=None) -> float:
+    def Mean(self, minVal=None, maxVal=None) -> float | None:
 
         iBin = 0
         maxBin = 0
@@ -239,8 +316,11 @@ class Histogram(object):
 
         for ibin in range(iMin, iMax):
             bincount = self.Bins[ibin]
-            _sum += Decimal(bincount * self.BinValue(ibin, fraction=0.5))
+            _sum += Decimal(bincount * self.BinRepresentativeValue(ibin))
             totalcount += bincount
+
+        if totalcount == 0:
+            return None  # type: ignore[return-value]
 
         return float(_sum) / float(totalcount)
 
@@ -255,9 +335,15 @@ class Histogram(object):
             bincount = self.Bins[ibin]
             if maxBin < bincount:
                 maxBin = bincount
-                PeakList = [self.BinValue(ibin, fraction=0.5)]
+                PeakList = [self.BinRepresentativeValue(ibin)]
             elif maxBin == bincount:
-                PeakList.append(self.BinValue(ibin, fraction=0.5))
+                PeakList.append(self.BinRepresentativeValue(ibin))
+
+        if maxBin <= 0:
+            # Every bin in range is empty, so they all tie at zero and PeakList
+            # collects the whole range -- which reported a confident midpoint
+            # intensity for a blank tile.  Mean already returns None here.
+            return None
 
         if len(PeakList) == 0:
             return None
@@ -271,6 +357,7 @@ class Histogram(object):
 
         percentile = float(val) / float(self.MaxValue)
         if not (minVal is None and maxVal is None):
+            assert minVal is not None and maxVal is not None
             percentile = (float(val) - float(minVal)) / (float(maxVal) - float(minVal))
 
         assert (percentile >= 0.0)
@@ -332,6 +419,16 @@ class Histogram(object):
 
         # prettyoutput.Log("MinValue: " + str(self.MinValue) + " MaxValue: " + str(self.MaxValue) + " StepSize: " + str(self.BinWidth()))
         # prettyoutput.Log("iBins: " + str(iMinBin) + " " + str(iMaxBin))
+
+        # An intensity outside the histogram's own range is not a meaningful
+        # cutoff.  Extreme percentiles can produce one -- MaxCutoff=1.0 trims
+        # every sample, and MaxValue - CutoffValue then goes negative.
+        #
+        # Overlapping cutoffs can still return MinCutoffValue > MaxCutoffValue.
+        # That is left alone: it means the caller asked for a window with no
+        # dynamic range left, and hiding it would mask the caller's error.
+        MinCutoffValue = min(max(MinCutoffValue, self.MinValue), self.MaxValue)
+        MaxCutoffValue = min(max(MaxCutoffValue, self.MinValue), self.MaxValue)
 
         return MinCutoffValue, MaxCutoffValue
 
@@ -417,29 +514,33 @@ class Histogram(object):
         outlier_cutoff = math.ceil(hObj.NumSamples / 10000.0)
         if outlier_cutoff < 2:
             outlier_cutoff = 2
-        HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[-2] == 0) and not TrimOnly
-        Trimmable = hObj.Bins[-1] == 0
 
+        def _max_outlier_flags(hist) -> tuple[bool, bool]:
+            if len(hist.Bins) < 2:
+                return False, False
+            has_outlier = ((0 < hist.Bins[-1] < outlier_cutoff) and hist.Bins[-2] == 0) and not TrimOnly
+            trimmable = hist.Bins[-1] == 0
+            return has_outlier, trimmable
+
+        HasOutlier, Trimmable = _max_outlier_flags(hObj)
         if not HasOutlier and not Trimmable:
             return hObj
 
         while HasOutlier or Trimmable:
-
-            # Remove empty buckets from the high-end of the histogram
+            # Last non-zero bin at or before index len-2 (we always drop the trailing empty/outlier).
+            trim_to: int | None = None
             for i in range(len(hObj.Bins) - 2, -1, -1):
                 if hObj.Bins[i] > 0:
+                    trim_to = i
                     break
 
-            # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
-            if i is None:
+            if trim_to is None:
+                # No positive mass remains below the last bin — stop to avoid an infinite loop.
                 return hObj
 
-            newBins = hObj.Bins[0:i + 1]
-
+            newBins = hObj.Bins[0:trim_to + 1]
             hObj = Histogram.FromArray(newBins, hObj.MinValue, hObj.BinWidth)
-            HasOutlier = ((hObj.Bins[-1] > 0 and hObj.Bins[-1] < outlier_cutoff) and hObj.Bins[
-                -2] == 0) and not TrimOnly
-            Trimmable = hObj.Bins[-1] == 0
+            HasOutlier, Trimmable = _max_outlier_flags(hObj)
 
         return hObj
 
@@ -455,30 +556,35 @@ class Histogram(object):
         outlier_cutoff = math.ceil(hObj.NumSamples / 100000.0)
         if outlier_cutoff < 2:
             outlier_cutoff = 2
-        HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
-        Trimmable = hObj.Bins[0] == 0
 
+        def _min_outlier_flags(hist) -> tuple[bool, bool]:
+            if len(hist.Bins) < 2:
+                return False, False
+            has_outlier = ((0 < hist.Bins[0] < outlier_cutoff) and hist.Bins[1] == 0) and not TrimOnly
+            trimmable = hist.Bins[0] == 0
+            return has_outlier, trimmable
+
+        HasOutlier, Trimmable = _min_outlier_flags(hObj)
         if not HasOutlier and not Trimmable:
             return hObj
 
         while HasOutlier or Trimmable:
-
-            # Remove empty buckets from the low-end of the histogram
-            for i, count in enumerate(hObj.Bins):
-                if i == 0:
-                    continue  # Skip the first bucket since we know we need to trim
+            # First non-zero bin after index 0 (we always drop the leading bucket when trimming).
+            trim_at: int | None = None
+            for idx, count in enumerate(hObj.Bins):
+                if idx == 0:
+                    continue
                 if count > 0:
+                    trim_at = idx
                     break
 
-            # This means no values were above zero, lets just leave the histogram alone.  Probably never happens
-            if i is None:
+            if trim_at is None:
+                # Only zeros remain after the first bin — stop to avoid an infinite loop.
                 return hObj
 
-            newBins = hObj.Bins[i:]
-
-            hObj = Histogram.FromArray(newBins, hObj.BinValue(i), hObj.BinWidth)
-            HasOutlier = ((hObj.Bins[0] > 0 and hObj.Bins[0] < outlier_cutoff) and hObj.Bins[1] == 0) and not TrimOnly
-            Trimmable = hObj.Bins[0] == 0
+            newBins = hObj.Bins[trim_at:]
+            hObj = Histogram.FromArray(newBins, hObj.BinValue(trim_at), hObj.BinWidth)
+            HasOutlier, Trimmable = _min_outlier_flags(hObj)
 
         return hObj
 
@@ -498,7 +604,7 @@ class Histogram(object):
             if self.Bins[min_index] >= cutoff:
                 break
 
-        for max_index in range(self.NumBins-1, -1, -1):
+        for max_index in range(self.NumBins - 1, -1, -1):
             if self.Bins[max_index] >= cutoff:
                 break
 
@@ -514,7 +620,7 @@ class Histogram(object):
 
         Elems = xmlDoc.getElementsByTagName('Histogram')
         if len(Elems) != 1:
-            return
+            raise RuntimeError("Expected exactly one Histogram element in XML document")
 
         HistogramElem = Elems[0]
 
@@ -522,6 +628,7 @@ class Histogram(object):
         HistogramElem.setAttribute('NumSamples', str(int(self.NumSamples)))
         HistogramElem.setAttribute('MinValue', str(self.MinValue))
         HistogramElem.setAttribute('MaxValue', str(self.MaxValue))
+        HistogramElem.setAttribute('IntegerValues', str(bool(self.IntegerValues)))
 
         ChannelElem = xmlDoc.createElement('Channel')
         binsString = self.BinsToString()

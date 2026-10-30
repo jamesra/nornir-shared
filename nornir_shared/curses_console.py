@@ -51,6 +51,7 @@ def CurseString(topic, text):
 
     y = GetOrCreateTopicRow(topic)
 
+    assert _status_window is not None
     (yMax, xMax) = _status_window.getmaxyx()
 
     outStr = "%s : %s" % (topic, text)
