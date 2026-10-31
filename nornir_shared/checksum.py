@@ -50,6 +50,18 @@ def DataChecksum(data: str | list | bytes | None) -> str | None:
     return m.hexdigest()
 
 
+def LegacyListChecksum(items: list) -> str:
+    '''
+    DataChecksum of a list as computed before 2026-08-10 (ac6298a): the items' bytes
+    concatenated with no length prefixes. Only for recognizing checksums stored in volume
+    metadata before that change; new checksums use DataChecksum.
+    '''
+    m = hashlib.md5()
+    for item in items:
+        m.update(str(item).encode())
+    return m.hexdigest()
+
+
 def FileChecksum(filename: str) -> str | None:
     '''
     Return the md5 hash of a file's raw bytes.
