@@ -5,7 +5,9 @@ from collections.abc import Iterable, Sequence
 import matplotlib
 import matplotlib.axes
 import matplotlib.collections
+import matplotlib.figure
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 import numpy
 from numpy.typing import NDArray
 
@@ -85,16 +87,25 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
               range_is_power_of_two: bool = False,
               axes: matplotlib.axes.Axes | None = None):
     caller_owns_axes = axes is not None
-    if axes is None:
+    # Saving to a file uses a figure of its own on the Agg canvas, with no pyplot state. Importers plot from pool
+    # threads, and pyplot on a GUI backend (QtAgg, chosen by nornir_imageregistration/build.py on desktops whatever
+    # MPLBACKEND says) segfaulted there: ImportIDoc -NoCrush of RC2_Micro/17, 2026-11-05.
+    owns_agg_figure = axes is None and ImageFilename is not None
+    if owns_agg_figure:
+        figure = matplotlib.figure.Figure()
+        FigureCanvasAgg(figure)
+        axes = figure.add_subplot()
+    elif axes is None:
         plt.clf()
         axes = plt.axes()
     else:
         plt.sca(axes)
     assert axes is not None
+    figure = axes.figure
 
     pi = 150 if dpi is None else dpi
 
-    if ImageFilename is not None:
+    if ImageFilename is not None and not owns_agg_figure:
         # plt.show()
         plt.ioff()
 
@@ -197,12 +208,12 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
             axes.plot([linePos, linePos], [0, yMax], color=color)
             axes.annotate(f'{linePos:g}', [linePos, yMax * 0.9])  # type: ignore[reportArgumentType]
 
-    plt.gcf().set_dpi(150)
+    figure.set_dpi(150)
 
     visible_min_x, visible_max_x = None, None
     if minX is None or maxX is None:
 
-        width_pixels, height_pixels = GetPlotSizeInPixels(plt.gcf(), axes)
+        width_pixels, height_pixels = GetPlotSizeInPixels(figure, axes)
         # If we do not have enough horizontal space to display the entire histogram, attempt to trim it to the visible region
         if width_pixels < (Hist.MaxValue - Hist.MinValue) / Hist.BinWidth:
             visible_min_x, visible_max_x = Hist.XAxis_Extrema_Using_Threshold(height_pixels)
@@ -223,7 +234,9 @@ def Histogram(HistogramOrFilename: histogram.Histogram | str,
 
     axes.set_xlim([minX - Hist.BinWidth, maxX + Hist.BinWidth])  # type: ignore[operator]
 
-    if ImageFilename is not None:
+    if owns_agg_figure:
+        figure.savefig(ImageFilename, bbox_inches='tight', dpi=dpi)
+    elif ImageFilename is not None:
         # plt.show() 
         plt.savefig(ImageFilename, bbox_inches='tight', dpi=dpi)
         plt.close()
