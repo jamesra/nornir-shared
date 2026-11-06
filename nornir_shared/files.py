@@ -208,11 +208,15 @@ def copy_file(
     *,
     retries: int = 16,
     base_delay_s: float = 0.1,
+    atomic: bool = True,
 ) -> None:
     """Copy *src* to *dst* with CIFS/NFS retries (atomic replace in dest dir).
 
     Stage-level ``ensure_directory`` should create *parent* once.  On failure this
     re-pins directory visibility in the worker thread and retries with backoff.
+
+    With ``atomic=False`` the bytes are written straight to *dst* (no temp file and rename, so fewer round trips on a
+    network share).  A failed copy removes the partial *dst*, but a killed process can leave one behind.
     """
     src = os.path.abspath(src)
     dst = os.path.abspath(dst)
@@ -227,6 +231,8 @@ def copy_file(
                 raise FileNotFoundError(f"Source file does not exist: {src}")
             if parent is None:
                 shutil.copyfile(src, dst)
+            elif not atomic:
+                _copy_file_direct(src, dst)
             else:
                 _copy_file_atomic(src, dst, parent)
             return
@@ -244,6 +250,19 @@ def copy_file(
     if last_error is not None:
         raise last_error
     raise FileNotFoundError(f"Unable to copy {src!r} to {dst!r}")
+
+
+def _copy_file_direct(src: str, dst: str) -> None:
+    """Write *src* straight to *dst*, removing the partial *dst* if the copy fails."""
+    try:
+        with open(src, 'rb') as in_f, open(dst, 'wb') as out_f:
+            shutil.copyfileobj(in_f, out_f)
+    except BaseException:
+        try:
+            os.unlink(dst)
+        except OSError:
+            pass
+        raise
 
 
 def _copy_file_atomic(src: str, dst: str, parent: str) -> None:

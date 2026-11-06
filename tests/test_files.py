@@ -286,6 +286,37 @@ class TestEnsureDirectory(unittest.TestCase):
             self.assertTrue(os.path.isdir(dest_dir))
             self.assertTrue(os.path.isfile(dst))
 
+    def test_copy_file_non_atomic_writes_final_name_without_temp_file(self) -> None:
+        """atomic=False writes the bytes straight to dst; no temp file is created in the destination directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = os.path.join(temp_dir, "src.png")
+            with open(src, "wb") as handle:
+                handle.write(b"png-bytes")
+            dest_dir = os.path.join(temp_dir, "dest")
+            os.makedirs(dest_dir)
+            dst = os.path.join(dest_dir, "tile.png")
+
+            with unittest.mock.patch.object(nornir_shared.files.tempfile, "mkstemp", side_effect=AssertionError("temp file used")):
+                nornir_shared.files.copy_file(src, dst, atomic=False)
+
+            with open(dst, "rb") as handle:
+                self.assertEqual(handle.read(), b"png-bytes")
+            self.assertEqual(os.listdir(dest_dir), ["tile.png"])
+
+    def test_copy_file_non_atomic_removes_partial_dest_on_failure(self) -> None:
+        """A copy that fails midway does not leave a truncated tile at the final name."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = os.path.join(temp_dir, "src.png")
+            with open(src, "wb") as handle:
+                handle.write(b"png-bytes")
+            dst = os.path.join(temp_dir, "tile.png")
+
+            with unittest.mock.patch.object(nornir_shared.files.shutil, "copyfileobj", side_effect=PermissionError("boom")):
+                with self.assertRaises(PermissionError):
+                    nornir_shared.files.copy_file(src, dst, atomic=False)
+
+            self.assertFalse(os.path.exists(dst))
+
 
 class TestMtimeSkewTolerance(unittest.TestCase):
     """Freshness gates absorb SMB client/server mtime skew; ordering helpers stay strict."""
