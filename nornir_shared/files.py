@@ -202,6 +202,14 @@ def pin_directory_for_worker(path: str) -> None:
         ensure_directory(abspath)
 
 
+TILE_COPY_ATOMIC_ENV = "NORNIR_TILE_COPY_ATOMIC"
+
+
+def tile_copy_atomic() -> bool:
+    """False when ``NORNIR_TILE_COPY_ATOMIC`` is 0/false/no: tiles are written straight to the share, skipping the temp file and rename."""
+    return os.environ.get(TILE_COPY_ATOMIC_ENV, '1').strip().lower() not in ('0', 'false', 'no')
+
+
 def copy_file(
     src: str,
     dst: str,

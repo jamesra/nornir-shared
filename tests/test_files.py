@@ -303,6 +303,13 @@ class TestEnsureDirectory(unittest.TestCase):
                 self.assertEqual(handle.read(), b"png-bytes")
             self.assertEqual(os.listdir(dest_dir), ["tile.png"])
 
+    def test_tile_copy_atomic_follows_environment(self) -> None:
+        """NORNIR_TILE_COPY_ATOMIC=0 turns off atomic tile copies; unset or 1 keeps them."""
+        for value, expected in ((None, True), ("1", True), ("0", False), ("false", False), ("No", False)):
+            env = {} if value is None else {nornir_shared.files.TILE_COPY_ATOMIC_ENV: value}
+            with unittest.mock.patch.dict(os.environ, env, clear=value is None):
+                self.assertEqual(nornir_shared.files.tile_copy_atomic(), expected, value)
+
     def test_copy_file_non_atomic_removes_partial_dest_on_failure(self) -> None:
         """A copy that fails midway does not leave a truncated tile at the final name."""
         with tempfile.TemporaryDirectory() as temp_dir:
