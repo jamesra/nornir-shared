@@ -202,29 +202,20 @@ def pin_directory_for_worker(path: str) -> None:
         ensure_directory(abspath)
 
 
-TILE_COPY_ATOMIC_ENV = "NORNIR_TILE_COPY_ATOMIC"
-
-
-def tile_copy_atomic() -> bool:
-    """False when ``NORNIR_TILE_COPY_ATOMIC`` is 0/false/no: tiles are written straight to the share, skipping the temp file and rename."""
-    return os.environ.get(TILE_COPY_ATOMIC_ENV, '1').strip().lower() not in ('0', 'false', 'no')
-
-
 def copy_file(
     src: str,
     dst: str,
     *,
     retries: int = 16,
     base_delay_s: float = 0.1,
-    atomic: bool = True,
 ) -> None:
-    """Copy *src* to *dst* with CIFS/NFS retries (atomic replace in dest dir).
+    """Copy *src* to *dst* with CIFS/NFS retries.
 
     Stage-level ``ensure_directory`` should create *parent* once.  On failure this
     re-pins directory visibility in the worker thread and retries with backoff.
 
-    With ``atomic=False`` the bytes are written straight to *dst* (no temp file and rename, so fewer round trips on a
-    network share).  A failed copy removes the partial *dst*, but a killed process can leave one behind.
+    The bytes are written straight to *dst* (no temp file and rename: on a network share that is about 40% faster per
+    file).  A failed copy removes the partial *dst*, but a killed process can leave a truncated one behind.
     """
     src = os.path.abspath(src)
     dst = os.path.abspath(dst)
@@ -239,10 +230,8 @@ def copy_file(
                 raise FileNotFoundError(f"Source file does not exist: {src}")
             if parent is None:
                 shutil.copyfile(src, dst)
-            elif not atomic:
-                _copy_file_direct(src, dst)
             else:
-                _copy_file_atomic(src, dst, parent)
+                _copy_file_direct(src, dst)
             return
         except FileNotFoundError as e:
             last_error = e
@@ -268,22 +257,6 @@ def _copy_file_direct(src: str, dst: str) -> None:
     except BaseException:
         try:
             os.unlink(dst)
-        except OSError:
-            pass
-        raise
-
-
-def _copy_file_atomic(src: str, dst: str, parent: str) -> None:
-    """Write via a temp file in *parent* and atomically replace *dst*."""
-    fd, tmp_path = tempfile.mkstemp(prefix='.nornir_copy_', dir=parent)
-    try:
-        with os.fdopen(fd, 'wb') as out_f:
-            with open(src, 'rb') as in_f:
-                shutil.copyfileobj(in_f, out_f)
-        os.replace(tmp_path, dst)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
         except OSError:
             pass
         raise

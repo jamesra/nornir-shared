@@ -254,19 +254,19 @@ class TestEnsureDirectory(unittest.TestCase):
                 handle.write(b"png")
             dst = os.path.join(dest_dir, "tile.png")
 
-            original_atomic = nornir_shared.files._copy_file_atomic
+            original_direct = nornir_shared.files._copy_file_direct
             calls = {"count": 0}
 
-            def atomic_side_effect(src_path: str, dst_path: str, parent: str) -> None:
+            def direct_side_effect(src_path: str, dst_path: str) -> None:
                 calls["count"] += 1
                 if calls["count"] == 1:
                     raise FileNotFoundError(dst_path)
-                return original_atomic(src_path, dst_path, parent)
+                return original_direct(src_path, dst_path)
 
             with unittest.mock.patch.object(
                 nornir_shared.files,
-                "_copy_file_atomic",
-                side_effect=atomic_side_effect,
+                "_copy_file_direct",
+                side_effect=direct_side_effect,
             ):
                 nornir_shared.files.copy_file(src, dst, retries=4, base_delay_s=0.0)
 
@@ -286,8 +286,8 @@ class TestEnsureDirectory(unittest.TestCase):
             self.assertTrue(os.path.isdir(dest_dir))
             self.assertTrue(os.path.isfile(dst))
 
-    def test_copy_file_non_atomic_writes_final_name_without_temp_file(self) -> None:
-        """atomic=False writes the bytes straight to dst; no temp file is created in the destination directory."""
+    def test_copy_file_writes_final_name_without_temp_file(self) -> None:
+        """copy_file writes the bytes straight to dst; no temp file is created in the destination directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             src = os.path.join(temp_dir, "src.png")
             with open(src, "wb") as handle:
@@ -297,20 +297,13 @@ class TestEnsureDirectory(unittest.TestCase):
             dst = os.path.join(dest_dir, "tile.png")
 
             with unittest.mock.patch.object(nornir_shared.files.tempfile, "mkstemp", side_effect=AssertionError("temp file used")):
-                nornir_shared.files.copy_file(src, dst, atomic=False)
+                nornir_shared.files.copy_file(src, dst)
 
             with open(dst, "rb") as handle:
                 self.assertEqual(handle.read(), b"png-bytes")
             self.assertEqual(os.listdir(dest_dir), ["tile.png"])
 
-    def test_tile_copy_atomic_follows_environment(self) -> None:
-        """NORNIR_TILE_COPY_ATOMIC=0 turns off atomic tile copies; unset or 1 keeps them."""
-        for value, expected in ((None, True), ("1", True), ("0", False), ("false", False), ("No", False)):
-            env = {} if value is None else {nornir_shared.files.TILE_COPY_ATOMIC_ENV: value}
-            with unittest.mock.patch.dict(os.environ, env, clear=value is None):
-                self.assertEqual(nornir_shared.files.tile_copy_atomic(), expected, value)
-
-    def test_copy_file_non_atomic_removes_partial_dest_on_failure(self) -> None:
+    def test_copy_file_removes_partial_dest_on_failure(self) -> None:
         """A copy that fails midway does not leave a truncated tile at the final name."""
         with tempfile.TemporaryDirectory() as temp_dir:
             src = os.path.join(temp_dir, "src.png")
@@ -320,7 +313,7 @@ class TestEnsureDirectory(unittest.TestCase):
 
             with unittest.mock.patch.object(nornir_shared.files.shutil, "copyfileobj", side_effect=PermissionError("boom")):
                 with self.assertRaises(PermissionError):
-                    nornir_shared.files.copy_file(src, dst, atomic=False)
+                    nornir_shared.files.copy_file(src, dst)
 
             self.assertFalse(os.path.exists(dst))
 
