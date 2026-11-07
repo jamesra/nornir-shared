@@ -26,17 +26,7 @@ except ImportError:
     MQTT_AVAILABLE = False
 
 import nornir_shared.console_constants
-
-curses_available = False
-try:
-    import curses
-
-    curses_available = True
-except ImportError:
-    pass
-
-if curses_available:
-    import nornir_shared.curses_console
+import nornir_shared.curses_console
 
 _curses_topic_line_dict = {}
 pydevd_available = False
@@ -264,9 +254,7 @@ def CursesHandler(data_str: str):
     Sends output to the curses window. Input strings should contain "SEVERITY:TEXT" using the colon as a delimiter
     :param str data_str: Data received over MQTT
     """
-    global curses_available
-
-    if not curses_available:
+    if not nornir_shared.curses_console.curses_available:
         NoCursesHandler(data_str)
     else:
         (severity, colon, text) = data_str.partition(':')
@@ -302,7 +290,7 @@ if __name__ == '__main__':
         # Setup signal handlers for graceful shutdown
         setup_signal_handlers()
 
-        if curses_available and not args.nocurses:
+        if nornir_shared.curses_console.curses_available and not args.nocurses:
             try:
                 success = nornir_shared.curses_console.InitCurses()
                 assert success, "Could not InitCurses"
