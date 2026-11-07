@@ -249,6 +249,46 @@ def copy_file(
     raise FileNotFoundError(f"Unable to copy {src!r} to {dst!r}")
 
 
+def write_file_bytes(
+    dst: str,
+    data: bytes,
+    *,
+    retries: int = 16,
+    base_delay_s: float = 0.1,
+) -> None:
+    """Write *data* straight to *dst* with the same CIFS/NFS retries and partial-file cleanup as ``copy_file``."""
+    dst = os.path.abspath(dst)
+    parent = os.path.dirname(dst) or None
+
+    last_error: OSError | None = None
+    for attempt in range(retries):
+        try:
+            try:
+                with open(dst, 'wb') as out_f:
+                    out_f.write(data)
+            except BaseException:
+                try:
+                    os.unlink(dst)
+                except OSError:
+                    pass
+                raise
+            return
+        except FileNotFoundError as e:
+            last_error = e
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            last_error = e
+
+        if parent:
+            pin_directory_for_worker(parent)
+        time.sleep(base_delay_s * (attempt + 1))
+
+    if last_error is not None:
+        raise last_error
+    raise FileNotFoundError(f"Unable to write {dst!r}")
+
+
 def _copy_file_direct(src: str, dst: str) -> None:
     """Write *src* straight to *dst*, removing the partial *dst* if the copy fails."""
     try:

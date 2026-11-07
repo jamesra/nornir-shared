@@ -4,6 +4,7 @@ Created on Oct 21, 2013
 @author: u0490822
 '''
 import datetime
+import errno
 import os
 import shutil
 import tempfile
@@ -315,6 +316,59 @@ class TestEnsureDirectory(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     nornir_shared.files.copy_file(src, dst)
 
+            self.assertFalse(os.path.exists(dst))
+
+    def test_write_file_bytes_writes_the_final_name_directly(self) -> None:
+        """Held tile bytes land at the final name with no temp file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dst = os.path.join(temp_dir, "tile.png")
+            nornir_shared.files.write_file_bytes(dst, b"png-bytes")
+            with open(dst, "rb") as handle:
+                self.assertEqual(handle.read(), b"png-bytes")
+            self.assertEqual(os.listdir(temp_dir), ["tile.png"])
+
+    def test_write_file_bytes_retries_a_missing_directory_then_succeeds(self) -> None:
+        """A directory that CIFS reports missing for a moment is retried like a copy."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dst = os.path.join(temp_dir, "tile.png")
+            real_open = open
+            calls = {"n": 0}
+
+            def flaky_open(path, *args, **kwargs):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise FileNotFoundError(errno.ENOENT, "gone", path)
+                return real_open(path, *args, **kwargs)
+
+            with unittest.mock.patch("builtins.open", flaky_open):
+                nornir_shared.files.write_file_bytes(dst, b"x", base_delay_s=0)
+            self.assertEqual(calls["n"], 2)
+
+    def test_write_file_bytes_removes_partial_dest_on_failure(self) -> None:
+        """A failed write does not leave a truncated tile at the final name."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dst = os.path.join(temp_dir, "tile.png")
+            real_open = open
+
+            class _FailingWrite:
+                """The real file, created on disk, whose write fails."""
+
+                def __init__(self, path: str) -> None:
+                    self._file = real_open(path, "wb")
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc) -> bool:
+                    self._file.close()
+                    return False
+
+                def write(self, data: bytes) -> int:
+                    raise PermissionError("boom")
+
+            with unittest.mock.patch("builtins.open", lambda path, *a, **k: _FailingWrite(path)):
+                with self.assertRaises(PermissionError):
+                    nornir_shared.files.write_file_bytes(dst, b"png-bytes")
             self.assertFalse(os.path.exists(dst))
 
 
