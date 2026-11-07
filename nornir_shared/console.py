@@ -10,7 +10,6 @@ import os
 import sys
 import time
 import traceback
-import json
 import signal
 
 # MQTT imports
@@ -20,7 +19,7 @@ try:
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
-        MQTT_RUN_TOPIC_ROOT
+        MQTT_RUN_TOPIC_ROOT, parse_log_payload
 
     MQTT_AVAILABLE = True
 except ImportError:
@@ -187,10 +186,7 @@ def MQTTConsoleLoop(HOST: str, PORT: int, title: str, handler_func):
 
         def on_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage):
             try:
-                payload = json.loads(msg.payload.decode())
-                message = payload.get('message', '')
-                severity = payload.get('severity', 'info')
-                timestamp = payload.get('timestamp', time.time())
+                payload, message, severity, _ = parse_log_payload(msg.payload)
 
                 if _DEBUG and debug_file:
                     debug_file.write(f"Received: {msg.topic} - {payload}\n")

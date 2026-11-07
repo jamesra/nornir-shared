@@ -1,5 +1,4 @@
 import atexit
-import json
 import time
 import threading
 from typing import Any, Optional
@@ -11,7 +10,7 @@ try:
     from paho.mqtt.properties import Properties
     from paho.mqtt.reasoncodes import ReasonCode
     from nornir_shared.mqtt_config import MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE, MQTT_TOPICS, \
-        MQTT_RUN_TOPIC_ROOT
+        MQTT_RUN_TOPIC_ROOT, parse_log_payload
 
     MQTT_AVAILABLE = True
 except ImportError:
@@ -117,10 +116,7 @@ class ConsoleWindow(object):
 
             def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage):
                 try:
-                    payload = json.loads(msg.payload.decode())
-                    message = payload.get('message', '')
-                    severity = payload.get('severity', 'info')
-                    timestamp = payload.get('timestamp', time.time())
+                    _, message, severity, timestamp = parse_log_payload(msg.payload)
 
                     if self.title == "Error Console" and str(severity).lower() not in (
                             "error", "err", "critical", "fatal"):

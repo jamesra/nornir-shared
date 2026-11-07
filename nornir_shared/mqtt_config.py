@@ -1,6 +1,7 @@
 """
 MQTT configuration and mosquitto broker management for nornir_shared
 """
+import json
 import logging
 import os
 import secrets
@@ -10,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Optional
+from typing import Any, Optional
 
 # MQTT Configuration
 # Clients must connect to a concrete address; never use 0.0.0.0.
@@ -100,6 +101,18 @@ def run_topic_for_key(topic_key: str, run_id: str | None = None) -> str:
     """Map a severity/topic key (info, progress, meta, …) to its run-scoped MQTT topic."""
     suffix = _RUN_TOPIC_SUFFIXES.get(topic_key, f"log/{topic_key}")
     return run_topic(suffix, run_id=run_id)
+
+
+def parse_log_payload(raw: bytes) -> tuple[dict[str, Any], Any, Any, Any]:
+    """Decode a prettyoutput log payload into ``(payload, message, severity, timestamp)``.
+
+    Missing fields default to ``''``, ``'info'`` and the receive time. Values are
+    returned as published, unchecked. Raises on bytes that are not UTF-8 JSON or
+    JSON that is not an object; subscribers catch that and report it.
+    """
+    payload = json.loads(raw.decode())
+    return (payload, payload.get('message', ''), payload.get('severity', 'info'),
+            payload.get('timestamp', time.time()))
 
 
 def is_port_in_use(host: str, port: int) -> bool:
