@@ -321,7 +321,7 @@ def RunWithProfiler(functionStr, outputpath=None):
     finally:
         if not os.path.exists(ProfilePath):
             logger.error("No profile file found" + ProfilePath)
-            sys.exit()
+            sys.exit(2)
 
         pr = pstats.Stats(ProfilePath)
         if pr is not None:
