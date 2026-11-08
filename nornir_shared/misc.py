@@ -300,6 +300,12 @@ def ConfigureWorkerQueueLogging(log_queue=None, level=None):
 
 
 def RunWithProfiler(functionStr, outputpath=None):
+    """Run *functionStr* under ``cProfile`` and print the slowest calls.
+
+    The profile is written to ``BuildProfile.pr`` in *outputpath* (default
+    ``C:\\Temp``), which is created if missing. Exits the process with status 2
+    when the profile file cannot be written.
+    """
     import cProfile
     import pstats
     import sys
