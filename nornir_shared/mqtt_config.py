@@ -57,7 +57,14 @@ _RUN_TOPIC_SUFFIXES = {
     'status': 'status',
     'meta': 'meta',
     'event': 'event',
+    'notes': 'notes',
 }
+
+# ``notes`` is retained plain UTF-8 text (not JSON) that whoever owns a job may write at any time, e.g.
+# ``mosquitto_pub -r -t nornir/run/<RID>/notes -m "..."``; a new message notifies every subscriber. It holds only what
+# the run's meta and other topics do not already say (pipeline, volume path, host, pid, times, status, compute are
+# NOT repeated here): who owns the job and whether it is safe to kill, for example.
+MAX_RUN_NOTES_BYTES = 4096
 
 
 def is_local_mqtt_host(host: str | None = None) -> bool:

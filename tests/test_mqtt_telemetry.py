@@ -42,6 +42,26 @@ class TestMqttTelemetry(unittest.TestCase):
         self.assertIn("AssembleTransform", body)
         self.assertIn('"section": 63', body)
 
+    def test_publish_run_notes_is_retained_plain_text_on_the_notes_topic(self) -> None:
+        with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
+            with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):
+                with mock.patch("nornir_shared.prettyoutput.MQTT_AVAILABLE", True):
+                    mqtt_telemetry.publish_run_notes("owner RC1\nsafe to kill: no")
+
+        self.assertEqual(self.client.publish.call_args[0][0], "nornir/run/unit-run/notes")
+        self.assertEqual(self.client.publish.call_args[0][1], "owner RC1\nsafe to kill: no".encode("utf-8"))
+        self.assertTrue(self.client.publish.call_args.kwargs.get("retain"))
+
+    def test_publish_run_notes_is_capped(self) -> None:
+        with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
+            with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):
+                with mock.patch("nornir_shared.prettyoutput.MQTT_AVAILABLE", True):
+                    mqtt_telemetry.publish_run_notes("é" * 5000)  # two bytes each in UTF-8
+
+        body = self.client.publish.call_args[0][1]
+        self.assertLessEqual(len(body), 4096)
+        body.decode("utf-8")  # still valid UTF-8
+
     def test_publish_run_meta_retains_and_includes_status(self) -> None:
         with mock.patch.dict(os.environ, {"NORNIR_RUN_ID": "unit-run"}, clear=False):
             with mock.patch("nornir_shared.prettyoutput.MQTT_ENABLE", True):

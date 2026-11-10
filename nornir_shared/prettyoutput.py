@@ -192,6 +192,21 @@ def _publish_mqtt_message(topic_key: str, message: str, metadata: dict | None = 
         logging.getLogger(__name__).warning(f"Failed to publish MQTT message: {e}")
 
 
+def _publish_mqtt_text(topic_key: str, text: str, *, retain: bool = False) -> None:
+    """Publish *text* unchanged (not wrapped in JSON) to the run-scoped topic for *topic_key*."""
+    if not MQTT_AVAILABLE or not MQTT_ENABLE:
+        return
+    if not _mqtt_initialized:
+        _initialize_mqtt()
+    if not _mqtt_client:
+        return
+    try:
+        _mqtt_client.publish(run_topic_for_key(topic_key, run_id=get_or_create_run_id()), text.encode('utf-8'),
+                             retain=retain)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Failed to publish MQTT text: {e}")
+
+
 def publish_early_run_meta(*, pipeline: str, volumepath: str,
                            status: str = "running", **fields) -> None:
     """Publish retained run metadata so the dashboard can list the build immediately.

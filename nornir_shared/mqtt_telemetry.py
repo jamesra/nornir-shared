@@ -13,6 +13,7 @@ from typing import Any
 
 from nornir_shared import prettyoutput
 from nornir_shared.mqtt_config import (
+    MAX_RUN_NOTES_BYTES,
     NORNIR_LOG_SESSION_ENV,
     get_or_create_run_id,
 )
@@ -69,6 +70,16 @@ def publish_run_meta(*, status: str | None = None, retain: bool = True,
     volumepath = metadata.get("volumepath", "")
     message = f"{pipeline} {volumepath}".strip() or status or "meta"
     prettyoutput._publish_mqtt_message("meta", message, metadata, retain=retain)
+
+
+def publish_run_notes(text: str) -> None:
+    """Publish this run's notes (retained plain text) to ``nornir/run/<RID>/notes``.
+
+    Notes hold only what the run's other data does not already say; do not repeat the pipeline, volume path, host,
+    times or status. Text beyond ``MAX_RUN_NOTES_BYTES`` bytes of UTF-8 is cut. An empty text clears the notes.
+    """
+    data = text.encode('utf-8')[:MAX_RUN_NOTES_BYTES]
+    prettyoutput._publish_mqtt_text("notes", data.decode('utf-8', errors='ignore'), retain=True)
 
 
 def publish_run_event(event: str, **fields: Any) -> None:
