@@ -202,6 +202,26 @@ def pin_directory_for_worker(path: str) -> None:
         ensure_directory(abspath)
 
 
+# Errors a soft CIFS mount (or a busy NAS) returns for one call and not the next. RC3 on storage2, 2026-11-19:
+# open(dst, 'wb') raised EFAULT ("Bad address") twice, next to kernel "CIFS: VFS: No task to wake, unknown frame
+# received" lines under load, and each one failed a 10-section AssembleTiles batch. Writes here overwrite the
+# whole file, so retrying is safe.
+_TRANSIENT_NETWORK_ERRNOS = frozenset(
+    code for code in (getattr(errno, name, None) for name in
+                      ('EFAULT', 'EIO', 'EAGAIN', 'ETIMEDOUT', 'ECONNRESET', 'ECONNABORTED', 'EHOSTUNREACH'))
+    if code is not None)
+
+
+def _retryable_write_error(e: OSError, path: str, attempt: int) -> bool:
+    """True when *e* from writing *path* may succeed on retry: a missing directory or a transient network error."""
+    if e.errno == errno.ENOENT:
+        return True
+    if e.errno in _TRANSIENT_NETWORK_ERRNOS:
+        logging.getLogger(__name__).warning("Retrying write of %s after %s (attempt %d)", path, e, attempt + 1)
+        return True
+    return False
+
+
 def copy_file(
     src: str,
     dst: str,
@@ -209,7 +229,7 @@ def copy_file(
     retries: int = 16,
     base_delay_s: float = 0.1,
 ) -> None:
-    """Copy *src* to *dst* with CIFS/NFS retries.
+    """Copy *src* to *dst* with CIFS/NFS retries (missing directories and transient network errors).
 
     Stage-level ``ensure_directory`` should create *parent* once.  On failure this
     re-pins directory visibility in the worker thread and retries with backoff.
@@ -236,7 +256,7 @@ def copy_file(
         except FileNotFoundError as e:
             last_error = e
         except OSError as e:
-            if e.errno != errno.ENOENT:
+            if not _retryable_write_error(e, dst, attempt):
                 raise
             last_error = e
 
@@ -276,7 +296,7 @@ def write_file_bytes(
         except FileNotFoundError as e:
             last_error = e
         except OSError as e:
-            if e.errno != errno.ENOENT:
+            if not _retryable_write_error(e, dst, attempt):
                 raise
             last_error = e
 

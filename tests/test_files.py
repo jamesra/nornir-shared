@@ -344,6 +344,42 @@ class TestEnsureDirectory(unittest.TestCase):
                 nornir_shared.files.write_file_bytes(dst, b"x", base_delay_s=0)
             self.assertEqual(calls["n"], 2)
 
+    def test_a_transient_network_error_is_retried(self) -> None:
+        """RC3, storage2 soft CIFS mount: open(dst, 'wb') raised EFAULT once and failed a whole batch."""
+        for code in (errno.EFAULT, errno.EIO):
+            with self.subTest(errno=errno.errorcode[code]), tempfile.TemporaryDirectory() as temp_dir:
+                src = os.path.join(temp_dir, "src.png")
+                with open(src, "wb") as f:
+                    f.write(b"tile")
+                real_open = open
+                calls = {"n": 0}
+
+                def flaky_open(path, mode="r", *args, **kwargs):
+                    if "w" in mode:
+                        calls["n"] += 1
+                        if calls["n"] in (1, 3):
+                            raise OSError(code, os.strerror(code), path)
+                    return real_open(path, mode, *args, **kwargs)
+
+                with unittest.mock.patch("builtins.open", flaky_open),                         self.assertLogs("nornir_shared.files", level="WARNING"):
+                    nornir_shared.files.write_file_bytes(os.path.join(temp_dir, "a.png"), b"x", base_delay_s=0)
+                    nornir_shared.files.copy_file(src, os.path.join(temp_dir, "b.png"), base_delay_s=0)
+                self.assertEqual(calls["n"], 4)
+                with open(os.path.join(temp_dir, "b.png"), "rb") as f:
+                    self.assertEqual(f.read(), b"tile")
+
+    def test_a_permanent_error_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            calls = {"n": 0}
+
+            def denied_open(path, *args, **kwargs):
+                calls["n"] += 1
+                raise PermissionError(errno.EACCES, "denied", path)
+
+            with unittest.mock.patch("builtins.open", denied_open), self.assertRaises(PermissionError):
+                nornir_shared.files.write_file_bytes(os.path.join(temp_dir, "a.png"), b"x", base_delay_s=0)
+            self.assertEqual(calls["n"], 1)
+
     def test_write_file_bytes_removes_partial_dest_on_failure(self) -> None:
         """A failed write does not leave a truncated tile at the final name."""
         with tempfile.TemporaryDirectory() as temp_dir:
