@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import errno
 import glob
+import logging
 import math
 import os
 import re
@@ -740,7 +741,8 @@ def RemoveOutdatedFile(ReferenceFilename: str,
             prettyoutput.LogErr(f'Reference file does not exist: {ReferenceFilename}')
             return False
         elif not os.path.exists(remove_if_outdated):  # type: ignore[arg-type]
-            prettyoutput.Log(f'File being checked does not exist: {remove_if_outdated}')
+            # Normal for every output not built yet (one line per tile on an import), so debug only.
+            logging.getLogger(__name__).debug('File being checked does not exist: %s', remove_if_outdated)
             return True
     elif needs_removing:
         if isinstance(remove_if_outdated, str):
