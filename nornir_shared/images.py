@@ -158,21 +158,19 @@ def GetImageSize(image_param: str | NDArray) -> NDArray[np.integer]:
     if isinstance(image_param, np.ndarray):
         return np.array(image_param.shape, dtype=np.int32)
 
-    (root, ext) = os.path.splitext(image_param)
-
-    im = None
     try:
-        if ext == '.npy':
-            im = np.load(image_param, 'c')
-            return im.shape
-        else:
-            with Image.open(image_param) as im:
-                shape = (im.size[1], im.size[0])
-                return np.array(shape, dtype=np.int32)
-    except IOError:
-        raise IOError("Unable to read size from %s" % image_param)
-    finally:
-        del im
+        return nornir_shared.files.retry_transient_read(lambda: _read_image_size_once(image_param), image_param)
+    except IOError as e:
+        raise IOError("Unable to read size from %s" % image_param) from e
+
+
+def _read_image_size_once(image_path: str) -> NDArray[np.integer]:
+    """Read the (rows, columns) of the image file at *image_path* once."""
+    (root, ext) = os.path.splitext(image_path)
+    if ext == '.npy':
+        return np.load(image_path, 'c').shape
+    with Image.open(image_path) as im:
+        return np.array((im.size[1], im.size[0]), dtype=np.int32)
 
 
 def _is_numpy_extension(filename: str):

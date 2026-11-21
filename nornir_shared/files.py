@@ -213,6 +213,36 @@ _TRANSIENT_NETWORK_ERRNOS = frozenset(
     if code is not None)
 
 
+# Reads also see the share refusing an open for a moment (EAGAIN when out of SMB credits, EBUSY on a sharing
+# violation). RC3 on storage2, 2026-11-21: EAGAIN while reading a tile pyramid PNG's size failed a whole batch.
+TRANSIENT_READ_ERRNOS = _TRANSIENT_NETWORK_ERRNOS | frozenset(
+    code for code in (getattr(errno, name, None) for name in ('EWOULDBLOCK', 'EBUSY')) if code is not None)
+
+READ_RETRY_ATTEMPTS = 8
+READ_RETRY_BASE_DELAY_S = 0.1  # doubling: about 13 s of waiting before the last attempt
+
+_T = typing.TypeVar('_T')
+
+
+def retry_transient_read(read: typing.Callable[[], _T], path: str, *,
+                         attempts: int = READ_RETRY_ATTEMPTS,
+                         base_delay_s: float = READ_RETRY_BASE_DELAY_S,
+                         sleep: typing.Callable[[float], None] = time.sleep) -> _T:
+    """Call *read* (which reads *path*), retrying transient network errors with doubling delays.
+
+    Reads have no side effects, so a retry is always safe. Other errors, and the last transient one, propagate.
+    """
+    for attempt in range(attempts):
+        try:
+            return read()
+        except OSError as e:
+            if e.errno not in TRANSIENT_READ_ERRNOS or attempt == attempts - 1:
+                raise
+            logging.getLogger(__name__).warning("Retrying read of %s after %s (attempt %d)", path, e, attempt + 1)
+            sleep(base_delay_s * (2 ** attempt))
+    raise AssertionError('unreachable: the loop returns or raises')
+
+
 def _retryable_write_error(e: OSError, path: str, attempt: int) -> bool:
     """True when *e* from writing *path* may succeed on retry: a missing directory or a transient network error."""
     if e.errno == errno.ENOENT:
